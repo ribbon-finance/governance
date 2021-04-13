@@ -30,8 +30,8 @@ describe("Ribbon Token contract", function () {
     // Allow impersonation of new account
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
-      params: [TOKEN_PARAMS.OWNER]}
-    )
+      params: [TOKEN_PARAMS.OWNER],
+    });
     const signer = await ethers.provider.getSigner(await ribbonToken.owner());
     let token = await ethers.getContractAt("RibbonToken", ribbonToken.address);
     withSigner = await token.connect(signer);
@@ -58,9 +58,11 @@ describe("Ribbon Token contract", function () {
   });
 
   // Test token parameter
-  describe("Token Parameters", function(){
+  describe("Token Parameters", function () {
     it("Should have the correct decimals", async function () {
-      expect(await ribbonToken.decimals()).to.equal(parseInt(TOKEN_PARAMS.DECIMALS));
+      expect(await ribbonToken.decimals()).to.equal(
+        parseInt(TOKEN_PARAMS.DECIMALS)
+      );
     });
 
     it("Should have the correct name", async function () {
@@ -73,7 +75,7 @@ describe("Ribbon Token contract", function () {
   });
 
   // Test pause functionality
-  describe("Pause", function(){
+  describe("Pause", function () {
     it("Should be possible by the owner", async function () {
       await withSigner.pause();
       await expect(await withSigner.paused()).to.equal(true);
@@ -86,12 +88,16 @@ describe("Ribbon Token contract", function () {
     });
 
     it("Should revert pause attempts by non-owner", async function () {
-      await expect(ribbonToken.pause()).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(ribbonToken.pause()).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
     });
 
     it("Should revert transfers when paused", async function () {
       await withSigner.pause();
-      await expect(withSigner.transfer(addr1.address, 50)).to.be.revertedWith("ERC20Pausable: token transfer while paused");
+      await expect(withSigner.transfer(addr1.address, 50)).to.be.revertedWith(
+        "ERC20Pausable: token transfer while paused"
+      );
     });
   });
 
@@ -111,7 +117,9 @@ describe("Ribbon Token contract", function () {
     });
 
     it("Should fail if sender doesn’t have enough tokens", async function () {
-      const initialOwnerBalance = await ribbonToken.balanceOf(await ribbonToken.owner());
+      const initialOwnerBalance = await ribbonToken.balanceOf(
+        await ribbonToken.owner()
+      );
 
       // Try to send 1 token from addr1 (0 tokens) to owner (1000 tokens).
       // `require` will evaluate false and revert the transaction.
@@ -126,26 +134,33 @@ describe("Ribbon Token contract", function () {
     });
 
     it("Should update balances after transfers", async function () {
-      const initialOwnerBalance = await ribbonToken.balanceOf(await ribbonToken.owner());
+      const initialOwnerBalance = await ribbonToken.balanceOf(
+        await ribbonToken.owner()
+      );
 
       // Transfer 100 tokens from owner to addr1.
       const toTransfer1 = BigNumber.from("100")
         .mul(BigNumber.from("10").pow(BigNumber.from(TOKEN_PARAMS.DECIMALS)))
-        .toString()
+        .toString();
       await withSigner.transfer(addr1.address, toTransfer1);
 
       // Transfer another 50 tokens from owner to addr1.
       const toTransfer2 = BigNumber.from("50")
         .mul(BigNumber.from("10").pow(BigNumber.from(TOKEN_PARAMS.DECIMALS)))
-        .toString()
+        .toString();
       await withSigner.transfer(addr2.address, toTransfer2);
 
-      const amountLost = BigNumber.from("150")
-        .mul(BigNumber.from("10").pow(BigNumber.from(TOKEN_PARAMS.DECIMALS)))
+      const amountLost = BigNumber.from("150").mul(
+        BigNumber.from("10").pow(BigNumber.from(TOKEN_PARAMS.DECIMALS))
+      );
 
       // Check balances.
-      const finalOwnerBalance = await ribbonToken.balanceOf(await ribbonToken.owner());
-      expect(finalOwnerBalance.toString()).to.equal((initialOwnerBalance.sub(amountLost)).toString());
+      const finalOwnerBalance = await ribbonToken.balanceOf(
+        await ribbonToken.owner()
+      );
+      expect(finalOwnerBalance.toString()).to.equal(
+        initialOwnerBalance.sub(amountLost).toString()
+      );
 
       const addr1Balance = await ribbonToken.balanceOf(addr1.address);
       expect(addr1Balance).to.equal(toTransfer1);
