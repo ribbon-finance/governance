@@ -9,14 +9,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract RibbonToken is ERC20Pausable, ERC20Burnable, Ownable{
 
 	constructor(string memory name, string memory symbol, uint256 totalSupply, address owner)
-    public
-		ERC20(name, symbol)
-		{
-      // We are minting a total of initialSupply tokens, and it is capped at that value
+		public
+		ERC20(name, symbol) {
+			// We are minting a total of initialSupply tokens, and it is capped at that value
 			_mint(owner, totalSupply);
 			// Transferring ownership to the new owner
 			transferOwnership(owner);
-		}
+	}
 
   // This function reverts if the caller is not the owner.
   function pause() external onlyOwner {
