@@ -8,7 +8,7 @@ async function main() {
     TOKEN_PARAMS.NAME,
     TOKEN_PARAMS.SYMBOL,
     TOKEN_PARAMS.SUPPLY,
-    TOKEN_PARAMS.OWNER
+    TOKEN_PARAMS.BENIFICIARY
   );
 
   await ribbonToken.deployed();

@@ -22,7 +22,7 @@ describe("Ribbon Token contract", function () {
       TOKEN_PARAMS.NAME,
       TOKEN_PARAMS.SYMBOL,
       TOKEN_PARAMS.SUPPLY,
-      TOKEN_PARAMS.OWNER
+      TOKEN_PARAMS.BENIFICIARY
     );
 
     await ribbonToken.deployed();
@@ -30,9 +30,9 @@ describe("Ribbon Token contract", function () {
     // Allow impersonation of new account
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
-      params: [TOKEN_PARAMS.OWNER],
+      params: [TOKEN_PARAMS.BENIFICIARY],
     });
-    const signer = await ethers.provider.getSigner(await ribbonToken.owner());
+    const signer = await ethers.provider.getSigner(TOKEN_PARAMS.BENIFICIARY);
     let token = await ethers.getContractAt("RibbonToken", ribbonToken.address);
     withSigner = await token.connect(signer);
   });
@@ -43,17 +43,30 @@ describe("Ribbon Token contract", function () {
       expect(await ribbonToken.totalSupply()).to.equal(TOKEN_PARAMS.SUPPLY);
     });
 
-    it("Should mint the total supply of tokens to the new owner", async function () {
-      const ownerBalance = await ribbonToken.balanceOf(TOKEN_PARAMS.OWNER);
+    it("Should mint the total supply of tokens to the new benificiary", async function () {
+      const ownerBalance = await ribbonToken.balanceOf(
+        TOKEN_PARAMS.BENIFICIARY
+      );
       expect(await ribbonToken.totalSupply()).to.equal(ownerBalance);
     });
 
-    it("Should set the new owner", async function () {
-      expect(await ribbonToken.owner()).to.equal(TOKEN_PARAMS.OWNER);
+    it("Should allow the benificiary to mint", async function () {
+      await expect(await withSigner.mint(addr1.address, 50)).to.emit(
+        ribbonToken,
+        "Transfer"
+      );
     });
 
-    it("Should transfer ownership away from contract deployer", async function () {
-      expect(await ribbonToken.owner()).to.not.equal(owner.address);
+    it("Should revert mint attempts by non-minter", async function () {
+      await expect(ribbonToken.mint(addr1.address, 50)).to.be.revertedWith(
+        "RibbonToken: only minter"
+      );
+    });
+
+    it("Should revert mint attempts by non-minter #2", async function () {
+      await expect(
+        ribbonToken.connect(owner).mint(addr1.address, 50)
+      ).to.be.revertedWith("RibbonToken: only minter");
     });
   });
 
@@ -91,7 +104,7 @@ describe("Ribbon Token contract", function () {
 
     it("Should fail if sender doesn’t have enough tokens", async function () {
       const initialOwnerBalance = await ribbonToken.balanceOf(
-        await ribbonToken.owner()
+        TOKEN_PARAMS.BENIFICIARY
       );
 
       // Try to send 1 token from addr1 (0 tokens) to owner (1000 tokens).
@@ -101,14 +114,14 @@ describe("Ribbon Token contract", function () {
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
 
       // Owner balance shouldn't have changed.
-      expect(await ribbonToken.balanceOf(await ribbonToken.owner())).to.equal(
+      expect(await ribbonToken.balanceOf(TOKEN_PARAMS.BENIFICIARY)).to.equal(
         initialOwnerBalance
       );
     });
 
     it("Should update balances after transfers", async function () {
       const initialOwnerBalance = await ribbonToken.balanceOf(
-        await ribbonToken.owner()
+        TOKEN_PARAMS.BENIFICIARY
       );
 
       // Transfer 100 tokens from owner to addr1.
@@ -129,7 +142,7 @@ describe("Ribbon Token contract", function () {
 
       // Check balances.
       const finalOwnerBalance = await ribbonToken.balanceOf(
-        await ribbonToken.owner()
+        TOKEN_PARAMS.BENIFICIARY
       );
       expect(finalOwnerBalance.toString()).to.equal(
         initialOwnerBalance.sub(amountLost).toString()
