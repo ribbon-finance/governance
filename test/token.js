@@ -74,33 +74,6 @@ describe("Ribbon Token contract", function () {
     });
   });
 
-  // Test pause functionality
-  describe("Pause", function () {
-    it("Should be possible by the owner", async function () {
-      await withSigner.pause();
-      await expect(await withSigner.paused()).to.equal(true);
-    });
-
-    it("Should unpause when unpaused by owner", async function () {
-      await withSigner.pause();
-      await withSigner.unpause();
-      await expect(await withSigner.paused()).to.equal(false);
-    });
-
-    it("Should revert pause attempts by non-owner", async function () {
-      await expect(ribbonToken.pause()).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
-    });
-
-    it("Should revert transfers when paused", async function () {
-      await withSigner.pause();
-      await expect(withSigner.transfer(addr1.address, 50)).to.be.revertedWith(
-        "ERC20Pausable: token transfer while paused"
-      );
-    });
-  });
-
   // Test arbitrary ribbon token transfer attempts
   describe("Transactions", function () {
     it("Should transfer tokens between accounts", async function () {
