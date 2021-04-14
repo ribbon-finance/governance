@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { BigNumber } = ethers;
+const { formatBytes32String } = ethers.utils;
 
 const { TOKEN_PARAMS } = require("../params");
 
@@ -49,7 +50,10 @@ describe("Ribbon Token contract", function () {
       );
       expect(await ribbonToken.totalSupply()).to.equal(ownerBalance);
     });
+  });
 
+  // Test mint capabilities
+  describe("Mintability", function () {
     it("Should allow the benificiary to mint", async function () {
       await expect(await withSigner.mint(addr1.address, 50)).to.emit(
         ribbonToken,
@@ -67,6 +71,16 @@ describe("Ribbon Token contract", function () {
       await expect(
         ribbonToken.connect(owner).mint(addr1.address, 50)
       ).to.be.revertedWith("RibbonToken: only minter");
+    });
+
+    it("Should revert mint attempts by minter after renounced role", async function () {
+      await withSigner.renounceRole(
+        formatBytes32String("MINTER"),
+        TOKEN_PARAMS.BENIFICIARY
+      );
+      await expect(withSigner.mint(addr1.address, 50)).to.be.revertedWith(
+        "RibbonToken: only minter"
+      );
     });
   });
 
