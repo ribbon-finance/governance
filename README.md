@@ -1,4 +1,4 @@
-[Token Params](https://github.com/ribbon-finance/token/blob/de7cf2a9ac49ccc085d4900e0bb4c9501ef99192/params.js#L4)
+[Token Params](https://github.com/ribbon-finance/token/blob/7e65dc26e642edd48a6bda5b16d599917d8ae469/params.js#L4)
 
 Testing Contract
 
