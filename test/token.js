@@ -50,6 +50,21 @@ describe("Ribbon Token contract", function () {
       );
       expect(await ribbonToken.totalSupply()).to.equal(ownerBalance);
     });
+
+    it("Should grant beneficiary has minting rights", async function () {
+      await expect(
+        await withSigner.hasRole(
+          await ribbonToken.MINTER_ROLE(),
+          TOKEN_PARAMS.BENIFICIARY
+        )
+      ).to.equal(true);
+    });
+
+    it("Should not grant non-beneficiary any minting rights", async function () {
+      await expect(
+        await withSigner.hasRole(await ribbonToken.MINTER_ROLE(), addr1.address)
+      ).to.equal(false);
+    });
   });
 
   // Test mint capabilities
@@ -61,31 +76,10 @@ describe("Ribbon Token contract", function () {
       );
     });
 
-    it("Should show beneficiary has minting rights", async function () {
-      await expect(
-        await withSigner.hasRole(
-          await ribbonToken.MINTER_ROLE(),
-          TOKEN_PARAMS.BENIFICIARY
-        )
-      ).to.equal(true);
-    });
-
-    it("Should show non-beneficiary has no minting rights", async function () {
-      await expect(
-        await withSigner.hasRole(await ribbonToken.MINTER_ROLE(), addr1.address)
-      ).to.equal(false);
-    });
-
     it("Should revert mint attempts by non-minter", async function () {
       await expect(ribbonToken.mint(addr1.address, 50)).to.be.revertedWith(
         "RibbonToken: only minter"
       );
-    });
-
-    it("Should revert mint attempts by non-minter #2", async function () {
-      await expect(
-        ribbonToken.connect(owner).mint(addr1.address, 50)
-      ).to.be.revertedWith("RibbonToken: only minter");
     });
 
     it("Should revert mint attempts by minter after role renounced", async function () {
