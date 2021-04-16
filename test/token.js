@@ -5,7 +5,7 @@ const { formatBytes32String } = ethers.utils;
 
 const { TOKEN_PARAMS } = require("../params");
 
-describe("Ribbon Token contract", function () {
+describe("RibbonToken contract", function () {
   let RibbonToken;
   let ribbonToken;
   let owner;
