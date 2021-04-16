@@ -5,9 +5,7 @@ const { expect } = require("chai");
 
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
 
-const {
-  timeIsClose,
-} = require("./helpers");
+const { timeIsClose } = require("./helpers");
 const { currentTime, fastForward } = require("./utils")();
 
 describe("Pausable contract", function () {
