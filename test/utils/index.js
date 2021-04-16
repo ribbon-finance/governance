@@ -12,6 +12,10 @@ const BN = require("bn.js");
 const { toBN, toWei, fromWei, hexToAscii } = require("web3-utils");
 const UNIT = toWei(new BN("1"), "ether");
 
+const { BigNumber } = hardhat;
+const { parseEther } = ethers.utils;
+
+
 module.exports = ({ web3 } = {}) => {
   // allow non-buidler based test tasks to pass thru web3
   web3 = web3 || hardhat.web3;
@@ -124,7 +128,7 @@ module.exports = ({ web3 } = {}) => {
    *  we should be able to update the conversion factor here.
    *  @param amount The amount you want to re-base to UNIT
    */
-  const toUnit = (amount) => toBN(toWei(amount.toString(), "ether"));
+  const toUnit = (amount) => parseEther(amount.toString());
   const fromUnit = (amount) => fromWei(amount, "ether");
 
   /**

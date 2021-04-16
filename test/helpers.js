@@ -12,26 +12,6 @@ module.exports = {
     );
   },
 
-  async onlyGivenAddressCanInvoke({
-    fnc,
-    args,
-    accounts,
-    address = undefined,
-    skipPassCheck = false,
-    reason = undefined,
-  }) {
-    for (const user of accounts) {
-      if (user === address) {
-        continue;
-      }
-
-      await assert.revert(fnc(...args, { from: user }), reason);
-    }
-    if (!skipPassCheck && address) {
-      await fnc(...args, { from: address });
-    }
-  },
-
   ensureOnlyExpectedMutativeFunctions({
     abi,
     hasFallback = false,

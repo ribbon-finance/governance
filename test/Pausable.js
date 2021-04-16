@@ -6,9 +6,7 @@ const { expect } = require("chai");
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
 
 const {
-  onlyGivenAddressCanInvoke,
   timeIsClose,
-  ensureOnlyExpectedMutativeFunctions,
 } = require("./helpers");
 const { currentTime, fastForward } = require("./utils")();
 
