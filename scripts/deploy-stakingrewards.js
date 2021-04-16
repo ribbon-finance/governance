@@ -3,7 +3,9 @@ const { TOKEN_PARAMS } = require("../params");
 
 async function main() {
   // We get the contract to deploy
-  const RibbonStakingRewards = await hre.ethers.getContractFactory("StakingRewards");
+  const RibbonStakingRewards = await hre.ethers.getContractFactory(
+    "StakingRewards"
+  );
   const ribbonStakingRewards = await RibbonStakingRewards.deploy(
     STAKING_REWARDS_PARAMS.OWNER,
     STAKING_REWARDS_PARAMS.REWARDS_DIST_ADDR,
