@@ -1,5 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
-
+require("@nomiclabs/hardhat-truffle5");
 require("dotenv").config();
 
 process.env.TEST_MNEMONIC =
@@ -23,7 +23,7 @@ module.exports = {
       forking: {
         url: process.env.TEST_URI,
         gasLimit: 8e6,
-        blockNumber: 11611333,
+        blockNumber: 12239391,
       },
     },
   },
