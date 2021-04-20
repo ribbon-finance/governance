@@ -85,6 +85,9 @@ describe("StakingRewards contract", function () {
     let token = await ethers.getContractAt("RibbonToken", rewardsToken.address);
     rewardsTokenOwner = await token.connect(signer);
 
+    //set transfers to allowed
+    await rewardsTokenOwner.setTransfersAllowed(true);
+
     // Get address of rETH-THETA token holder
     // Allow impersonation of new account
     await hre.network.provider.request({
