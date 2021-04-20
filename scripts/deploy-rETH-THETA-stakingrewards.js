@@ -7,16 +7,16 @@ async function main() {
     "StakingRewards"
   );
   const ribbonStakingRewards = await RibbonStakingRewards.deploy(
-    STAKING_REWARDS_PARAMS.OWNER,
-    STAKING_REWARDS_PARAMS.REWARDS_DIST_ADDR,
-    STAKING_REWARDS_PARAMS.REWARDS_TOKEN,
-    STAKING_REWARDS_PARAMS.STAKING_TOKEN
+    STAKING_REWARDS_rETHTHETA_PARAMS.OWNER,
+    STAKING_REWARDS_rETHTHETA_PARAMS.REWARDS_DIST_ADDR,
+    STAKING_REWARDS_rETHTHETA_PARAMS.REWARDS_TOKEN,
+    STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
   );
 
   await ribbonStakingRewards.deployed();
 
   console.log(
-    `\nRibbon Staking Rewards is deployed at ${ribbonStakingRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonStakingRewards.address}\n`
+    `\nRibbon rETH-THETA Staking Rewards is deployed at ${ribbonStakingRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonStakingRewards.address}\n`
   );
 }
 
