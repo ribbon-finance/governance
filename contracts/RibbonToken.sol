@@ -13,7 +13,7 @@ contract RibbonToken is AccessControl, ERC20 {
     bytes32 public constant TRANSFER_ROLE = keccak256("TRANSFER");
 
     /// @dev bool flag of whether transfer is currently allowed for all people.
-    bool private transfersAllowed = true;
+    bool private transfersAllowed = false;
 
     constructor(
         string memory name,
@@ -23,8 +23,6 @@ contract RibbonToken is AccessControl, ERC20 {
     ) public ERC20(name, symbol) {
         // We are minting initialSupply number of tokens
         _mint(benificiary, totalSupply);
-        // Set transfers allowed back to false
-        transfersAllowed = false;
         // Add benificiary as minter
         _setupRole(MINTER_ROLE, benificiary);
         // Add benificiary as transferer
@@ -48,9 +46,11 @@ contract RibbonToken is AccessControl, ERC20 {
     }
 
     /// @dev A modifier which checks that the caller has transfer privileges.
-    modifier onlyTransferer() {
+    modifier onlyTransferer(address from) {
         require(
-            transfersAllowed || hasRole(TRANSFER_ROLE, msg.sender),
+            transfersAllowed ||
+                from == address(0) ||
+                hasRole(TRANSFER_ROLE, msg.sender),
             "RibbonToken: no transfer privileges"
         );
         _;
@@ -76,7 +76,7 @@ contract RibbonToken is AccessControl, ERC20 {
         address from,
         address to,
         uint256 amount
-    ) internal virtual override onlyTransferer {}
+    ) internal virtual override onlyTransferer(from) {}
 
     /// @dev Emitted when transfer toggle is switched
     event TransfersAllowed(bool transfersAllowed);
