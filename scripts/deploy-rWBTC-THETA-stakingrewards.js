@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const { TOKEN_PARAMS } = require("../params");
+const { STAKING_REWARDS_rWBTCTHETA_PARAMS } = require("../params");
 
 async function main() {
   // We get the contract to deploy
