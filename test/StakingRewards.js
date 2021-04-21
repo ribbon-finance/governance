@@ -8,7 +8,7 @@ const { BigNumber } = ethers;
 
 const {
   TOKEN_PARAMS,
-  STAKING_REWARDS_PARAMS,
+  STAKING_REWARDS_rETHTHETA_PARAMS,
   STAKING_TOKEN_PARAMS,
   EXTERNAL_TOKEN_PARAMS,
 } = require("../params");
@@ -72,7 +72,7 @@ describe("StakingRewards contract", function () {
       owner.address,
       mockRewardsDistributionAddress.address,
       rewardsToken.address,
-      STAKING_REWARDS_PARAMS.STAKING_TOKEN
+      STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
     );
 
     // Get address of ribbon token holder
@@ -757,7 +757,7 @@ describe("StakingRewards contract", function () {
         owner.address,
         mockRewardsDistributionAddress.address,
         rewardsToken.address,
-        STAKING_REWARDS_PARAMS.STAKING_TOKEN
+        STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
       );
 
       await localStakingRewards
