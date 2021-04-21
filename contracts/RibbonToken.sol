@@ -13,7 +13,7 @@ contract RibbonToken is AccessControl, ERC20 {
     bytes32 public constant TRANSFER_ROLE = keccak256("TRANSFER");
 
     /// @dev bool flag of whether transfer is currently allowed for all people.
-    bool private transfersAllowed = false;
+    bool public transfersAllowed = false;
 
     constructor(
         string memory name,

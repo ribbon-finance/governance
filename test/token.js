@@ -52,55 +52,55 @@ describe("RibbonToken contract", function () {
     });
 
     it("Should grant beneficiary minting rights", async function () {
-      await expect(
+      expect(
         await withSigner.hasRole(
           await ribbonToken.MINTER_ROLE(),
           TOKEN_PARAMS.BENIFICIARY
         )
-      ).to.equal(true);
+      ).to.be.true;
     });
 
     it("Should not grant non-beneficiary any minting rights", async function () {
       await expect(
         await withSigner.hasRole(await ribbonToken.MINTER_ROLE(), addr1.address)
-      ).to.equal(false);
+      ).to.be.false;
     });
 
     it("Should grant beneficiary transfer rights", async function () {
-      await expect(
+      expect(
         await withSigner.hasRole(
           await ribbonToken.TRANSFER_ROLE(),
           TOKEN_PARAMS.BENIFICIARY
         )
-      ).to.equal(true);
+      ).to.be.true;
     });
 
     it("Should not grant non-beneficiary any transfer rights", async function () {
-      await expect(
+      expect(
         await withSigner.hasRole(
           await ribbonToken.TRANSFER_ROLE(),
           addr1.address
         )
-      ).to.equal(false);
+      ).to.be.false;
     });
 
     it("Should grant beneficiary admin rights", async function () {
-      await expect(
+      expect(
         await withSigner.hasRole(
           await ribbonToken.ADMIN_ROLE(),
           TOKEN_PARAMS.BENIFICIARY
         )
-      ).to.equal(true);
+      ).to.be.true;
     });
 
     it("Should not grant non-beneficiary any admin rights", async function () {
-      await expect(
+      expect(
         await withSigner.hasRole(await ribbonToken.ADMIN_ROLE(), addr1.address)
-      ).to.equal(false);
+      ).to.be.false;
     });
 
     it("Admin role of transfer role should be ADMIN_ROLE", async function () {
-      await expect(
+      expect(
         await withSigner.getRoleAdmin(await ribbonToken.TRANSFER_ROLE())
       ).to.equal(await ribbonToken.ADMIN_ROLE());
     });
@@ -157,6 +157,12 @@ describe("RibbonToken contract", function () {
   describe("Transferability", function () {
     it("Should let beneficiary toggle transfer flag", async function () {
       await withSigner.setTransfersAllowed(true);
+      expect(await withSigner.transfersAllowed()).to.be.true;
+    });
+
+    it("Should let beneficiary toggle transfer flag #2", async function () {
+      await withSigner.setTransfersAllowed(false);
+      expect(await withSigner.transfersAllowed()).to.be.false;
     });
 
     it("Should not let non-beneficiary toggle transfer flag", async function () {
@@ -176,6 +182,14 @@ describe("RibbonToken contract", function () {
       await withSigner.transfer(addr1.address, 50);
       await ribbonToken.connect(addr1).transfer(addr2.address, 50);
     });
+
+    it("Should not let non-admin to transfer after toggle switched to false", async function () {
+      await withSigner.setTransfersAllowed(false);
+      await withSigner.transfer(addr1.address, 50);
+      await expect(
+        ribbonToken.connect(addr1).transfer(addr2.address, 50)
+      ).to.be.revertedWith("RibbonToken: no transfer privileges");
+    });
   });
 
   // Test admin privileges
@@ -190,7 +204,7 @@ describe("RibbonToken contract", function () {
           await ribbonToken.TRANSFER_ROLE(),
           addr1.address
         )
-      ).to.equal(true);
+      ).to.be.true;
       await withSigner.transfer(addr1.address, 50);
       await ribbonToken.connect(addr1).transfer(addr2.address, 50);
     });
@@ -213,7 +227,7 @@ describe("RibbonToken contract", function () {
           await ribbonToken.TRANSFER_ROLE(),
           addr1.address
         )
-      ).to.equal(false);
+      ).to.be.false;
     });
 
     it("Should not let admin assign minter role to another", async function () {
