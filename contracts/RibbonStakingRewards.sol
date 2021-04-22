@@ -31,6 +31,11 @@ contract StakingRewards is
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
+    uint256 public WEEK = 7 days;
+    // timestamp dictating at what time of week to release rewards
+    // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
+    uint256 public schedule;
+
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
@@ -43,11 +48,13 @@ contract StakingRewards is
         address _owner,
         address _rewardsDistribution,
         address _rewardsToken,
-        address _stakingToken
+        address _stakingToken,
+        uint256 _schedule
     ) public Owned(_owner) {
         rewardsToken = IERC20(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
         rewardsDistribution = _rewardsDistribution;
+        schedule = _schedule;
     }
 
     /* ========== VIEWS ========== */
@@ -65,8 +72,15 @@ contract StakingRewards is
         return _balances[account];
     }
 
+    // The minimum between periodFinish and the last instance of the current schedule release time
     function lastTimeRewardApplicable() public view override returns (uint256) {
-        return Math.min(block.timestamp, periodFinish);
+        return
+            Math.min(
+                (block.timestamp).sub(schedule).div(WEEK).mul(WEEK).add(
+                    schedule
+                ),
+                periodFinish
+            );
     }
 
     function rewardPerToken() public view override returns (uint256) {
@@ -200,6 +214,15 @@ contract StakingRewards is
         emit RewardsDurationUpdated(rewardsDuration);
     }
 
+    // Sets the schedule
+    // NEEDS TO BE THE LAST DATE COMPARED TO TODAY
+    // Ex: if today is april 12 (monday) and we want to schedule it for fridays 5pm
+    // we need to input timestamp equivalent of april 9 (friday) at 5pm
+    function setSchedule(uint256 _schedule) external onlyOwner {
+        schedule = _schedule;
+        emit ScheduleUpdated(schedule);
+    }
+
     /* ========== MODIFIERS ========== */
 
     modifier updateReward(address account) {
@@ -220,4 +243,5 @@ contract StakingRewards is
     event RewardPaid(address indexed user, uint256 reward);
     event RewardsDurationUpdated(uint256 newDuration);
     event Recovered(address token, uint256 amount);
+    event ScheduleUpdated(uint256 schedule);
 }
