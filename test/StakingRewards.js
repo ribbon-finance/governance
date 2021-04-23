@@ -151,6 +151,19 @@ describe("StakingRewards contract", function () {
       const ownerAddress = await stakingRewards.owner();
       assert.equal(ownerAddress, owner.address);
     });
+
+    it("should set rewards distribution address on constructor", async () => {
+      const rewardsDistributionAddress = await stakingRewards.rewardsDistribution();
+      assert.equal(
+        rewardsDistributionAddress,
+        mockRewardsDistributionAddress.address
+      );
+    });
+
+    it("should set start emission on constructor", async () => {
+      const startEmissionTimestamp = await stakingRewards.startEmission();
+      assert.equal(startEmissionTimestamp, startEmission);
+    });
   });
 
   describe("Function permissions", () => {

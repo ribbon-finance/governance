@@ -34,7 +34,6 @@ contract StakingRewards is
     // timestamp dictating at what time of week to release rewards
     // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
     uint256 public startEmission;
-    uint256 public numWeeksPassed;
 
     uint256 private constant WEEK = 7 days;
 
@@ -53,17 +52,28 @@ contract StakingRewards is
         address _stakingToken,
         uint256 _startEmission
     ) public Owned(_owner) {
-        require(_owner != address(0));
-        require(_rewardsToken != address(0));
-        require(_stakingToken != address(0));
-        require(_rewardsDistribution != address(0));
-        require(_startEmission > block.timestamp);
+        require(_owner != address(0), "Owner must be non-zero address");
+        require(
+            _rewardsToken != address(0),
+            "Rewards token must be non-zero address"
+        );
+        require(
+            _stakingToken != address(0),
+            "Staking token must be non-zero address"
+        );
+        require(
+            _rewardsDistribution != address(0),
+            "Rewards Distributor must be non-zero address"
+        );
+        require(
+            _startEmission > block.timestamp,
+            "Start Emission must be in the future"
+        );
 
         rewardsToken = IERC20(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
         rewardsDistribution = _rewardsDistribution;
         startEmission = _startEmission;
-        numWeeksPassed = _numWeeksPassed(block.timestamp);
     }
 
     /* ========== VIEWS ========== */
