@@ -32,7 +32,7 @@ describe("StakingRewards contract", function () {
     externalRewardsToken,
     externalRewardsTokenOwner,
     stakingRewards,
-    schedule;
+    startEmission;
 
   addSnapshotBeforeRestoreAfterEach();
 
@@ -67,7 +67,7 @@ describe("StakingRewards contract", function () {
       EXTERNAL_TOKEN_PARAMS.ADDRESS
     );
 
-    schedule = ((await currentTime()) - 1000).toString();
+    startEmission = ((await currentTime()) + 1000).toString();
 
     // Get staking rewards contract
     RibbonStakingRewards = await ethers.getContractFactory("StakingRewards");
@@ -76,7 +76,7 @@ describe("StakingRewards contract", function () {
       mockRewardsDistributionAddress.address,
       rewardsToken.address,
       STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
-      schedule
+      startEmission
     );
 
     // Get address of ribbon token holder
@@ -309,7 +309,7 @@ describe("StakingRewards contract", function () {
 
         const lastTimeReward = await stakingRewards.lastTimeRewardApplicable();
 
-        assert.equal(schedule, lastTimeReward.toString());
+        assert.equal(startEmission, lastTimeReward.toString());
       });
     });
   });
@@ -363,7 +363,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const rewardPerToken = await stakingRewards.rewardPerToken();
       assert.isAbove(parseInt(rewardPerToken), 0);
@@ -388,7 +388,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const rewardPerToken = await stakingRewards.rewardPerToken();
 
@@ -417,7 +417,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const rewardPerToken = await stakingRewards.rewardPerToken();
 
@@ -426,7 +426,7 @@ describe("StakingRewards contract", function () {
       const rewardPerToken2 = await stakingRewards.rewardPerToken();
 
       assert.isAbove(parseInt(rewardPerToken), 0);
-      assert.isAbove(parseInt(rewardPerToken2), parseInt(rewardPerToken));
+      assert.bnEqual(parseInt(rewardPerToken2), parseInt(rewardPerToken) * 2);
     });
   });
 
@@ -510,7 +510,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
@@ -533,7 +533,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
@@ -560,7 +560,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
@@ -569,7 +569,7 @@ describe("StakingRewards contract", function () {
       const earned2 = await stakingRewards.earned(deployerAccount.address);
 
       assert.isAbove(parseInt(earned), 0);
-      assert.isAbove(parseInt(earned2), parseInt(earned));
+      assert.bnEqual(parseInt(earned2), parseInt(earned) * 2);
     });
 
     it("rewardRate should increase if new rewards come before DURATION ends", async () => {
@@ -609,6 +609,8 @@ describe("StakingRewards contract", function () {
         .approve(stakingRewards.address, totalToStake);
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
+      await stakingRewards.connect(owner).setRewardsDuration(DAY * 8);
+
       await rewardsTokenOwner.transfer(
         stakingRewards.address,
         totalToDistribute
@@ -617,7 +619,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
       const earnedFirst = await stakingRewards.earned(deployerAccount.address);
 
       await rewardsTokenOwner.transfer(
@@ -658,7 +660,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const initialRewardBal = await rewardsToken.balanceOf(
         deployerAccount.address
@@ -908,7 +910,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(toUnit(5000.0));
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 8);
 
       const initialRewardBal = await rewardsToken.balanceOf(
         deployerAccount.address
@@ -939,7 +941,7 @@ describe("StakingRewards contract", function () {
         mockRewardsDistributionAddress.address,
         rewardsToken.address,
         STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
-        schedule
+        startEmission
       );
 
       await localStakingRewards
