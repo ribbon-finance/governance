@@ -35,6 +35,7 @@ contract StakingRewards is
     // timestamp dictating at what time of week to release rewards
     // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
     uint256 public schedule;
+    uint256 public numWeeksPassed;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
@@ -55,6 +56,7 @@ contract StakingRewards is
         stakingToken = IERC20(_stakingToken);
         rewardsDistribution = _rewardsDistribution;
         schedule = _schedule;
+        numWeeksPassed = _numWeeksPassed(block.timestamp);
     }
 
     /* ========== VIEWS ========== */
@@ -76,9 +78,7 @@ contract StakingRewards is
     function lastTimeRewardApplicable() public view override returns (uint256) {
         return
             Math.min(
-                (block.timestamp).sub(schedule).div(WEEK).mul(WEEK).add(
-                    schedule
-                ),
+                _numWeeksPassed(block.timestamp).mul(WEEK).add(schedule),
                 periodFinish
             );
     }
@@ -87,6 +87,7 @@ contract StakingRewards is
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
+
         return
             rewardPerTokenStored.add(
                 lastTimeRewardApplicable()
@@ -152,6 +153,10 @@ contract StakingRewards is
         getReward();
     }
 
+    function _numWeeksPassed(uint256 time) internal view returns (uint256) {
+        return time.sub(schedule).div(WEEK);
+    }
+
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function notifyRewardAmount(uint256 reward)
@@ -178,8 +183,8 @@ contract StakingRewards is
             "Provided reward too high"
         );
 
-        lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
+        lastUpdateTime = lastTimeRewardApplicable();
         emit RewardAdded(reward);
     }
 
@@ -212,15 +217,6 @@ contract StakingRewards is
         );
         rewardsDuration = _rewardsDuration;
         emit RewardsDurationUpdated(rewardsDuration);
-    }
-
-    // Sets the schedule
-    // NEEDS TO BE THE LAST DATE COMPARED TO TODAY
-    // Ex: if today is april 12 (monday) and we want to schedule it for fridays 5pm
-    // we need to input timestamp equivalent of april 9 (friday) at 5pm
-    function setSchedule(uint256 _schedule) external onlyOwner {
-        schedule = _schedule;
-        emit ScheduleUpdated(schedule);
     }
 
     /* ========== MODIFIERS ========== */
