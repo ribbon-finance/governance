@@ -650,6 +650,104 @@ describe("StakingRewards contract", function () {
     });
   });
 
+  describe("weeksStaked()", () => {
+    it("weeksStaked should be 0 couple days after staking", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 3);
+
+      const weeksStaked = await stakingRewards.weeksStaked(
+        deployerAccount.address
+      );
+
+      assert.bnEqual(parseInt(weeksStaked), "0");
+    });
+
+    it("weeksStaked should be 2 after 2 weeks of staking", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 15);
+
+      const weeksStaked = await stakingRewards.weeksStaked(
+        deployerAccount.address
+      );
+
+      assert.bnEqual(parseInt(weeksStaked), "2");
+    });
+
+    it("weeksStaked should be same after withdrawing some of balance", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 15);
+
+      await stakingRewards.connect(deployerAccount).withdraw(toUnit("50"));
+
+      const weeksStaked = await stakingRewards.weeksStaked(
+        deployerAccount.address
+      );
+
+      assert.bnEqual(parseInt(weeksStaked), "2");
+    });
+
+    it("weeksStaked should be 0 after withdrawing all of balance", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 15);
+
+      stakingRewards.connect(deployerAccount).withdraw(totalToStake);
+
+      const weeksStaked = await stakingRewards.weeksStaked(
+        deployerAccount.address
+      );
+
+      assert.bnEqual(parseInt(weeksStaked), "0");
+    });
+  });
+
   describe("getReward()", () => {
     const seventyDays = DAY * 70;
 
