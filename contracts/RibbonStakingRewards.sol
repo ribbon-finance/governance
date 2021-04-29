@@ -125,6 +125,9 @@ contract StakingRewards is
     }
 
     function weeksStaked(address account) public view returns (uint256) {
+        if (userStakeStart[account] == 0) {
+            return 0;
+        }
         return _numWeeksPassed(block.timestamp).sub(userStakeStart[account]);
     }
 
@@ -143,9 +146,11 @@ contract StakingRewards is
     {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
+        if (_balances[msg.sender] == 0) {
+            userStakeStart[msg.sender] = _numWeeksPassed(block.timestamp);
+        }
         _balances[msg.sender] = _balances[msg.sender].add(amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
-        userStakeStart[msg.sender] = _numWeeksPassed(block.timestamp);
         emit Staked(msg.sender, amount);
     }
 
@@ -160,7 +165,7 @@ contract StakingRewards is
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         stakingToken.safeTransfer(msg.sender, amount);
         if (_balances[msg.sender] == 0) {
-            userStakeStart[msg.sender] = _numWeeksPassed(block.timestamp);
+            userStakeStart[msg.sender] = 0;
         }
         emit Withdrawn(msg.sender, amount);
     }
