@@ -38,7 +38,6 @@ contract StakingRewards is
     uint256 private constant WEEK = 7 days;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
-    mapping(address => uint256) public userStakeStart;
     mapping(address => uint256) public rewards;
 
     uint256 private _totalSupply;
@@ -124,10 +123,6 @@ contract StakingRewards is
                 .add(rewards[account]);
     }
 
-    function weeksStaked(address account) public view returns (uint256) {
-        return _numWeeksPassed(block.timestamp).sub(userStakeStart[account]);
-    }
-
     function getRewardForDuration() external view override returns (uint256) {
         return rewardRate.mul(rewardsDuration);
     }
@@ -145,7 +140,6 @@ contract StakingRewards is
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
-        userStakeStart[msg.sender] = _numWeeksPassed(block.timestamp);
         emit Staked(msg.sender, amount);
     }
 
@@ -159,9 +153,6 @@ contract StakingRewards is
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         stakingToken.safeTransfer(msg.sender, amount);
-        if (_balances[msg.sender] == 0) {
-            userStakeStart[msg.sender] = _numWeeksPassed(block.timestamp);
-        }
         emit Withdrawn(msg.sender, amount);
     }
 
