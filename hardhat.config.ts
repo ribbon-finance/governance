@@ -1,11 +1,11 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-truffle5");
+import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-truffle5";
 require("dotenv").config();
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 
-module.exports = {
+export default {
   accounts: {
     mnemonic: process.env.TEST_MNEMONIC,
   },
