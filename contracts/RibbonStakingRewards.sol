@@ -31,6 +31,12 @@ contract StakingRewards is
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
+    // timestamp dictating at what time of week to release rewards
+    // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
+    uint256 public startEmission;
+
+    uint256 private constant WEEK = 7 days;
+
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
@@ -43,11 +49,31 @@ contract StakingRewards is
         address _owner,
         address _rewardsDistribution,
         address _rewardsToken,
-        address _stakingToken
+        address _stakingToken,
+        uint256 _startEmission
     ) public Owned(_owner) {
+        require(_owner != address(0), "Owner must be non-zero address");
+        require(
+            _rewardsToken != address(0),
+            "Rewards token must be non-zero address"
+        );
+        require(
+            _stakingToken != address(0),
+            "Staking token must be non-zero address"
+        );
+        require(
+            _rewardsDistribution != address(0),
+            "Rewards Distributor must be non-zero address"
+        );
+        require(
+            _startEmission > block.timestamp,
+            "Start Emission must be in the future"
+        );
+
         rewardsToken = IERC20(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
         rewardsDistribution = _rewardsDistribution;
+        startEmission = _startEmission;
     }
 
     /* ========== VIEWS ========== */
@@ -65,14 +91,20 @@ contract StakingRewards is
         return _balances[account];
     }
 
+    // The minimum between periodFinish and the last instance of the current startEmission release time
     function lastTimeRewardApplicable() public view override returns (uint256) {
-        return Math.min(block.timestamp, periodFinish);
+        return
+            Math.min(
+                _numWeeksPassed(block.timestamp).mul(WEEK).add(startEmission),
+                periodFinish
+            );
     }
 
     function rewardPerToken() public view override returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
+
         return
             rewardPerTokenStored.add(
                 lastTimeRewardApplicable()
@@ -138,6 +170,13 @@ contract StakingRewards is
         getReward();
     }
 
+    function _numWeeksPassed(uint256 time) internal view returns (uint256) {
+        if (time < startEmission) {
+            return 0;
+        }
+        return time.sub(startEmission).div(WEEK);
+    }
+
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function notifyRewardAmount(uint256 reward)
@@ -164,8 +203,8 @@ contract StakingRewards is
             "Provided reward too high"
         );
 
-        lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
+        lastUpdateTime = lastTimeRewardApplicable();
         emit RewardAdded(reward);
     }
 
