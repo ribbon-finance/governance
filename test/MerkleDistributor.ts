@@ -1,28 +1,33 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const { BigNumber, constants } = ethers;
-
+import { ethers } from 'hardhat'
+import chai, { expect } from 'chai'
+import { MockProvider } from 'ethereum-waffle'
 import { parseBalanceMap } from '../scripts/helpers/parse-balance-map'
 import BalanceTree from '../scripts/helpers/balance-tree'
+import { BigNumber, constants, Contract, ContractFactory } from 'ethers'
 
 const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
 describe('MerkleDistributor contract', function () {
-  let TestERC20;
-  let Distributor;
-  let token;
-  let distributor;
+  let TestERC20: ContractFactory
+  let Distributor: ContractFactory
+  let token: Contract
+  let distributor: Contract
 
-  let wallet0;
-  let wallet1;
-  let wallet2;
-  let addrs;
-  let wallets;
+  const provider = new MockProvider({
+    ganacheOptions: {
+      hardfork: 'istanbul',
+      mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
+      gasLimit: 9999999,
+    },
+  })
+
+  const wallets = provider.getWallets()
+  const [wallet0, wallet1] = wallets
 
   beforeEach('deploy token', async () => {
-    wallets = await ethers.getSigners()
-    // get signers
-    [wallet0, wallet1, wallet2] = wallets;
+    // wallets = await ethers.getSigners()
+    // // get signers
+    // [wallet0, wallet1] = wallets;
 
     // deploy token
     TestERC20 = await ethers.getContractFactory("TestERC20");
@@ -69,7 +74,7 @@ describe('MerkleDistributor contract', function () {
     })
 
     describe('two account tree', () => {
-      let localDistributor;
+      let localDistributor: Contract
       let tree: BalanceTree
       beforeEach('deploy', async () => {
         tree = new BalanceTree([
@@ -167,14 +172,14 @@ describe('MerkleDistributor contract', function () {
 
       it('cannot claim for address other than proof', async () => {
         const proof0 = tree.getProof(0, wallet0.address, BigNumber.from(100))
-        await expect(localDistributor.claim(1, wallet1.address, 101, proof0, overrides)).to.be.revertedWith(
+        await expect(localDistributor.claim(1, wallet1.address, 101, proof0)).to.be.revertedWith(
           'MerkleDistributor: Invalid proof.'
         )
       })
 
       it('cannot claim more than proof', async () => {
         const proof0 = tree.getProof(0, wallet0.address, BigNumber.from(100))
-        await expect(localDistributor.claim(0, wallet0.address, 101, proof0, overrides)).to.be.revertedWith(
+        await expect(localDistributor.claim(0, wallet0.address, 101, proof0)).to.be.revertedWith(
           'MerkleDistributor: Invalid proof.'
         )
       })
@@ -183,11 +188,11 @@ describe('MerkleDistributor contract', function () {
         const proof = tree.getProof(0, wallet0.address, BigNumber.from(100))
         const tx = await localDistributor.claim(0, wallet0.address, 100, proof)
         const receipt = await tx.wait()
-        expect(receipt.gasUsed).to.equal(78466)
+        expect(receipt.gasUsed).to.equal(79137)
       })
     })
     describe('larger tree', () => {
-      let localDistributor;
+      let localDistributor: Contract
       let tree: BalanceTree
       beforeEach('deploy', async () => {
         tree = new BalanceTree(
@@ -219,9 +224,9 @@ describe('MerkleDistributor contract', function () {
 
       it('gas', async () => {
         const proof = tree.getProof(3, wallets[3].address, BigNumber.from(4))
-        const tx = localDistributor.claim(3, wallets[3].address, 4, proof)
+        const tx = await localDistributor.claim(3, wallets[3].address, 4, proof)
         const receipt = await tx.wait()
-        expect(receipt.gasUsed).to.equal(80960)
+        expect(receipt.gasUsed).to.equal(81906)
       })
 
       it('gas second down about 15k', async () => {
@@ -231,19 +236,19 @@ describe('MerkleDistributor contract', function () {
           1,
           tree.getProof(0, wallets[0].address, BigNumber.from(1))
         )
-        const tx = await distributor.claim(
+        const tx = await localDistributor.claim(
           1,
           wallets[1].address,
           2,
           tree.getProof(1, wallets[1].address, BigNumber.from(2))
         )
         const receipt = await tx.wait()
-        expect(receipt.gasUsed).to.equal(65940)
+        expect(receipt.gasUsed).to.equal(66896)
       })
     })
 
     describe('realistic size tree', () => {
-      let localDistributor;
+      let localDistributor: Contract
       let tree: BalanceTree
       const NUM_LEAVES = 100_000
       const NUM_SAMPLES = 25
@@ -278,13 +283,13 @@ describe('MerkleDistributor contract', function () {
         const proof = tree.getProof(50000, wallet0.address, BigNumber.from(100))
         const tx = await localDistributor.claim(50000, wallet0.address, 100, proof)
         const receipt = await tx.wait()
-        expect(receipt.gasUsed).to.equal(91650)
+        expect(receipt.gasUsed).to.equal(93841)
       })
       it('gas deeper node', async () => {
         const proof = tree.getProof(90000, wallet0.address, BigNumber.from(100))
         const tx = await localDistributor.claim(90000, wallet0.address, 100, proof)
         const receipt = await tx.wait()
-        expect(receipt.gasUsed).to.equal(91586)
+        expect(receipt.gasUsed).to.equal(93777)
       })
       it('gas average random distribution', async () => {
         let total: BigNumber = BigNumber.from(0)
@@ -297,7 +302,7 @@ describe('MerkleDistributor contract', function () {
           count++
         }
         const average = total.div(count)
-        expect(average).to.equal(77075)
+        expect(average).to.equal(79247)
       })
       // this is what we gas golfed by packing the bitmap
       it('gas average first 25', async () => {
@@ -311,7 +316,7 @@ describe('MerkleDistributor contract', function () {
           count++
         }
         const average = total.div(count)
-        expect(average).to.equal(62824)
+        expect(average).to.equal(65015)
       })
 
       it('no double claims in random distribution', async () => {
@@ -327,7 +332,7 @@ describe('MerkleDistributor contract', function () {
   })
 
   describe('parseBalanceMap', () => {
-    let localDistributor;
+    let localDistributor: Contract
     let claims: {
       [account: string]: {
         index: number
