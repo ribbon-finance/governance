@@ -30,6 +30,22 @@ const STAKING_REWARDS_rWBTCTHETA_PARAMS = {
   START_EMISSION: "",
 };
 
+// FOR MAINNET
+const AIRDROP_PARAMS = {
+  STRANGLE_AMOUNT: BigNumber.from("2000000")
+    .mul(BigNumber.from("10").pow(BigNumber.from("18")))
+    .toString(),
+  VAULT_BASE_AMOUNT: BigNumber.from("8000000")
+    .mul(BigNumber.from("10").pow(BigNumber.from("18")))
+    .toString(),
+  VAULT_EXTRA_AMOUNT: BigNumber.from("4000000")
+    .mul(BigNumber.from("10").pow(BigNumber.from("18")))
+    .toString(),
+  EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("6000000")
+    .mul(BigNumber.from("10").pow(BigNumber.from("18")))
+    .toString(),
+};
+
 // FOR TESTING
 const STAKING_TOKEN_PARAMS = {
   ADDRESS: "0x0FABaF48Bbf864a3947bdd0Ba9d764791a60467A",
