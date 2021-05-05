@@ -4,6 +4,28 @@ const { provider, constants, BigNumber, getContractAt, utils } = ethers;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const WBTC_ADDRESS = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
 
+async function getRibbonStrangleUsers(addr, min) {
+  let ribbonStrangleContract = await getContractAt("IRibbonStrangle", addr);
+
+  async function getUser(event) {
+    if (event["args"]["amount"].gt(min)) {
+      return event["args"]["account"].toString();
+    }
+  }
+
+  let filter = ribbonStrangleContract.filters.PositionCreated(
+    null,
+    null,
+    null,
+    null,
+    null
+  );
+  let userAccounts = await Promise.all(
+    (await ribbonStrangleContract.queryFilter(filter)).map(getUser)
+  );
+  return [...new Set(userAccounts)];
+}
+
 async function getHegicWriters(writeAddr, stakingAddr, min) {
   let writeContract = await getContractAt("IHegic", writeAddr);
 
@@ -218,6 +240,7 @@ async function getOpynWriters(
   return [...new Set(optionWriters)];
 }
 
+module.exports.getRibbonStrangleUsers = getRibbonStrangleUsers;
 module.exports.getHegicWriters = getHegicWriters;
 module.exports.getCharmWriters = getCharmWriters;
 module.exports.getPrimitiveWriters = getPrimitiveWriters;
