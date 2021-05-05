@@ -1,17 +1,11 @@
 const { ethers, network } = require("hardhat");
 const { provider, constants, BigNumber, getContractAt, utils } = ethers;
 
-const hegicWritePoolABI = require("../../constants/abis/hegicWritePool.json");
-const charmTokenABI = require("../../constants/abis/charmToken.json");
-const primitiveLiquidityABI = require("../../constants/abis/primitiveLiquidity.json");
-const opynControllerABI = require("../../constants/abis/opynController.json");
-const opynTokenABI = require("../../constants/abis/opynToken.json");
-
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const WBTC_ADDRESS = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
 
 async function getHegicWriters(writeAddr, stakingAddr, min) {
-  let writeContract = await getContractAt(hegicWritePoolABI, writeAddr);
+  let writeContract = await getContractAt("IHegic", writeAddr);
 
   let stakingContract = await getContractAt("IStakingRewards", stakingAddr);
 
@@ -57,7 +51,7 @@ async function getCharmWriters(addr, min) {
 
     for (j = 0; j < (await market.numStrikes()); j++) {
       var token = await getContractAt(
-        charmTokenABI,
+        "ICharmOptionToken",
         await market.shortTokens(j)
       );
 
@@ -124,7 +118,7 @@ async function getPrimitiveWriters(
   //After rearchitecture LPs
 
   let primitiveLiquidity = await getContractAt(
-    primitiveLiquidityABI,
+    "IPrimitiveLiquidity",
     primitiveLiquidityAddr
   );
 
@@ -174,7 +168,7 @@ async function getOpynWriters(
     i++
   ) {
     var token = await getContractAt(
-      opynTokenABI,
+      "IOpynOptionTokenV1",
       await opynOptionFactory.optionsContracts(i)
     );
 
@@ -189,13 +183,13 @@ async function getOpynWriters(
   //V2 Writers
 
   let opynController = await getContractAt(
-    opynControllerABI,
+    "IOpynController",
     controllerAddress
   );
 
   async function getUser(event) {
     // var token = await getContractAt(
-    //   "IOpynOptionToken",
+    //   "IOpynOptionTokenV2",
     //   await event["args"]["token"]
     // );
     //
