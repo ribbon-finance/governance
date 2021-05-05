@@ -20,6 +20,7 @@ program
 program.parse(process.argv);
 
 const {
+  getRibbonStrangleUsers,
   getHegicWriters,
   getCharmWriters,
   getPrimitiveWriters,
@@ -47,6 +48,18 @@ async function main() {
   // INTERNAL
 
   // strangle users
+  let ribbonStrangleAddress = "0xce797549a7025561aE60569F68419f016e97D8c5";
+  // CHANGE (rn its 0.02 min eth)
+  let MIN = BigNumber.from("2").mul(
+    BigNumber.from("10").pow(BigNumber.from("16"))
+  );
+
+  console.log(`Pulling Ribbon Strangle Users...`);
+  let ribbonStrangleUsers = await getRibbonStrangleUsers(
+    ribbonStrangleAddress,
+    MIN
+  );
+  console.log(`Num Ribbon Strangle Users: ${ribbonStrangleUsers.length}`);
 
   // theta vault users
 
