@@ -4,19 +4,22 @@ pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface IOptionMarket {
-    function shortTokens(uint256 index) external view returns (IOptionToken);
+interface ICharmOptionMarket {
+    function shortTokens(uint256 index)
+        external
+        view
+        returns (ICharmOptionToken);
 
     function numStrikes() external view returns (uint256);
 }
 
-interface IOptionFactory {
-    function markets(uint256 index) external view returns (IOptionMarket);
+interface ICharmOptionFactory {
+    function markets(uint256 index) external view returns (ICharmOptionMarket);
 
     function numMarkets() external view returns (uint256);
 }
 
-interface IOptionToken {
+interface ICharmOptionToken {
     function market() external pure returns (address);
 
     function decimals() external view returns (uint8);

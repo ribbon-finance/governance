@@ -5,11 +5,6 @@ const { provider, constants, BigNumber, getContractAt, utils } = ethers;
 
 const { AIRDROP_PARAMS } = require("../params");
 
-const hegicWritePoolABI = require("../constants/abis/hegicWritePool.json");
-const charmTokenABI = require("../constants/abis/charmToken.json");
-const primitiveLiquidityABI = require("../constants/abis/primitiveLiquidity.json");
-const opynControllerABI = require("../constants/abis/opynController.json");
-
 const program = new Command();
 
 program
@@ -24,184 +19,15 @@ program
 
 program.parse(process.argv);
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const {
+  getHegicWriters,
+  getCharmWriters,
+  getPrimitiveWriters,
+  getOpynWriters,
+} = require("./helpers/protocol-extractors");
 
-// ribbon
-// base
-// prorated
-// external
-// hegic
-// opyn
-// primitive
-// charm
-
-async function getHegicWriters(writeAddr, stakingAddr, min) {
-  let writeContract = await getContractAt(hegicWritePoolABI, writeAddr);
-
-  let stakingContract = await getContractAt("IStakingRewards", stakingAddr);
-
-  async function getUser(event) {
-    var providerAccount = event["args"]["account"].toString();
-    var providerBalance = BigNumber.from(
-      await writeContract.balanceOf(providerAccount)
-    );
-    if (providerBalance.gt(min)) {
-      return providerAccount;
-    }
-    providerBalance = providerBalance.add(
-      BigNumber.from(await stakingContract.balanceOf(providerAccount))
-    );
-    if (providerBalance.gt(min)) {
-      return providerAccount;
-    }
-  }
-
-  let filter = writeContract.filters.Provide(null, null, null);
-  let providerAccounts = await Promise.all(
-    (await writeContract.queryFilter(filter)).map(getUser)
-  );
-  return Array.from(providerAccounts);
-}
-
-async function getCharmWriters(addr, min) {
-  let charmOptionFactory = await getContractAt("IOptionFactory", addr);
-
-  async function getUser(event) {
-    if (event["args"]["value"].gt(min)) {
-      return event["args"]["to"].toString();
-    }
-  }
-
-  var optionWriters = [];
-
-  for (i = 0; i < (await charmOptionFactory.numMarkets()); i++) {
-    var market = await getContractAt(
-      "IOptionMarket",
-      await charmOptionFactory.markets(i)
-    );
-
-    for (j = 0; j < (await market.numStrikes()); j++) {
-      var token = await getContractAt(
-        charmTokenABI,
-        await market.shortTokens(j)
-      );
-
-      let filter = token.filters.Transfer(ZERO_ADDRESS, null, null);
-      optionWriters = optionWriters.concat(
-        Array.from(
-          await Promise.all((await token.queryFilter(filter)).map(getUser))
-        )
-      );
-    }
-  }
-
-  return [...new Set(optionWriters)];
-}
-
-async function getPrimitiveWriters(
-  sushiConnectorAddr,
-  uniConnectorAddr,
-  primitiveLiquidityAddr,
-  routers,
-  min,
-  block
-) {
-  var optionWriters = [];
-
-  //Before rearchitecture LPs
-
-  async function getUserConnector(tx) {
-    let receipt = await provider.getTransactionReceipt(tx["hash"]);
-    let logs = receipt["logs"];
-
-    if (logs.length == 0) {
-      return;
-    }
-
-    let mintLog = logs[logs.length - 1];
-
-    if (routers.includes(utils.hexStripZeros(mintLog["topics"][1]))) {
-      return receipt["from"];
-    }
-  }
-
-  let etherscanProvider = new ethers.providers.EtherscanProvider();
-
-  optionWriters = optionWriters.concat(
-    Array.from(
-      await Promise.all(
-        (await etherscanProvider.getHistory(sushiConnectorAddr, 0, block)).map(
-          getUserConnector
-        )
-      )
-    )
-  );
-  optionWriters = optionWriters.concat(
-    Array.from(
-      await Promise.all(
-        (await etherscanProvider.getHistory(uniConnectorAddr, 0, block)).map(
-          getUserConnector
-        )
-      )
-    )
-  );
-
-  //After rearchitecture LPs
-
-  let primitiveLiquidity = await getContractAt(
-    primitiveLiquidityABI,
-    primitiveLiquidityAddr
-  );
-
-  async function getUser(event) {
-    if (event["args"]["sum"].gt(min)) {
-      return event["args"]["from"].toString();
-    }
-  }
-
-  let filter = primitiveLiquidity.filters.AddLiquidity(null, null, null);
-  optionWriters = optionWriters.concat(
-    Array.from(
-      await Promise.all(
-        (await primitiveLiquidity.queryFilter(filter)).map(getUser)
-      )
-    )
-  );
-
-  return [...new Set(optionWriters)];
-}
-
-async function getOpynWriters(addr, min) {
-  var optionWriters = [];
-
-  //V1 Writers
-
-  //ADD V1 METHODOLOGY
-
-  //V2 Writers
-
-  let opynController = await getContractAt(opynControllerABI, addr);
-
-  async function getUser(event) {
-    if (event["args"]["amount"].gt(min)) {
-      return event["args"]["to"].toString();
-    }
-  }
-
-  let filter = opynController.filters.ShortOtokenMinted(
-    null,
-    null,
-    null,
-    null,
-    null
-  );
-  optionWriters = optionWriters.concat(
-    Array.from(
-      await Promise.all((await opynController.queryFilter(filter)).map(getUser))
-    )
-  );
-  return [...new Set(optionWriters)];
-}
+// ribbon -> strangle + tv
+// external -> hegic + opyn + primitive + charm
 
 async function main() {
   var endBlock = parseInt(program.opts().block);
@@ -299,14 +125,26 @@ async function main() {
   console.log(`Num Primitive Writers: ${primitiveWriters.length}`);
 
   // opyn writers
+  let opynFactory = "0xcC5d905b9c2c8C9329Eb4e25dc086369D6C7777C";
   let opynController = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
+  // start index in otoken mappings where expiry is in 2021 (https://etherscan.io/address/0xcc5d905b9c2c8c9329eb4e25dc086369d6c7777c#readContract)
+  let EXPIRY_INDEX = 108;
   //CHANGE
-  let OPYN_MIN = BigNumber.from("2").mul(
+  let OPYN_V1_MIN = BigNumber.from("0").mul(
+    BigNumber.from("10").pow(BigNumber.from("6"))
+  );
+  let OPYN_V2_MIN = BigNumber.from("0").mul(
     BigNumber.from("10").pow(BigNumber.from("6"))
   );
 
   console.log(`Pulling Opyn Writers...`);
-  let opynWriters = await getOpynWriters(opynController, OPYN_MIN);
+  let opynWriters = await getOpynWriters(
+    opynFactory,
+    opynController,
+    EXPIRY_INDEX,
+    OPYN_V1_MIN,
+    OPYN_V2_MIN
+  );
   console.log(`Num Opyn Writers: ${opynWriters.length}`);
 
   console.log("Finished data extraction!");
