@@ -20,7 +20,5 @@ interface ICharmOptionFactory {
 }
 
 interface ICharmOptionToken {
-    function market() external pure returns (address);
-
-    function decimals() external view returns (uint8);
+    event Transfer(address indexed from, address indexed to, uint256 value);
 }
