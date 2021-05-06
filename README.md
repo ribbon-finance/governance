@@ -25,6 +25,8 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
       * ex: `node scripts/generate-recipients-json.js -b 12378107 -f airdrop.json`
       * This will generate the address -> balance mapping of all relevant users 
         from hegic, opyn, charm, primitive, ribbon strangle, ribbon theta vault
+      * _NOTE:_ this will take a few minutes (~10m) the first time around, but afterwards will be quicker as 
+        block info is cached
   * `npx ts-node scripts/generate-merkle-root.ts -i <FILEPATH>` where FILEPATH is path from above step. 
       * This will give you the **merkle root** itself for the params.js file 
          and details for merkle proofs of all addresses
