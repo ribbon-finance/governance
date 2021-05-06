@@ -27,7 +27,11 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
         from hegic, opyn, charm, primitive, ribbon strangle, ribbon theta vault
       * _NOTE:_ this will take a few minutes (~10m) the first time around, but afterwards will be quicker as 
         block info is cached
-  * `npx ts-node scripts/generate-merkle-root.ts -i <FILEPATH>` where FILEPATH is path from above step. 
+  * `npx ts-node scripts/generate-merkle-root.ts -i <FILEPATH> -n <NEW_FILEPATH>` where FILEPATH is path from above step. 
       * This will give you the **merkle root** itself for the params.js file 
-         and details for merkle proofs of all addresses
+         and full details for the merkle proof is written to NEW_FILEPATH
+  * To verify the merkle root from previous step is correct:
+    * `npx ts-node scripts/verify-merkle-root.ts -i <FILEPATH>` where FILEPATH is NEW_FILEPATH from above step. 
+       *  This will give you the **merkle root** itself for the params.js file 
+          and full details for the merkle proof is written to NEW_FILEPATH
 * `npx hardhat run scripts/deploy-merkle-distributor.js --network mainnet`
