@@ -7,8 +7,10 @@ async function main() {
     "MerkleDistributor"
   );
   const merkleDistributor = await MerkleDistributor.deploy(
+    AIRDROP_PARAMS.OWNER,
     AIRDROP_PARAMS.TOKEN_ADDRESS,
-    AIRDROP_PARAMS.MERKLE_ROOT
+    AIRDROP_PARAMS.MERKLE_ROOT,
+    AIRDROP_PARAMS.DAYS_UNTIL_UNLOCK
   );
 
   await merkleDistributor.deployed();
