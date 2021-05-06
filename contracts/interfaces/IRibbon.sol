@@ -12,3 +12,9 @@ interface IRibbonStrangle {
         uint256 amount
     );
 }
+
+interface IRibbonThetaVault {
+    function decimals() external view returns (uint8);
+
+    event Deposit(address indexed account, uint256 amount, uint256 share);
+}
