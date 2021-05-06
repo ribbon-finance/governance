@@ -2,19 +2,33 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./interfaces/IMerkleDistributor.sol";
+import "./Owned.sol";
 
-contract MerkleDistributor is IMerkleDistributor {
+contract MerkleDistributor is IMerkleDistributor, Owned {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+
     address public immutable override token;
     bytes32 public immutable override merkleRoot;
 
     // This is a packed array of booleans.
     mapping(uint256 => uint256) private claimedBitMap;
 
-    constructor(address token_, bytes32 merkleRoot_) public {
-        token = token_;
-        merkleRoot = merkleRoot_;
+    uint256 public immutable ownerUnlockTime;
+
+    constructor(
+        address _owner,
+        address _token,
+        bytes32 _merkleRoot,
+        uint256 daysUntilUnlock
+    ) public Owned(_owner) {
+        token = _token;
+        merkleRoot = _merkleRoot;
+        ownerUnlockTime = block.timestamp.add(daysUntilUnlock * 1 days);
     }
 
     function isClaimed(uint256 index) public view override returns (bool) {
@@ -57,4 +71,22 @@ contract MerkleDistributor is IMerkleDistributor {
 
         emit Claimed(index, account, amount);
     }
+
+    // Used for recovery purposes
+    function recoverERC20(address tokenAddress, uint256 tokenAmount)
+        external
+        onlyOwner
+    {
+        require(
+            tokenAddress == address(token)
+                ? block.timestamp >= ownerUnlockTime
+                : true,
+            "MerkleDistributor: Cannot withdraw the token before unlock time"
+        );
+        IERC20(tokenAddress).safeTransfer(owner, tokenAmount);
+        emit Recovered(tokenAddress, tokenAmount);
+    }
+
+    /* ========== EVENTS ========== */
+    event Recovered(address token, uint256 amount);
 }
