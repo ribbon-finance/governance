@@ -19,6 +19,7 @@ Deploying Ribbon staking rewards to Mainnet ([reference](https://hardhat.org/tut
 Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/deploying-to-a-live-network.html))
 
 * add mainnet url / accounts in hardhat.config.js
+* add owner address to params.js under AIRDROP_PARAMS object
 * add token address to params.js under AIRDROP_PARAMS object
 * add merkle root to params.js under AIRDROP_PARAMS object
   * `node scripts/generate-recipients-json.js -b <BLOCKNUM> -f <FILEPATH>` 
@@ -34,4 +35,5 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
     * `npx ts-node scripts/verify-merkle-root.ts -i <FILEPATH>` where FILEPATH is NEW_FILEPATH from above step. 
        *  This will give you the **merkle root** itself for the params.js file 
           and full details for the merkle proof is written to NEW_FILEPATH
+* add days until unlock for owner to params.js under AIRDROP_PARAMS object
 * `npx hardhat run scripts/deploy-merkle-distributor.js --network mainnet`
