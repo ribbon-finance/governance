@@ -64,7 +64,6 @@ describe("MerkleDistributor contract", function () {
 
   describe("#ownerUnlockTime", () => {
     it("returns the days until unlock", async () => {
-      //expect(await distributor.ownerUnlockTime()).to.be.above((await currentTime()) + (daysUntilUnlock-1) * 86400);
       expect(await distributor.ownerUnlockTime()).to.be.equal(
         (await currentTime()) + daysUntilUnlock * 86400
       );
