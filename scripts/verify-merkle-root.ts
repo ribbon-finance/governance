@@ -2,15 +2,15 @@ import { program } from "commander";
 import fs from "fs";
 import { BigNumber, utils } from "ethers";
 
-program
-  .version("0.0.0")
-  .requiredOption(
-    "-i, --input <path>",
-    "input JSON file location containing the merkle proofs for each account and the merkle root"
-  );
+program.requiredOption(
+  "-i, --input <path>",
+  "input JSON file location containing the merkle proofs for each account and the merkle root"
+);
 
 program.parse(process.argv);
-const json = JSON.parse(fs.readFileSync(program.input, { encoding: "utf8" }));
+const json = JSON.parse(
+  fs.readFileSync(program.opts().input, { encoding: "utf8" })
+);
 
 const combinedHash = (first: Buffer, second: Buffer): Buffer => {
   if (!first) {
