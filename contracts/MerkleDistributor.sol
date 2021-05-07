@@ -24,11 +24,18 @@ contract MerkleDistributor is IMerkleDistributor, Owned {
         address _owner,
         address _token,
         bytes32 _merkleRoot,
-        uint256 daysUntilUnlock
+        uint256 _daysUntilUnlock
     ) public Owned(_owner) {
+        require(_owner != address(0), "Owner must be non-zero address");
+        require(_token != address(0), "Airdrop token must be non-zero address");
+        require(_merkleRoot != bytes32(0), "Merkle root must be non-zero");
+        require(
+            _daysUntilUnlock > 0,
+            "Days until owner unlock must be in the future"
+        );
         token = _token;
         merkleRoot = _merkleRoot;
-        ownerUnlockTime = block.timestamp.add(daysUntilUnlock * 1 days);
+        ownerUnlockTime = block.timestamp.add(_daysUntilUnlock * 1 days);
     }
 
     function isClaimed(uint256 index) public view override returns (bool) {

@@ -8,8 +8,8 @@ import { BigNumber, constants, Contract, ContractFactory } from "ethers";
 // import { currentTime, fastForward } from "../utils/index";
 const { currentTime, fastForward } = require("./utils")();
 
-const ZERO_BYTES32 =
-  "0x0000000000000000000000000000000000000000000000000000000000000000";
+const ONE_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000001";
 
 describe("MerkleDistributor contract", function () {
   let TestERC20: ContractFactory;
@@ -44,7 +44,7 @@ describe("MerkleDistributor contract", function () {
     distributor = await Distributor.deploy(
       owner.address,
       token.address,
-      ZERO_BYTES32,
+      ONE_BYTES32,
       daysUntilUnlock
     );
     await distributor.deployed();
@@ -57,8 +57,8 @@ describe("MerkleDistributor contract", function () {
   });
 
   describe("#merkleRoot", () => {
-    it("returns the zero merkle root", async () => {
-      expect(await distributor.merkleRoot()).to.equal(ZERO_BYTES32);
+    it("returns the one merkle root", async () => {
+      expect(await distributor.merkleRoot()).to.equal(ONE_BYTES32);
     });
   });
 
