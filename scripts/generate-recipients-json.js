@@ -10,13 +10,15 @@ const { AIRDROP_SCRIPT_PARAMS } = require("../params");
 const program = new Command();
 
 program
-  .requiredOption(
+  .option(
     "-b, --block <blocknum>",
-    "block number to use for extracting airdrop recipients"
+    "block number to use for extracting airdrop recipients",
+    "12378107"
   )
-  .requiredOption(
+  .option(
     "-f, --file <file>",
-    "json file to load addresses -> balances into"
+    "json file to load addresses -> balances into",
+    "airdrop.json"
   );
 
 program.parse(process.argv);
@@ -38,6 +40,7 @@ let writeETHAddress = "0x878f15ffc8b894a1ba7647c7176e4c01f74e140b";
 let writeETHStakingAddress = "0x8FcAEf0dBf40D36e5397aE1979c9075Bf34C180e";
 let writeWBTCAddress = "0x20dd9e22d22dd0a6ef74a520cb08303b5fad5de7";
 let writeWBTCStakingAddress = "0x493134A9eAbc8D2b5e08C5AB08e9D413fb4D1a55";
+
 let charmOptionFactoryAddress = "0xCDFE169dF3D64E2e43D88794A21048A52C742F2B";
 
 let primitiveLiquidityAddress = "0x996Eeff28277FD17738913e573D1c452b4377A16";
@@ -53,7 +56,17 @@ let opynController = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 // start index in otoken mappings where expiry is in 2021 (https://etherscan.io/address/0xcc5d905b9c2c8c9329eb4e25dc086369d6c7777c#readContract)
 let opynExpiryIndex = 108;
 
-let ribbonStrangleAddress = "0xce797549a7025561aE60569F68419f016e97D8c5";
+let ribbonStrangleHegicContract = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
+let ribbonStrangleContracts = [
+  "0xce797549a7025561aE60569F68419f016e97D8c5",
+  "0x91C7F173b50A219cfbB76fD59B4D808A3FD65395",
+  "0xE373F4c9e1dE975B3C0B7fc6C162a9E94620b960",
+  "0x116ae12b84Fb37d073293698A42143759aff043B",
+  "0xD13D279073DBDdeD368D822FAb8a59604f86CA51",
+  "0x390Df0394ef2930Eae1E3a610202D644fc21127c",
+  "0x5ED32Cce0EcBd7E6e538231d6A3dc28A699A1501",
+  "0x4de07FF16297026AE23d9019383DA06250E539e8",
+];
 
 let ribbonEthCallThetaVaultAddress =
   "0x0fabaf48bbf864a3947bdd0ba9d764791a60467a";
@@ -69,16 +82,15 @@ let ribbonBtcPutOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
 // MIN REQUIREMENT for option writing sizes
 
-/* threshold amount for those who techincally hold writeETH / writeWBTC but it
-is dust left over from innacurate withdrawals, which is problem w UI */
-let HEGIC_ETH_MIN = BigNumber.from("20").mul(
+/* threshold amount for those who hold writeETH / writeWBTC */
+let HEGIC_ETH_MIN = BigNumber.from("22").mul(
   BigNumber.from("10").pow(BigNumber.from("18"))
 );
 let HEGIC_WBTC_MIN = BigNumber.from("1").mul(
   BigNumber.from("10").pow(BigNumber.from("18"))
 );
-let CHARM_MIN = BigNumber.from("0").mul(
-  BigNumber.from("10").pow(BigNumber.from("18"))
+let CHARM_MIN = BigNumber.from("2").mul(
+  BigNumber.from("10").pow(BigNumber.from("16"))
 );
 let PRIMITIVE_MIN = BigNumber.from("0").mul(
   BigNumber.from("10").pow(BigNumber.from("18"))
@@ -93,9 +105,8 @@ let OPYN_V2_MIN = BigNumber.from("0").mul(
 let RIBBON_MIN = BigNumber.from("2").mul(
   BigNumber.from("10").pow(BigNumber.from("16"))
 );
-let THETA_VAULT_MIN = BigNumber.from("0").mul(
-  BigNumber.from("10").pow(BigNumber.from("18"))
-);
+// 50 with no 0's because we are given usd value in map
+let THETA_VAULT_MIN = BigNumber.from("50");
 
 async function main() {
   var endBlock = parseInt(program.opts().block);
@@ -158,6 +169,7 @@ async function main() {
     PRIMITIVE_MIN,
     endBlock
   );
+
   console.log(
     `Num Primitive Writers: ${Object.keys(primitiveWriters).length}\n`
   );
@@ -194,9 +206,11 @@ async function main() {
   */
   console.log(`Pulling Ribbon Strangle Users...`);
   let ribbonStrangleUsers = await getRibbonStrangleUsers(
-    ribbonStrangleAddress,
+    ribbonStrangleHegicContract,
+    ribbonStrangleContracts,
     RIBBON_MIN
   );
+
   console.log(
     `Num Ribbon Strangle Users: ${Object.keys(ribbonStrangleUsers).length}\n`
   );
@@ -213,20 +227,24 @@ async function main() {
   console.log(`Pulling Ribbon Theta Vault Users...`);
   let ribbonETHCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonEthCallThetaVaultAddress,
-    ribbonEthCallOracleAddress
+    ribbonEthCallOracleAddress,
+    THETA_VAULT_MIN
   );
   let ribbonETHPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonEthPutThetaVaultAddress,
-    ribbonEthPutOracleAddress
+    ribbonEthPutOracleAddress,
+    THETA_VAULT_MIN
   );
   let ribbonBTCCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonBtcCallThetaVaultAddress,
-    ribbonBtcCallOracleAddress
+    ribbonBtcCallOracleAddress,
+    THETA_VAULT_MIN
   );
   // let ribbonBTCPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
   //   ribbonBtcPutThetaVaultAddress,
   //   ribbonBtcPutOracleAddress,
-  //   ribbonBtcPutDecimals
+  //   ribbonBtcPutDecimals,
+  //   THETA_VAULT_MIN
   // );
 
   let thetaVaultUsers = mergeObjects(

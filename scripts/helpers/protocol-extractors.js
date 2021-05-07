@@ -14,13 +14,13 @@ async function getHegicWriters(writeAddr, stakingAddr, min) {
   async function getUser(event) {
     var providerAccount = event["args"]["account"].toString();
     var providerBalance = BigNumber.from(
-      await writeContract.balanceOf(providerAccount)
+      await stakingContract.balanceOf(providerAccount)
     );
     if (providerBalance.gt(min)) {
       return providerAccount;
     }
     providerBalance = providerBalance.add(
-      BigNumber.from(await stakingContract.balanceOf(providerAccount))
+      BigNumber.from(await writeContract.balanceOf(providerAccount))
     );
     if (providerBalance.gt(min)) {
       return providerAccount;
@@ -40,13 +40,15 @@ async function getHegicWriters(writeAddr, stakingAddr, min) {
 async function getCharmWriters(addr, min) {
   let charmOptionFactory = await getContractAt("ICharmOptionFactory", addr);
 
-  async function getUser(event) {
-    if (event["args"]["value"].gt(min)) {
-      return event["args"]["to"].toString();
-    }
-  }
+  let balances = {};
 
-  var optionWriters = [];
+  async function getUser(event) {
+    let user = event["args"]["to"].toString();
+    if (balances[user] == undefined) {
+      balances[user] = BigNumber.from("0");
+    }
+    balances[user] = balances[user].add(BigNumber.from(event["args"]["value"]));
+  }
 
   for (i = 0; i < (await charmOptionFactory.numMarkets()); i++) {
     var market = await getContractAt(
@@ -61,17 +63,15 @@ async function getCharmWriters(addr, min) {
       );
 
       let filter = token.filters.Transfer(ZERO_ADDRESS, null, null);
-      optionWriters = optionWriters.concat(
-        Array.from(
-          await Promise.all((await token.queryFilter(filter)).map(getUser))
-        )
-      );
+      await Promise.all((await token.queryFilter(filter)).map(getUser));
     }
   }
 
-  return [...new Set(optionWriters)]
-    .filter((k) => k != undefined)
-    .reduce((acc, curr) => ((acc[curr] = BigNumber.from("0")), acc), {});
+  return _.flow([
+    Object.entries,
+    (arr) => arr.filter(([k, v]) => k != undefined && v.gt(min)),
+    Object.fromEntries,
+  ])(balances);
 }
 
 async function getPrimitiveWriters(
@@ -96,6 +96,10 @@ async function getPrimitiveWriters(
 
     let mintLog = logs[logs.length - 1];
 
+    /*
+      If the first parameter of the last log is the sushiswap / uniswap router addresse
+      we know we have a Mint() log which means we have an LP Add Liquidity action
+    */
     if (routers.includes(utils.hexStripZeros(mintLog["topics"][1]))) {
       return receipt["from"];
     }
@@ -232,31 +236,54 @@ async function getOpynWriters(
     .reduce((acc, curr) => ((acc[curr] = BigNumber.from("0")), acc), {});
 }
 
-async function getRibbonStrangleUsers(addr, min) {
-  let ribbonStrangleContract = await getContractAt("IRibbonStrangle", addr);
+async function getRibbonStrangleUsers(
+  ribbonHegicOptionsAddress,
+  ribbonStrangleContractsAddresses,
+  min
+) {
+  let ribbonHegicOptionsContract = await getContractAt(
+    "IRibbonStrangleHegic",
+    ribbonHegicOptionsAddress
+  );
+
+  let balances = {};
 
   async function getUser(event) {
-    if (event["args"]["amount"].gt(min)) {
-      return event["args"]["account"].toString();
+    let receipt = await provider.getTransactionReceipt(
+      event["transactionHash"]
+    );
+    let user = receipt["from"].toString();
+    if (balances[user] == undefined) {
+      balances[user] = BigNumber.from("0");
     }
+    balances[user] = balances[user].add(
+      BigNumber.from(event["args"]["totalFee"])
+    );
   }
 
-  let filter = ribbonStrangleContract.filters.PositionCreated(
+  let filter = ribbonHegicOptionsContract.filters.Create(
     null,
-    null,
-    null,
+    ribbonStrangleContractsAddresses,
     null,
     null
   );
-  let userAccounts = await Promise.all(
-    (await ribbonStrangleContract.queryFilter(filter)).map(getUser)
+
+  await Promise.all(
+    (await ribbonHegicOptionsContract.queryFilter(filter)).map(getUser)
   );
-  return [...new Set(userAccounts)]
-    .filter((k) => k != undefined)
-    .reduce((acc, curr) => ((acc[curr] = BigNumber.from("0")), acc), {});
+
+  return _.flow([
+    Object.entries,
+    (arr) => arr.filter(([k, v]) => k != undefined && v.gt(min)),
+    Object.fromEntries,
+  ])(balances);
 }
 
-async function getRibbonThetaVaultUsers(ribbonVaultAddress, chainlinkAddress) {
+async function getRibbonThetaVaultUsers(
+  ribbonVaultAddress,
+  chainlinkAddress,
+  min
+) {
   let ribbonThetaVaultContract = await getContractAt(
     "IRibbonThetaVault",
     ribbonVaultAddress
@@ -293,6 +320,15 @@ async function getRibbonThetaVaultUsers(ribbonVaultAddress, chainlinkAddress) {
   let userAccounts = await Promise.all(
     (await ribbonThetaVaultContract.queryFilter(filter)).map(getUser)
   );
+
+  balances = _.flow([
+    Object.entries,
+    (arr) =>
+      arr.filter(
+        ([k, v]) => k != undefined && BigNumber.from(v.toString()).gt(min)
+      ),
+    Object.fromEntries,
+  ])(balances);
 
   return _.mapValues(balances, function (v, k) {
     return BigNumber.from(balances[k].toString());

@@ -13,6 +13,15 @@ interface IRibbonStrangle {
     );
 }
 
+interface IRibbonStrangleHegic {
+    event Create(
+        uint256 indexed id,
+        address indexed account,
+        uint256 settlementFee,
+        uint256 totalFee
+    );
+}
+
 interface IRibbonThetaVault {
     function decimals() external view returns (uint8);
 
