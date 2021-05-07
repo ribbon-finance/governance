@@ -37,3 +37,20 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
           and full details for the merkle proof is written to NEW_FILEPATH
 * add days until unlock for owner to params.js under AIRDROP_PARAMS object
 * `npx hardhat run scripts/deploy-merkle-distributor.js --network mainnet`
+
+Airdrop Recipient Reward Methodology:
+
+* 6M $RBN split equally between:
+    * **only current** HEGIC LPs (ETH & WBTC pools)
+    * PRIMITIVE LPs
+    * OPYN, CHARM option writers of options that expire in 2021
+    * _NOTE:_ cumulative LP position or option collateral must be **at least** $50 with current prices
+* 2M $RBN split equally between:
+    * ribbon strangle buyers
+    * _NOTE:_ cumulative strangle premium must be **at least** $50 with current prices
+* 8M $RBN split equally between:
+    * ETH/WBTC CAll/PUT depositors
+    * _NOTE:_ cumulative deposit value across all vaults must be **at least** $50 with current prices
+* 4M $RBN split _pro rata_ between:
+    * ETH/WBTC CAll/PUT depositors
+    * _NOTE:_ cumulative deposit value across all vaults must be **at least** $50 with current prices
