@@ -25,5 +25,7 @@ interface IRibbonStrangleHegic {
 interface IRibbonThetaVault {
     function decimals() external view returns (uint8);
 
+    function asset() external view returns (address);
+
     event Deposit(address indexed account, uint256 amount, uint256 share);
 }

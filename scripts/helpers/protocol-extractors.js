@@ -3,7 +3,35 @@ const { ethers, network } = require("hardhat");
 const { provider, constants, BigNumber, getContractAt, utils } = ethers;
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const WBTC_ADDRESS = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599";
+const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+
+let chainlinkPrices = {
+  // ETH
+  "0x0000000000000000000000000000000000000000":
+    "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
+  // USDC
+  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48":
+    "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
+  // WETH
+  "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2":
+    "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
+  // WBTC
+  "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599":
+    "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c",
+  // UNI
+  "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984":
+    "0x553303d460EE0afB37EdFf9bE42922D8FF63220e",
+  // SNX
+  "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F":
+    "0xDC3EA94CD0AC27d9A86C180091e7f78C683d3699",
+  // DPI
+  "0x1494CA1F11D487c2bBe4543E90080AeBa4BA3C2b":
+    "0xD2A593BF7594aCE1faD597adb697b5645d5edDB2",
+  // YFI
+  "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e":
+    "0xA027702dbb89fbd58938e4324ac03B58d812b0E1",
+};
+
 const ETHERSCAN_API_KEY = "CAVAMK1HU28SRBRFDQN4JFQMEWFAI9ZGF6";
 
 async function getHegicWriters(writeAddr, stakingAddr, min) {
@@ -42,12 +70,15 @@ async function getCharmWriters(addr, min) {
 
   let balances = {};
 
-  async function getUser(event) {
+  async function getUser(event, decimals, price) {
     let user = event["args"]["to"].toString();
+    let amountInUSD = assetToUSD(event["args"]["value"], decimals, price);
+
     if (balances[user] == undefined) {
-      balances[user] = BigNumber.from("0");
+      balances[user] = 0;
     }
-    balances[user] = balances[user].add(BigNumber.from(event["args"]["value"]));
+
+    balances[user] = Math.floor(balances[user] + amountInUSD);
   }
 
   for (i = 0; i < (await charmOptionFactory.numMarkets()); i++) {
@@ -62,14 +93,30 @@ async function getCharmWriters(addr, min) {
         await market.shortTokens(j)
       );
 
+      let collateral = await market.baseToken();
+      let collateralContract = await getContractAt(
+        "ERC20",
+        collateral == ZERO_ADDRESS ? WETH_ADDRESS : collateral
+      );
+
+      let chainlinkAssetPrice = chainlinkPrices[collateral];
+      let assetDecimals = await collateralContract.decimals();
+
       let filter = token.filters.Transfer(ZERO_ADDRESS, null, null);
-      await Promise.all((await token.queryFilter(filter)).map(getUser));
+      await Promise.all(
+        (await token.queryFilter(filter)).map((e) =>
+          getUser(e, assetDecimals, chainlinkAssetPrice)
+        )
+      );
     }
   }
 
   return _.flow([
     Object.entries,
-    (arr) => arr.filter(([k, v]) => k != undefined && v.gt(min)),
+    (arr) =>
+      arr.filter(
+        ([k, v]) => k != undefined && BigNumber.from(v.toString()).gt(min)
+      ),
     Object.fromEntries,
   ])(balances);
 }
@@ -79,7 +126,7 @@ async function getPrimitiveWriters(
   uniConnectorAddr,
   primitiveLiquidityAddr,
   routers,
-  min,
+  rList,
   block
 ) {
   var optionWriters = [];
@@ -160,10 +207,9 @@ async function getOpynWriters(
   factoryAddress,
   controllerAddress,
   expiryIndex,
-  minV1,
-  minV2
+  min
 ) {
-  var optionWriters = [];
+  let balances = {};
 
   //V1 Writers
 
@@ -172,10 +218,15 @@ async function getOpynWriters(
     factoryAddress
   );
 
-  async function getUserV1(event) {
-    if (event["args"]["amount"].gt(minV1)) {
-      return event["args"]["payer"].toString();
+  async function getUserV1(event, decimals, price) {
+    let user = event["args"]["payer"].toString();
+
+    let amountInUSD = assetToUSD(event["args"]["amount"], decimals, price);
+
+    if (balances[user] == undefined) {
+      balances[user] = 0;
     }
+    balances[user] = Math.floor(balances[user] + amountInUSD);
   }
 
   for (
@@ -188,10 +239,19 @@ async function getOpynWriters(
       await opynOptionFactory.optionsContracts(i)
     );
 
+    let collateral = await token.collateral();
+    let collateralContract = await getContractAt(
+      "ERC20",
+      collateral == ZERO_ADDRESS ? WETH_ADDRESS : collateral
+    );
+
+    let chainlinkAssetPrice = chainlinkPrices[collateral];
+    let assetDecimals = await collateralContract.decimals();
+
     let filter = token.filters.ERC20CollateralAdded(null, null, null);
-    optionWriters = optionWriters.concat(
-      Array.from(
-        await Promise.all((await token.queryFilter(filter)).map(getUserV1))
+    await Promise.all(
+      (await token.queryFilter(filter)).map((e) =>
+        getUserV1(e, assetDecimals, chainlinkAssetPrice)
       )
     );
   }
@@ -204,19 +264,26 @@ async function getOpynWriters(
   );
 
   async function getUser(event) {
-    // var token = await getContractAt(
-    //   "IOpynOptionTokenV2",
-    //   await event["args"]["token"]
-    // );
-    //
-    //
-    // if (event["args"]["amount"].gt(await token.collateralAsset() === WBTC_ADDRESS ? minV2 : minV2.div(BigNumber.from("10").pow(BigNumber.from("2"))))) {
-    //   return event["args"]["payer"].toString();
-    // }
+    let user = event["args"]["to"].toString();
 
-    if (event["args"]["amount"].gt(minV2)) {
-      return event["args"]["to"].toString();
+    var otoken = await getContractAt(
+      "IOpynOptionTokenV2",
+      event["args"]["otoken"]
+    );
+
+    let chainlinkAssetPrice = chainlinkPrices[await otoken.collateralAsset()];
+    var assetDecimals = await otoken.decimals();
+
+    let amountInUSD = assetToUSD(
+      event["args"]["amount"],
+      assetDecimals,
+      chainlinkAssetPrice
+    );
+
+    if (balances[user] == undefined) {
+      balances[user] = 0;
     }
+    balances[user] = Math.floor(balances[user] + amountInUSD);
   }
 
   let filter = opynController.filters.ShortOtokenMinted(
@@ -226,14 +293,17 @@ async function getOpynWriters(
     null,
     null
   );
-  optionWriters = optionWriters.concat(
-    Array.from(
-      await Promise.all((await opynController.queryFilter(filter)).map(getUser))
-    )
-  );
-  return [...new Set(optionWriters)]
-    .filter((k) => k != undefined)
-    .reduce((acc, curr) => ((acc[curr] = BigNumber.from("0")), acc), {});
+
+  await Promise.all((await opynController.queryFilter(filter)).map(getUser));
+
+  return _.flow([
+    Object.entries,
+    (arr) =>
+      arr.filter(
+        ([k, v]) => k != undefined && BigNumber.from(v.toString()).gt(min)
+      ),
+    Object.fromEntries,
+  ])(balances);
 }
 
 async function getRibbonStrangleUsers(
@@ -253,12 +323,17 @@ async function getRibbonStrangleUsers(
       event["transactionHash"]
     );
     let user = receipt["from"].toString();
-    if (balances[user] == undefined) {
-      balances[user] = BigNumber.from("0");
-    }
-    balances[user] = balances[user].add(
-      BigNumber.from(event["args"]["totalFee"])
+
+    let depositInUSD = assetToUSD(
+      event["args"]["totalFee"],
+      18,
+      chainlinkPrices[ZERO_ADDRESS]
     );
+
+    if (balances[user] == undefined) {
+      balances[user] = 0;
+    }
+    balances[user] = Math.floor(balances[user] + depositInUSD);
   }
 
   let filter = ribbonHegicOptionsContract.filters.Create(
@@ -274,46 +349,40 @@ async function getRibbonStrangleUsers(
 
   return _.flow([
     Object.entries,
-    (arr) => arr.filter(([k, v]) => k != undefined && v.gt(min)),
+    (arr) =>
+      arr.filter(
+        ([k, v]) => k != undefined && BigNumber.from(v.toString()).gt(min)
+      ),
     Object.fromEntries,
   ])(balances);
 }
 
-async function getRibbonThetaVaultUsers(
-  ribbonVaultAddress,
-  chainlinkAddress,
-  min
-) {
+async function getRibbonThetaVaultUsers(ribbonVaultAddress, min) {
   let ribbonThetaVaultContract = await getContractAt(
     "IRibbonThetaVault",
     ribbonVaultAddress
   );
-  let chainlinkContract = await getContractAt("IChainlink", chainlinkAddress);
 
-  const LATEST_ORACLE_ANSWER = BigNumber.from(
-    await chainlinkContract.latestAnswer()
-  ).div(
-    BigNumber.from("10").pow(BigNumber.from(await chainlinkContract.decimals()))
-  );
+  let chainlinkAssetPrice =
+    chainlinkPrices[await ribbonThetaVaultContract.asset()];
+
   const ASSET_DECIMALS = await ribbonThetaVaultContract.decimals();
 
   let balances = {};
 
   async function getUser(event) {
     let user = event["args"]["account"];
-    let deposit = parseFloat(
-      utils
-        .formatUnits(
-          BigNumber.from(event["args"]["amount"].toString()),
-          ASSET_DECIMALS
-        )
-        .toString()
+
+    let amountInUSD = assetToUSD(
+      event["args"]["amount"],
+      ASSET_DECIMALS,
+      chainlinkAssetPrice
     );
-    let depositInUSD = parseInt(LATEST_ORACLE_ANSWER) * deposit;
+
     if (balances[user] == undefined) {
       balances[user] = 0;
     }
-    balances[user] = Math.floor(balances[user] + depositInUSD);
+    balances[user] = Math.floor(balances[user] + amountInUSD);
   }
 
   let filter = ribbonThetaVaultContract.filters.Deposit(null, null, null);
@@ -335,6 +404,33 @@ async function getRibbonThetaVaultUsers(
   });
 }
 
+async function preloadChainlinkPrices() {
+  await _.mapValues(chainlinkPrices, async function (v, k) {
+    let chainlinkContract = await getContractAt(
+      "IChainlink",
+      chainlinkPrices[k]
+    );
+
+    let LATEST_ORACLE_ANSWER = BigNumber.from(
+      await chainlinkContract.latestAnswer()
+    ).div(
+      BigNumber.from("10").pow(
+        BigNumber.from(await chainlinkContract.decimals())
+      )
+    );
+
+    chainlinkPrices[k] = LATEST_ORACLE_ANSWER;
+  });
+}
+
+function assetToUSD(amount, decimals, chainlinkPrice) {
+  let newAmount = parseFloat(
+    utils.formatUnits(BigNumber.from(amount.toString()), decimals).toString()
+  );
+
+  return parseInt(chainlinkPrice) * newAmount;
+}
+
 function mergeObjects(...objs) {
   return objs.reduce((a, b) => {
     for (let k in b) {
@@ -351,3 +447,4 @@ module.exports.getOpynWriters = getOpynWriters;
 module.exports.getRibbonStrangleUsers = getRibbonStrangleUsers;
 module.exports.getRibbonThetaVaultUsers = getRibbonThetaVaultUsers;
 module.exports.mergeObjects = mergeObjects;
+module.exports.preloadChainlinkPrices = preloadChainlinkPrices;

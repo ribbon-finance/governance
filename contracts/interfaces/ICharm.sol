@@ -11,6 +11,8 @@ interface ICharmOptionMarket {
         returns (ICharmOptionToken);
 
     function numStrikes() external view returns (uint256);
+
+    function baseToken() external view returns (address);
 }
 
 interface ICharmOptionFactory {

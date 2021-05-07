@@ -30,6 +30,7 @@ const {
   getOpynWriters,
   getRibbonStrangleUsers,
   getRibbonThetaVaultUsers,
+  preloadChainlinkPrices,
   mergeObjects,
 } = require("./helpers/protocol-extractors");
 
@@ -49,6 +50,12 @@ let uniConnectorAddress = "0x66fD5619a2a12dB3469e5A1bC5634f981e676c75";
 let routers = [
   "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f",
   "0x7a250d5630b4cf539739df2c5dacb4c659f2488d",
+];
+let primitiveRList = [
+  "0xa9dc7b2635414f9cab240bfd819614878771d657",
+  "0x178cfe4e55fd5720a1ede7f3f3f7f096c678a648",
+  "0xc4a69b137d22b52a36328f3ac6d5aa9984faab8e",
+  "0xaf31d3c2972f62eb08f96a1fe29f579d61b4294d",
 ];
 
 let opynFactory = "0xcC5d905b9c2c8C9329Eb4e25dc086369D6C7777C";
@@ -75,10 +82,6 @@ let ribbonEthPutThetaVaultAddress =
 let ribbonBtcCallThetaVaultAddress =
   "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c";
 let ribbonBtcPutThetaVaultAddress = "";
-let ribbonEthCallOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
-let ribbonEthPutOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
-let ribbonBtcCallOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
-let ribbonBtcPutOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
 // MIN REQUIREMENT for option writing sizes
 
@@ -89,23 +92,13 @@ let HEGIC_ETH_MIN = BigNumber.from("22").mul(
 let HEGIC_WBTC_MIN = BigNumber.from("1").mul(
   BigNumber.from("10").pow(BigNumber.from("18"))
 );
-let CHARM_MIN = BigNumber.from("2").mul(
-  BigNumber.from("10").pow(BigNumber.from("16"))
-);
-let PRIMITIVE_MIN = BigNumber.from("0").mul(
-  BigNumber.from("10").pow(BigNumber.from("18"))
-);
-let OPYN_V1_MIN = BigNumber.from("0").mul(
-  BigNumber.from("10").pow(BigNumber.from("6"))
-);
-let OPYN_V2_MIN = BigNumber.from("0").mul(
-  BigNumber.from("10").pow(BigNumber.from("6"))
-);
-// (rn its 0.02 min eth)
-let RIBBON_MIN = BigNumber.from("2").mul(
-  BigNumber.from("10").pow(BigNumber.from("16"))
-);
-// 50 with no 0's because we are given usd value in map
+
+// Instead of min amount, removing based on manually created list
+//let PRIMITIVE_MIN = BigNumber.from("0");
+
+let CHARM_MIN = BigNumber.from("50");
+let OPYN_MIN = BigNumber.from("50");
+let RIBBON_MIN = BigNumber.from("50");
 let THETA_VAULT_MIN = BigNumber.from("50");
 
 async function main() {
@@ -122,6 +115,8 @@ async function main() {
       },
     ],
   });
+
+  await preloadChainlinkPrices();
 
   // EXTERNAL
 
@@ -166,7 +161,7 @@ async function main() {
     uniConnectorAddress,
     primitiveLiquidityAddress,
     routers,
-    PRIMITIVE_MIN,
+    primitiveRList,
     endBlock
   );
 
@@ -182,8 +177,7 @@ async function main() {
     opynFactory,
     opynController,
     opynExpiryIndex,
-    OPYN_V1_MIN,
-    OPYN_V2_MIN
+    OPYN_MIN
   );
   console.log(`Num Opyn Writers: ${Object.keys(opynWriters).length}\n`);
 
@@ -227,23 +221,18 @@ async function main() {
   console.log(`Pulling Ribbon Theta Vault Users...`);
   let ribbonETHCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonEthCallThetaVaultAddress,
-    ribbonEthCallOracleAddress,
     THETA_VAULT_MIN
   );
   let ribbonETHPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonEthPutThetaVaultAddress,
-    ribbonEthPutOracleAddress,
     THETA_VAULT_MIN
   );
   let ribbonBTCCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonBtcCallThetaVaultAddress,
-    ribbonBtcCallOracleAddress,
     THETA_VAULT_MIN
   );
   // let ribbonBTCPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
   //   ribbonBtcPutThetaVaultAddress,
-  //   ribbonBtcPutOracleAddress,
-  //   ribbonBtcPutDecimals,
   //   THETA_VAULT_MIN
   // );
 
