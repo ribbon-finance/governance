@@ -19,7 +19,8 @@ program
     "-f, --file <file>",
     "json file to load addresses -> balances into",
     "airdrop.json"
-  );
+  )
+  .option("-t, --threshold <dollars>", "min value threshold", "50");
 
 program.parse(process.argv);
 
@@ -87,7 +88,7 @@ let ribbonThetaVaultAddresses = [
 
 // Instead of min amount, removing based on manually created list
 //let PRIMITIVE_MIN = BigNumber.from("0");
-let MIN = BigNumber.from("50");
+let MIN = BigNumber.from(program.opts().threshold);
 
 async function main() {
   var endBlock = parseInt(program.opts().block);
@@ -113,7 +114,7 @@ async function main() {
   /*
     HEGIC
   */
-  console.log(`\nPulling Hegic Writers...`);
+  console.log(`\nPulling Hegic LPs...`);
   let hegicEthWriters = await getHegicWriters(
     writeETHAddress,
     writeETHStakingAddress,
@@ -142,7 +143,7 @@ async function main() {
   /*
     PRIMITIVE
   */
-  console.log(`Pulling Primitive Writers...`);
+  console.log(`Pulling Primitive LPs...`);
   let primitiveWriters = await getPrimitiveWriters(
     sushiConnectorAddress,
     uniConnectorAddress,
@@ -185,7 +186,7 @@ async function main() {
   /*
     RIBBON STRANGLE
   */
-  console.log(`Pulling Ribbon Strangle Users...`);
+  console.log(`Pulling Ribbon Strangle Buyers...`);
   let ribbonStrangleUsers = await getRibbonStrangleUsers(
     ribbonStrangleHegicAddress,
     ribbonStrangleAddresses,
@@ -205,7 +206,7 @@ async function main() {
   /*
     RIBBON THETA VAULT
   */
-  console.log(`Pulling Ribbon Theta Vault Users...`);
+  console.log(`Pulling Ribbon Theta Vault Depositors...`);
   let ribbonThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonThetaVaultAddresses,
     MIN
