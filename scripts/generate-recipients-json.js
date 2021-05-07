@@ -53,10 +53,10 @@ let routers = [
   "0x7a250d5630b4cf539739df2c5dacb4c659f2488d",
 ];
 let primitiveRList = [
-  "0xa9dc7b2635414f9cab240bfd819614878771d657",
-  "0x178cfe4e55fd5720a1ede7f3f3f7f096c678a648",
-  "0xc4a69b137d22b52a36328f3ac6d5aa9984faab8e",
-  "0xaf31d3c2972f62eb08f96a1fe29f579d61b4294d",
+  "0xa9Dc7B2635414F9CaB240Bfd819614878771D657",
+  "0x178CFe4e55fD5720a1edE7F3F3F7f096c678a648",
+  "0xc4a69B137d22b52A36328F3ac6d5Aa9984fAab8E",
+  "0xaF31D3C2972F62Eb08F96a1Fe29f579d61b4294D",
 ];
 
 let opynFactory = "0xcC5d905b9c2c8C9329Eb4e25dc086369D6C7777C";
@@ -64,8 +64,8 @@ let opynController = "0x4ccc2339F87F6c59c6893E1A678c2266cA58dC72";
 // start index in otoken mappings where expiry is in 2021 (https://etherscan.io/address/0xcc5d905b9c2c8c9329eb4e25dc086369d6c7777c#readContract)
 let opynExpiryIndex = 108;
 
-let ribbonStrangleHegicContract = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
-let ribbonStrangleContracts = [
+let ribbonStrangleHegicAddress = "0xEfC0eEAdC1132A12c9487d800112693bf49EcfA2";
+let ribbonStrangleAddresses = [
   "0xce797549a7025561aE60569F68419f016e97D8c5",
   "0x91C7F173b50A219cfbB76fD59B4D808A3FD65395",
   "0xE373F4c9e1dE975B3C0B7fc6C162a9E94620b960",
@@ -76,13 +76,12 @@ let ribbonStrangleContracts = [
   "0x4de07FF16297026AE23d9019383DA06250E539e8",
 ];
 
-let ribbonEthCallThetaVaultAddress =
-  "0x0fabaf48bbf864a3947bdd0ba9d764791a60467a";
-let ribbonEthPutThetaVaultAddress =
-  "0x16772a7f4a3ca291c21b8ace76f9332ddffbb5ef";
-let ribbonBtcCallThetaVaultAddress =
-  "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c";
-let ribbonBtcPutThetaVaultAddress = "";
+let ribbonThetaVaultAddresses = [
+  "0x0fabaf48bbf864a3947bdd0ba9d764791a60467a",
+  "0x16772a7f4a3ca291c21b8ace76f9332ddffbb5ef",
+  "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c",
+  // ribbonBtcPutThetaVaultAddress
+];
 
 // MIN REQUIREMENT for option writing sizes
 
@@ -188,8 +187,8 @@ async function main() {
   */
   console.log(`Pulling Ribbon Strangle Users...`);
   let ribbonStrangleUsers = await getRibbonStrangleUsers(
-    ribbonStrangleHegicContract,
-    ribbonStrangleContracts,
+    ribbonStrangleHegicAddress,
+    ribbonStrangleAddresses,
     MIN
   );
 
@@ -207,56 +206,41 @@ async function main() {
     RIBBON THETA VAULT
   */
   console.log(`Pulling Ribbon Theta Vault Users...`);
-  let ribbonETHCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
-    ribbonEthCallThetaVaultAddress,
+  let ribbonThetaVaultUsers = await getRibbonThetaVaultUsers(
+    ribbonThetaVaultAddresses,
     MIN
   );
-  let ribbonETHPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
-    ribbonEthPutThetaVaultAddress,
-    MIN
-  );
-  let ribbonBTCCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
-    ribbonBtcCallThetaVaultAddress,
-    MIN
-  );
-  // let ribbonBTCPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
-  //   ribbonBtcPutThetaVaultAddress,
-  //   MIN
-  // );
 
-  let thetaVaultUsers = mergeObjects(
-    ribbonETHCALLThetaVaultUsers,
-    ribbonETHPUTThetaVaultUsers,
-    ribbonBTCCALLThetaVaultUsers /*, ribbonBTCPUTThetaVaultUsers*/
-  );
   let totalUSDSize = _.sum(
-    Object.values(thetaVaultUsers).map((v) => parseInt(v))
+    Object.values(ribbonThetaVaultUsers).map((v) => parseInt(v))
   ).toString();
 
   //extra
-  thetaVaultUsers = _.mapValues(thetaVaultUsers, function (v, k) {
+  ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
     return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
-      BigNumber.from(thetaVaultUsers[k])
+      BigNumber.from(ribbonThetaVaultUsers[k])
     ).div(BigNumber.from(totalUSDSize));
   });
 
   //base
-  thetaVaultUsers = _.mapValues(thetaVaultUsers, function (v, k) {
-    return thetaVaultUsers[k].add(
+  ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
+    return ribbonThetaVaultUsers[k].add(
       AIRDROP_SCRIPT_PARAMS.VAULT_BASE_AMOUNT.div(
-        BigNumber.from(Object.keys(thetaVaultUsers).length.toString())
+        BigNumber.from(Object.keys(ribbonThetaVaultUsers).length.toString())
       )
     );
   });
 
   console.log(
-    `Num Ribbon Theta Vault Users: ${Object.keys(thetaVaultUsers).length}\n`
+    `Num Ribbon Theta Vault Users: ${
+      Object.keys(ribbonThetaVaultUsers).length
+    }\n`
   );
 
   masterBalance = mergeObjects(
     masterBalance,
     ribbonStrangleUsers,
-    thetaVaultUsers
+    ribbonThetaVaultUsers
   );
 
   Object.keys(masterBalance).map(function (k, i) {

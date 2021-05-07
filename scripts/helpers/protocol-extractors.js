@@ -380,27 +380,13 @@ async function getRibbonStrangleUsers(
   ])(balances);
 }
 
-async function getRibbonThetaVaultUsers(ribbonVaultAddress, min) {
-  let ribbonThetaVaultContract = await getContractAt(
-    "IRibbonThetaVault",
-    ribbonVaultAddress
-  );
-
-  let chainlinkAssetPrice =
-    chainlinkPrices[await ribbonThetaVaultContract.asset()];
-
-  const ASSET_DECIMALS = await ribbonThetaVaultContract.decimals();
-
+async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
   let balances = {};
 
-  async function getUser(event) {
+  async function getUser(event, decimals, price) {
     let user = event["args"]["account"];
 
-    let amountInUSD = assetToUSD(
-      event["args"]["amount"],
-      ASSET_DECIMALS,
-      chainlinkAssetPrice
-    );
+    let amountInUSD = assetToUSD(event["args"]["amount"], decimals, price);
 
     if (balances[user] == undefined) {
       balances[user] = 0;
@@ -408,10 +394,25 @@ async function getRibbonThetaVaultUsers(ribbonVaultAddress, min) {
     balances[user] = Math.floor(balances[user] + amountInUSD);
   }
 
-  let filter = ribbonThetaVaultContract.filters.Deposit(null, null, null);
-  let userAccounts = await Promise.all(
-    (await ribbonThetaVaultContract.queryFilter(filter)).map(getUser)
-  );
+  for (const thetaVaultAddress of ribbonThetaVaultAddresses) {
+    let ribbonThetaVaultContract = await getContractAt(
+      "IRibbonThetaVault",
+      thetaVaultAddress
+    );
+
+    let chainlinkAssetPrice =
+      chainlinkPrices[await ribbonThetaVaultContract.asset()];
+
+    let assetDecimals = await ribbonThetaVaultContract.decimals();
+
+    let filter = ribbonThetaVaultContract.filters.Deposit(null, null, null);
+
+    await Promise.all(
+      (await ribbonThetaVaultContract.queryFilter(filter)).map((e) =>
+        getUser(e, assetDecimals, chainlinkAssetPrice)
+      )
+    );
+  }
 
   balances = _.flow([
     Object.entries,
