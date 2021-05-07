@@ -30,6 +30,30 @@ const STAKING_REWARDS_rWBTCTHETA_PARAMS = {
   START_EMISSION: "",
 };
 
+// FOR MAINNET
+const AIRDROP_PARAMS = {
+  OWNER: "",
+  TOKEN_ADDRESS: "",
+  MERKLE_ROOT: "",
+  DAYS_UNTIL_UNLOCK: "200",
+};
+
+// FOR SCRIPT
+const AIRDROP_SCRIPT_PARAMS = {
+  STRANGLE_AMOUNT: BigNumber.from("2000000").mul(
+    BigNumber.from("10").pow(BigNumber.from("18"))
+  ),
+  VAULT_BASE_AMOUNT: BigNumber.from("8000000").mul(
+    BigNumber.from("10").pow(BigNumber.from("18"))
+  ),
+  VAULT_EXTRA_AMOUNT: BigNumber.from("4000000").mul(
+    BigNumber.from("10").pow(BigNumber.from("18"))
+  ),
+  EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("6000000").mul(
+    BigNumber.from("10").pow(BigNumber.from("18"))
+  ),
+};
+
 // FOR TESTING
 const STAKING_TOKEN_PARAMS = {
   ADDRESS: "0x0FABaF48Bbf864a3947bdd0Ba9d764791a60467A",
@@ -43,8 +67,10 @@ const EXTERNAL_TOKEN_PARAMS = {
 
 module.exports = {
   TOKEN_PARAMS,
+  AIRDROP_PARAMS,
   STAKING_REWARDS_rETHTHETA_PARAMS,
   STAKING_REWARDS_rWBTCTHETA_PARAMS,
   STAKING_TOKEN_PARAMS,
   EXTERNAL_TOKEN_PARAMS,
+  AIRDROP_SCRIPT_PARAMS,
 };
