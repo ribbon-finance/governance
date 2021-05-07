@@ -16,7 +16,7 @@ async function main() {
   await merkleDistributor.deployed();
 
   console.log(
-    `\nMerkle distributor is deployed at ${merkleDistributor.address}, verify with https://etherscan.io/proxyContractChecker?a=${merkleDistributor.address}\n`
+    `\nMerkle distributor is deployed at ${merkleDistributor.address}, verify with https://etherscan.io/address/${merkleDistributor.address}\n`
   );
 }
 
