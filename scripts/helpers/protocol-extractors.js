@@ -4,6 +4,7 @@ const { provider, constants, BigNumber, getContractAt, utils } = ethers;
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const WBTC_ADDRESS = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 
 let chainlinkPrices = {
   // ETH
@@ -34,7 +35,7 @@ let chainlinkPrices = {
 
 const ETHERSCAN_API_KEY = "CAVAMK1HU28SRBRFDQN4JFQMEWFAI9ZGF6";
 
-async function getHegicWriters(writeAddr, stakingAddr, min) {
+async function getHegicWriters(writeAddr, stakingAddr, writeRatio, min) {
   let writeContract = await getContractAt("IHegic", writeAddr);
 
   let stakingContract = await getContractAt("IStakingRewards", stakingAddr);
@@ -44,13 +45,37 @@ async function getHegicWriters(writeAddr, stakingAddr, min) {
     var providerBalance = BigNumber.from(
       await stakingContract.balanceOf(providerAccount)
     );
-    if (providerBalance.gt(min)) {
+
+    let decimals = await writeContract.decimals();
+
+    let chainlinkAssetPrice =
+      chainlinkPrices[decimals == 18 ? ZERO_ADDRESS : WBTC_ADDRESS];
+
+    let amountInUSD = Math.floor(
+      assetToUSD(
+        providerBalance.div(writeRatio).toString(),
+        decimals,
+        chainlinkAssetPrice
+      )
+    );
+
+    if (BigNumber.from(amountInUSD.toString()).gt(min)) {
       return providerAccount;
     }
+
     providerBalance = providerBalance.add(
       BigNumber.from(await writeContract.balanceOf(providerAccount))
     );
-    if (providerBalance.gt(min)) {
+
+    amountInUSD = Math.floor(
+      assetToUSD(
+        providerBalance.div(writeRatio).toString(),
+        decimals,
+        chainlinkAssetPrice
+      )
+    );
+
+    if (BigNumber.from(amountInUSD.toString()).gt(min)) {
       return providerAccount;
     }
   }
@@ -184,9 +209,7 @@ async function getPrimitiveWriters(
   );
 
   async function getUser(event) {
-    if (event["args"]["sum"].gt(min)) {
-      return event["args"]["from"].toString();
-    }
+    return event["args"]["from"].toString();
   }
 
   let filter = primitiveLiquidity.filters.AddLiquidity(null, null, null);
@@ -199,7 +222,7 @@ async function getPrimitiveWriters(
   );
 
   return [...new Set(optionWriters)]
-    .filter((k) => k != undefined)
+    .filter((k) => k != undefined && !rList.includes(k))
     .reduce((acc, curr) => ((acc[curr] = BigNumber.from("0")), acc), {});
 }
 

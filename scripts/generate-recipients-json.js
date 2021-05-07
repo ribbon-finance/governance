@@ -41,6 +41,7 @@ let writeETHAddress = "0x878f15ffc8b894a1ba7647c7176e4c01f74e140b";
 let writeETHStakingAddress = "0x8FcAEf0dBf40D36e5397aE1979c9075Bf34C180e";
 let writeWBTCAddress = "0x20dd9e22d22dd0a6ef74a520cb08303b5fad5de7";
 let writeWBTCStakingAddress = "0x493134A9eAbc8D2b5e08C5AB08e9D413fb4D1a55";
+let writeRatio = 1141;
 
 let charmOptionFactoryAddress = "0xCDFE169dF3D64E2e43D88794A21048A52C742F2B";
 
@@ -85,21 +86,9 @@ let ribbonBtcPutThetaVaultAddress = "";
 
 // MIN REQUIREMENT for option writing sizes
 
-/* threshold amount for those who hold writeETH / writeWBTC */
-let HEGIC_ETH_MIN = BigNumber.from("22").mul(
-  BigNumber.from("10").pow(BigNumber.from("18"))
-);
-let HEGIC_WBTC_MIN = BigNumber.from("1").mul(
-  BigNumber.from("10").pow(BigNumber.from("18"))
-);
-
 // Instead of min amount, removing based on manually created list
 //let PRIMITIVE_MIN = BigNumber.from("0");
-
-let CHARM_MIN = BigNumber.from("50");
-let OPYN_MIN = BigNumber.from("50");
-let RIBBON_MIN = BigNumber.from("50");
-let THETA_VAULT_MIN = BigNumber.from("50");
+let MIN = BigNumber.from("50");
 
 async function main() {
   var endBlock = parseInt(program.opts().block);
@@ -129,13 +118,15 @@ async function main() {
   let hegicEthWriters = await getHegicWriters(
     writeETHAddress,
     writeETHStakingAddress,
-    HEGIC_ETH_MIN
+    writeRatio,
+    MIN
   );
 
   let hegicWBTCWriters = await getHegicWriters(
     writeWBTCAddress,
     writeWBTCStakingAddress,
-    HEGIC_WBTC_MIN
+    writeRatio,
+    MIN
   );
 
   masterBalance = mergeObjects(hegicEthWriters, hegicWBTCWriters);
@@ -146,10 +137,7 @@ async function main() {
     CHARM
   */
   console.log(`Pulling Charm Writers...`);
-  let charmWriters = await getCharmWriters(
-    charmOptionFactoryAddress,
-    CHARM_MIN
-  );
+  let charmWriters = await getCharmWriters(charmOptionFactoryAddress, MIN);
   console.log(`Num Charm Writers: ${Object.keys(charmWriters).length}\n`);
 
   /*
@@ -177,7 +165,7 @@ async function main() {
     opynFactory,
     opynController,
     opynExpiryIndex,
-    OPYN_MIN
+    MIN
   );
   console.log(`Num Opyn Writers: ${Object.keys(opynWriters).length}\n`);
 
@@ -202,7 +190,7 @@ async function main() {
   let ribbonStrangleUsers = await getRibbonStrangleUsers(
     ribbonStrangleHegicContract,
     ribbonStrangleContracts,
-    RIBBON_MIN
+    MIN
   );
 
   console.log(
@@ -221,19 +209,19 @@ async function main() {
   console.log(`Pulling Ribbon Theta Vault Users...`);
   let ribbonETHCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonEthCallThetaVaultAddress,
-    THETA_VAULT_MIN
+    MIN
   );
   let ribbonETHPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonEthPutThetaVaultAddress,
-    THETA_VAULT_MIN
+    MIN
   );
   let ribbonBTCCALLThetaVaultUsers = await getRibbonThetaVaultUsers(
     ribbonBtcCallThetaVaultAddress,
-    THETA_VAULT_MIN
+    MIN
   );
   // let ribbonBTCPUTThetaVaultUsers = await getRibbonThetaVaultUsers(
   //   ribbonBtcPutThetaVaultAddress,
-  //   THETA_VAULT_MIN
+  //   MIN
   // );
 
   let thetaVaultUsers = mergeObjects(
