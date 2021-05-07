@@ -9,11 +9,19 @@ interface IOpynOptionFactory {
 }
 
 interface IOpynOptionTokenV1 {
+    function collateral() external pure returns (address);
+
     event ERC20CollateralAdded(
         address payable vaultOwner,
         uint256 amount,
         address payer
     );
+}
+
+interface IOpynOptionTokenV2 {
+    function collateralAsset() external pure returns (address);
+
+    function decimals() external pure returns (uint256);
 }
 
 interface IOpynController {
@@ -24,8 +32,4 @@ interface IOpynController {
         uint256 vaultId,
         uint256 amount
     );
-}
-
-interface IOpynOptionTokenV2 {
-    function collateralAsset() external pure returns (address);
 }
