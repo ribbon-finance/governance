@@ -32,6 +32,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
       - name: Compile Solidity contracts
-        run: npx hardhat compile
-      - name: Test
-        run: npx hardhat test
+        run: yarn compile
+        env:
+          TEST_URI: ${{ secrets.TEST_URI }}
+          CI: true
+      - run: yarn test
+        env:
+          TEST_URI: ${{ secrets.TEST_URI }}
+          CI: true
