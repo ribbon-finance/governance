@@ -4,9 +4,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-
 /**
- * RIBBON: STRUCTURED PRODUCTS FOR THE PEOPLE
+ * RIBBON FINANCE: STRUCTURED PRODUCTS FOR THE PEOPLE
  */
 contract RibbonToken is AccessControl, ERC20 {
     /// @dev The identifier of the role which maintains other roles.
