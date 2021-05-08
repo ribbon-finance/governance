@@ -22,16 +22,16 @@ contract RibbonToken is AccessControl, ERC20 {
         string memory name,
         string memory symbol,
         uint256 totalSupply,
-        address benificiary
+        address beneficiary
     ) public ERC20(name, symbol) {
         // We are minting initialSupply number of tokens
-        _mint(benificiary, totalSupply);
-        // Add benificiary as minter
-        _setupRole(MINTER_ROLE, benificiary);
-        // Add benificiary as transferer
-        _setupRole(TRANSFER_ROLE, benificiary);
-        // Add benificiary as admin
-        _setupRole(ADMIN_ROLE, benificiary);
+        _mint(beneficiary, totalSupply);
+        // Add beneficiary as minter
+        _setupRole(MINTER_ROLE, beneficiary);
+        // Add beneficiary as transferer
+        _setupRole(TRANSFER_ROLE, beneficiary);
+        // Add beneficiary as admin
+        _setupRole(ADMIN_ROLE, beneficiary);
         // Set ADMIN role as admin of transfer role
         _setRoleAdmin(TRANSFER_ROLE, ADMIN_ROLE);
     }
