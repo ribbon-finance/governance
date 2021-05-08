@@ -11,7 +11,7 @@ async function main() {
     deployer
   );
 
-  // Use a different name for obfuscation
+  // Use a different name for obfuscation just in case anyone's watching
   const name = network === "kovan" ? "TestToken" : TOKEN_PARAMS.NAME;
   const symbol = network === "kovan" ? "TT" : TOKEN_PARAMS.SYMBOL;
   const beneficiary =
