@@ -4,7 +4,7 @@ const { BigNumber } = ethers;
 // FOR MAINNET
 const TOKEN_PARAMS = {
   NAME: "Ribbon",
-  SYMBOL: "RIBBON",
+  SYMBOL: "RBN",
   DECIMALS: "18",
   SUPPLY: BigNumber.from("1000000000")
     .mul(BigNumber.from("10").pow(BigNumber.from("18")))
