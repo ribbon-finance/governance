@@ -26,6 +26,12 @@ module.exports = {
         blockNumber: 12239391,
       },
     },
+    kovan: {
+      url: process.env.KOVAN_URI,
+      accounts: {
+        mnemonic: process.env.KOVAN_MNEMONIC
+      }
+    }
   },
   mocha: {
     timeout: 200000,

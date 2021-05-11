@@ -2,13 +2,26 @@ const hre = require("hardhat");
 const { TOKEN_PARAMS } = require("../params");
 
 async function main() {
+  const [deployer] = await ethers.getSigners();
+  const network = hre.network.name;
+
   // We get the contract to deploy
-  const RibbonToken = await hre.ethers.getContractFactory("RibbonToken");
+  const RibbonToken = await hre.ethers.getContractFactory(
+    "RibbonToken",
+    deployer
+  );
+
+  // Use a different name for obfuscation just in case anyone's watching
+  const name = network === "kovan" ? "TestToken" : TOKEN_PARAMS.NAME;
+  const symbol = network === "kovan" ? "TT" : TOKEN_PARAMS.SYMBOL;
+  const beneficiary =
+    network === "kovan" ? deployer.address : TOKEN_PARAMS.BENIFICIARY;
+
   const ribbonToken = await RibbonToken.deploy(
-    TOKEN_PARAMS.NAME,
-    TOKEN_PARAMS.SYMBOL,
+    name,
+    symbol,
     TOKEN_PARAMS.SUPPLY,
-    TOKEN_PARAMS.BENIFICIARY
+    beneficiary
   );
 
   await ribbonToken.deployed();
