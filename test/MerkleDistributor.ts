@@ -8,6 +8,8 @@ import { BigNumber, constants, Contract, ContractFactory } from "ethers";
 // import { currentTime, fastForward } from "../utils/index";
 const { currentTime, fastForward } = require("./utils")();
 
+const { TOKEN_PARAMS } = require("../params");
+
 const ONE_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000001";
 
@@ -101,6 +103,122 @@ describe("MerkleDistributor contract", function () {
       expect(
         await token.balanceOf((await ethers.getSigners())[0].address)
       ).to.equal("200");
+    });
+  });
+
+  describe("#claim-transfer", () => {
+    let RibbonToken: ContractFactory;
+    let localDistributor: Contract;
+    let ribbonToken: Contract;
+    let tree: BalanceTree;
+
+    beforeEach("deploy", async () => {
+      RibbonToken = await ethers.getContractFactory("RibbonToken");
+
+      let owner = (await ethers.getSigners())[0];
+
+      tree = new BalanceTree([
+        { account: wallet0.address, amount: BigNumber.from(100) },
+        { account: wallet1.address, amount: BigNumber.from(101) },
+      ]);
+
+      ribbonToken = await RibbonToken.deploy(
+        TOKEN_PARAMS.NAME,
+        TOKEN_PARAMS.SYMBOL,
+        TOKEN_PARAMS.SUPPLY,
+        owner.address
+      );
+
+      await ribbonToken.deployed();
+
+      localDistributor = await Distributor.deploy(
+        owner.address,
+        ribbonToken.address,
+        tree.getHexRoot(),
+        daysUntilUnlock
+      );
+      await localDistributor.deployed();
+
+      await ribbonToken.connect(owner).transfer(localDistributor.address, 1000);
+    });
+
+    it("unsuccessful claim without transfer privileges", async () => {
+      const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
+      await expect(
+        localDistributor.claim(1, wallet1.address, 101, proof1)
+      ).to.be.revertedWith("RibbonToken: no transfer privileges");
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);
+    });
+
+    it("successful claim after granted transfer role", async () => {
+      let owner = (await ethers.getSigners())[0];
+      let withSigner = await ribbonToken.connect(owner);
+      await withSigner.grantRole(
+        await ribbonToken.TRANSFER_ROLE(),
+        localDistributor.address
+      );
+
+      const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
+      await expect(localDistributor.claim(1, wallet1.address, 101, proof1))
+        .to.emit(localDistributor, "Claimed")
+        .withArgs(1, wallet1.address, 101);
+    });
+
+    it("transfers the token", async () => {
+      let owner = (await ethers.getSigners())[0];
+      let withSigner = await ribbonToken.connect(owner);
+      await withSigner.grantRole(
+        await ribbonToken.TRANSFER_ROLE(),
+        localDistributor.address
+      );
+
+      const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);
+      await localDistributor.claim(1, wallet1.address, 101, proof1);
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(101);
+    });
+
+    it("unsuccessful user transfer after claiming the token", async () => {
+      let owner = (await ethers.getSigners())[0];
+      let randomAddress = (await ethers.getSigners())[1];
+      let withSigner = await ribbonToken.connect(owner);
+      await withSigner.grantRole(
+        await ribbonToken.TRANSFER_ROLE(),
+        localDistributor.address
+      );
+
+      const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);
+      await localDistributor.claim(1, wallet1.address, 101, proof1);
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(101);
+
+      await expect(
+        ribbonToken
+          .connect(randomAddress)
+          .transfer(localDistributor.address, 10)
+      ).to.be.revertedWith("RibbonToken: no transfer privileges");
+    });
+
+    it("successful user transfer after claiming the token and transfers set to allowed", async () => {
+      let owner = (await ethers.getSigners())[0];
+      let randomAddress = (await ethers.getSigners())[1];
+      let withSigner = await ribbonToken.connect(owner);
+      await withSigner.grantRole(
+        await ribbonToken.TRANSFER_ROLE(),
+        localDistributor.address
+      );
+
+      const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);
+      await localDistributor.claim(1, wallet1.address, 101, proof1);
+      expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(101);
+
+      await withSigner.setTransfersAllowed(true);
+
+      await ribbonToken.connect(owner).transfer(randomAddress.address, 1000);
+      await ribbonToken
+        .connect(randomAddress)
+        .transfer(localDistributor.address, 10);
     });
   });
 
