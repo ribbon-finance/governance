@@ -241,6 +241,21 @@ describe("RibbonToken contract", function () {
         withSigner.grantRole(await ribbonToken.ADMIN_ROLE(), addr1.address)
       ).to.be.reverted;
     });
+
+    it("Should let admin renounce own admin role", async function () {
+      await expect(
+        withSigner.renounceRole(
+          await ribbonToken.ADMIN_ROLE(),
+          TOKEN_PARAMS.BENIFICIARY
+        )
+      ).to.emit(ribbonToken, "RoleRevoked");
+      expect(
+        await withSigner.hasRole(
+          await ribbonToken.ADMIN_ROLE(),
+          TOKEN_PARAMS.BENIFICIARY
+        )
+      ).to.be.false;
+    });
   });
 
   // Test arbitrary ribbon token transfer attempts
