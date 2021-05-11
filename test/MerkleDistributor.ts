@@ -244,7 +244,7 @@ describe("MerkleDistributor contract", function () {
         const proof = tree.getProof(0, wallet0.address, BigNumber.from(100));
         const tx = await localDistributor.claim(0, wallet0.address, 100, proof);
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(79215);
+        expect(receipt.gasUsed).to.equal(81615);
       });
     });
     describe("larger tree", () => {
@@ -289,7 +289,7 @@ describe("MerkleDistributor contract", function () {
           proof
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(81984);
+        expect(receipt.gasUsed).to.equal(84384);
       });
 
       it("gas second down about 15k", async () => {
@@ -306,7 +306,7 @@ describe("MerkleDistributor contract", function () {
           tree.getProof(1, wallets[1].address, BigNumber.from(2))
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(66974);
+        expect(receipt.gasUsed).to.equal(67274);
       });
     });
 
@@ -363,7 +363,7 @@ describe("MerkleDistributor contract", function () {
           proof
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(93919);
+        expect(receipt.gasUsed).to.equal(96319);
       });
       it("gas deeper node", async () => {
         const proof = tree.getProof(
@@ -378,7 +378,7 @@ describe("MerkleDistributor contract", function () {
           proof
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(93855);
+        expect(receipt.gasUsed).to.equal(96255);
       });
       it("gas average random distribution", async () => {
         let total: BigNumber = BigNumber.from(0);
@@ -396,7 +396,7 @@ describe("MerkleDistributor contract", function () {
           count++;
         }
         const average = total.div(count);
-        expect(average).to.equal(79325);
+        expect(average).to.equal(79709);
       });
       // this is what we gas golfed by packing the bitmap
       it("gas average first 25", async () => {
@@ -415,7 +415,7 @@ describe("MerkleDistributor contract", function () {
           count++;
         }
         const average = total.div(count);
-        expect(average).to.equal(65093);
+        expect(average).to.equal(63461);
       });
 
       it("no double claims in random distribution", async () => {
