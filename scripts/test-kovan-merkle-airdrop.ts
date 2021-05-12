@@ -3,7 +3,7 @@ const { currentTime, fastForward } = require("../test/utils")();
 import BalanceTree from "../scripts/helpers/balance-tree";
 
 const RIBBON_TOKEN_ADDRESS = "0x567e482AF973187648Af9FC56d2Caec212c1CAca";
-const MERKLE_DISTRIBUTOR_ADDRESS = "0xF1CF0090BDF8eDDFF366303AB89b514932de5B2E";
+const MERKLE_DISTRIBUTOR_ADDRESS = "0x49C572874Cd6A7Cd1A69BD56557bF62CC949D61E" //"0xF1CF0090BDF8eDDFF366303AB89b514932de5B2E";
 
 async function main() {
   const [owner, claimee2] = await ethers.getSigners();
@@ -13,23 +13,34 @@ async function main() {
   let tokenSigner = (
     await ethers.getContractAt("RibbonToken", RIBBON_TOKEN_ADDRESS)
   ).connect(owner);
-  await tokenSigner.transfer(MERKLE_DISTRIBUTOR_ADDRESS, 100000, {
+  await tokenSigner.transfer(MERKLE_DISTRIBUTOR_ADDRESS, 1000000, {
     from: owner.address,
   });
 
   console.log("Token transfer to merkle distributor successful...");
-  console.log("Claiming airdrop amount from merkle distributor contract");
+  console.log("Giving merkle airdrop transfer privileges...");
 
-  let tree = new BalanceTree([
-    { account: claimee2.address, amount: ethers.BigNumber.from(200) },
-    { account: owner.address, amount: ethers.BigNumber.from(100) },
-  ]);
+  await tokenSigner.grantRole(
+    await tokenSigner.TRANSFER_ROLE(),
+    MERKLE_DISTRIBUTOR_ADDRESS
+  );
+
+  console.log("Merkle airdrop transfer privileges granted...");
+  console.log("Claiming airdrop amount from merkle distributor contract...");
+
 
   let index = 0;
-  let account = claimee2.address;
-  let amount = 200
+  let account = "0x371E0d225b751C1d6B3554db72609D893AbFeCcB" //claimee2.address;
+  let amount = 500
+
+  let tree = new BalanceTree([
+    { account: "0x371E0d225b751C1d6B3554db72609D893AbFeCcB", amount: ethers.BigNumber.from(500) },
+    { account: "0x546Cd75bAA94603D6790CD2E6058fa0A84C52165", amount: ethers.BigNumber.from(200) },
+    { account: "0xc62DC8D0Fa2dB60ECA118984067c6ad011Bf598A", amount: ethers.BigNumber.from(100) },
+  ]);
+
   //let proof = ['0x0efae0319abb6354392ae2b02357d688c57f27a0d21e7d9821c39d2c71d8c83b'];
-  let proof = tree.getProof(0, claimee2.address, ethers.BigNumber.from(200))
+  let proof = tree.getProof(0, "0x371E0d225b751C1d6B3554db72609D893AbFeCcB", ethers.BigNumber.from(500))
 
   console.log(`Merkle root is ${tree.getHexRoot()}`)
   console.log(`Merkle proof is ${proof}`)
@@ -40,7 +51,7 @@ async function main() {
 
   let resp = await merkleSigner.claim(index, account, amount, proof);
 
-  console.log(`Claim sucessful! ${res}`);
+  console.log(`Claim sucessful!`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

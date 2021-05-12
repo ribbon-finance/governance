@@ -22,7 +22,7 @@ async function main() {
   //merkle root for example2.json
   const merkleRoot =
     network === "kovan"
-      ? "0x854b13abff6a9ebc1d59cd6f97cca326757e1c4c22a8b8cfe0c10ca42c1142ea"
+      ? "0x2018c6b9b1a3fd7822b79c24c3dd87ad8545030c0a305a0389d8fd10a361b2f8"
       : AIRDROP_PARAMS.MERKLE_ROOT;
 
   const merkleDistributor = await MerkleDistributor.deploy(
