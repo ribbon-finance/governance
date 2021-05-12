@@ -31,6 +31,9 @@ async function main() {
   //let proof = ['0x0efae0319abb6354392ae2b02357d688c57f27a0d21e7d9821c39d2c71d8c83b'];
   let proof = tree.getProof(0, claimee2.address, ethers.BigNumber.from(200))
 
+  console.log(`Merkle root is ${tree.getHexRoot()}`)
+  console.log(`Merkle proof is ${proof}`)
+
   let merkleSigner = (
     await ethers.getContractAt("MerkleDistributor", MERKLE_DISTRIBUTOR_ADDRESS)
   ).connect(owner);
