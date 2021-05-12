@@ -6,7 +6,7 @@ const RIBBON_TOKEN_ADDRESS = "0x567e482AF973187648Af9FC56d2Caec212c1CAca";
 const MERKLE_DISTRIBUTOR_ADDRESS = "0x49C572874Cd6A7Cd1A69BD56557bF62CC949D61E" //"0xF1CF0090BDF8eDDFF366303AB89b514932de5B2E";
 
 async function main() {
-  const [owner, claimee2] = await ethers.getSigners();
+  const [owner] = await ethers.getSigners();
 
   console.log("Transferring tokens to merkle distributor contract...");
 
@@ -30,7 +30,7 @@ async function main() {
 
 
   let index = 0;
-  let account = "0x371E0d225b751C1d6B3554db72609D893AbFeCcB" //claimee2.address;
+  let account = "0x371E0d225b751C1d6B3554db72609D893AbFeCcB"
   let amount = 500
 
   let tree = new BalanceTree([
@@ -39,7 +39,6 @@ async function main() {
     { account: "0xc62DC8D0Fa2dB60ECA118984067c6ad011Bf598A", amount: ethers.BigNumber.from(100) },
   ]);
 
-  //let proof = ['0x0efae0319abb6354392ae2b02357d688c57f27a0d21e7d9821c39d2c71d8c83b'];
   let proof = tree.getProof(0, "0x371E0d225b751C1d6B3554db72609D893AbFeCcB", ethers.BigNumber.from(500))
 
   console.log(`Merkle root is ${tree.getHexRoot()}`)
