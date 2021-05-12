@@ -17,7 +17,7 @@ async function main() {
       : AIRDROP_PARAMS.OWNER;
   const tokenAddress =
     network === "kovan"
-      ? "0xDe553DA1D4a7733f86a6C87E785cA5b752A3D03d"
+      ? "0x567e482AF973187648Af9FC56d2Caec212c1CAca"
       : AIRDROP_PARAMS.TOKEN_ADDRESS;
   //merkle root for example2.json
   const merkleRoot =
