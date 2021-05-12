@@ -17,12 +17,12 @@ async function main() {
       : AIRDROP_PARAMS.OWNER;
   const tokenAddress =
     network === "kovan"
-      ? "0xDe553DA1D4a7733f86a6C87E785cA5b752A3D03d"
+      ? "0x567e482AF973187648Af9FC56d2Caec212c1CAca"
       : AIRDROP_PARAMS.TOKEN_ADDRESS;
   //merkle root for example2.json
   const merkleRoot =
     network === "kovan"
-      ? "0x854b13abff6a9ebc1d59cd6f97cca326757e1c4c22a8b8cfe0c10ca42c1142ea"
+      ? "0x2018c6b9b1a3fd7822b79c24c3dd87ad8545030c0a305a0389d8fd10a361b2f8"
       : AIRDROP_PARAMS.MERKLE_ROOT;
 
   const merkleDistributor = await MerkleDistributor.deploy(
