@@ -31,6 +31,7 @@ module.exports = {
       accounts: {
         mnemonic: process.env.KOVAN_MNEMONIC
       }
+      // accounts: [`0x${process.env.KOVAN_KEY}`,`0x${process.env.KOVAN_KEY2}`]
     }
   },
   mocha: {
