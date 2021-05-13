@@ -5,9 +5,8 @@ const { Command } = require("commander");
 const { ethers, network } = require("hardhat");
 const { BigNumber } = ethers;
 const boxcox = require("@stdlib/math/base/special/boxcox");
-const incrspace = require("@stdlib/math/utils/incrspace");
 
-const { AIRDROP_SCRIPT_PARAMS, AIRDROP_PARAMS } = require("../params");
+const { AIRDROP_SCRIPT_PARAMS } = require("../params");
 
 const program = new Command();
 
