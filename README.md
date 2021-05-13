@@ -40,7 +40,7 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
 
 Airdrop Recipient Reward Methodology:
 
-* 6M $RBN split equally between:
+* 4M $RBN split equally between:
     * **only current** HEGIC LPs (ETH & WBTC pools)
     * PRIMITIVE LPs
     * OPYN, CHARM option writers of options that expire in 2021
