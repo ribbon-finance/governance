@@ -49,7 +49,7 @@ const AIRDROP_SCRIPT_PARAMS = {
   VAULT_EXTRA_AMOUNT: BigNumber.from("4000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("6000000").mul(
+  EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("4000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
 };

@@ -130,6 +130,7 @@ async function main() {
   );
 
   masterBalance = mergeObjects(hegicEthWriters, hegicWBTCWriters);
+  const hegicWriters = { ...masterBalance };
 
   console.log(`Num Hegic Writers: ${Object.keys(masterBalance).length}\n`);
 
@@ -175,6 +176,10 @@ async function main() {
     primitiveWriters,
     opynWriters
   );
+  const externalAirdropAmount = AIRDROP_SCRIPT_PARAMS.EXTERNAL_PROTOCOLS_AMOUNT.div(
+    BigNumber.from(Object.keys(masterBalance).length.toString())
+  );
+
   masterBalance = _.mapValues(masterBalance, () =>
     AIRDROP_SCRIPT_PARAMS.EXTERNAL_PROTOCOLS_AMOUNT.div(
       BigNumber.from(Object.keys(masterBalance).length.toString())
@@ -215,9 +220,15 @@ async function main() {
   let totalUSDSize = _.sum(
     Object.values(ribbonThetaVaultUsers).map((v) => parseInt(v))
   ).toString();
+  console.log(totalUSDSize);
+
+  let distribution = [];
 
   //extra
+  //TBC
   ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
+    distribution.push(ribbonThetaVaultUsers[k] / totalUSDSize);
+
     return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
       BigNumber.from(ribbonThetaVaultUsers[k])
     ).div(BigNumber.from(totalUSDSize));
@@ -262,6 +273,30 @@ async function main() {
       Object.keys(masterBalance).length
     }`
   );
+
+  const toInt = (amount) => {
+    return parseInt(
+      amount.div(BigNumber.from("10").pow(BigNumber.from("18"))).toString()
+    );
+  };
+
+  try {
+    let protocolBreakdown = {
+      hegic: _.mapValues(hegicWriters, () => toInt(externalAirdropAmount)),
+      charm: _.mapValues(charmWriters, () => toInt(externalAirdropAmount)),
+      primitive: _.mapValues(primitiveWriters, () =>
+        toInt(externalAirdropAmount)
+      ),
+      opyn: _.mapValues(opynWriters, () => toInt(externalAirdropAmount)),
+      strangle: _.mapValues(ribbonStrangleUsers, toInt),
+      thetaVault: _.mapValues(ribbonThetaVaultUsers, toInt),
+    };
+    console.log(JSON.stringify(distribution));
+
+    fs.writeFileSync("breakdown.json", JSON.stringify(protocolBreakdown));
+  } catch (err) {
+    console.error(err);
+  }
 
   try {
     fs.writeFileSync(program.opts().file, JSON.stringify(masterBalance));
