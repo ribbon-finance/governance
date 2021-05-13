@@ -52,6 +52,7 @@ const AIRDROP_SCRIPT_PARAMS = {
   EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("4000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
+  BOXCOX_LAMBDA: 0.7,
 };
 
 // FOR TESTING

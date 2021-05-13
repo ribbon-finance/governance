@@ -3,9 +3,11 @@ var _ = require("lodash");
 const fs = require("fs");
 const { Command } = require("commander");
 const { ethers, network } = require("hardhat");
-const { provider, constants, BigNumber, getContractAt, utils } = ethers;
+const { BigNumber } = ethers;
+const boxcox = require("@stdlib/math/base/special/boxcox");
+const incrspace = require("@stdlib/math/utils/incrspace");
 
-const { AIRDROP_SCRIPT_PARAMS } = require("../params");
+const { AIRDROP_SCRIPT_PARAMS, AIRDROP_PARAMS } = require("../params");
 
 const program = new Command();
 
@@ -220,19 +222,39 @@ async function main() {
   let totalUSDSize = _.sum(
     Object.values(ribbonThetaVaultUsers).map((v) => parseInt(v))
   ).toString();
-  console.log(totalUSDSize);
 
-  let distribution = [];
+  const transformedValues = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
+    const proRataPercent = ribbonThetaVaultUsers[k] / totalUSDSize;
+    const extraRewards = AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.div(
+      BigNumber.from(10).pow(BigNumber.from(18))
+    ).toNumber();
+    const proRataReward = proRataPercent * extraRewards;
+
+    return boxcox(proRataReward, AIRDROP_SCRIPT_PARAMS.BOXCOX_LAMBDA);
+  });
+
+  const transformedSum = _.sum(
+    Object.values(transformedValues).map((v) => parseInt(v))
+  );
 
   //extra
-  //TBC
   ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    distribution.push(ribbonThetaVaultUsers[k] / totalUSDSize);
+    // Scale the floats up so that we have more precision
+    const scaleBy = 100000000;
+    const scaledValue = parseInt(transformedValues[k] * scaleBy);
+    const scaledSum = parseInt(transformedSum * scaleBy);
 
     return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
-      BigNumber.from(ribbonThetaVaultUsers[k])
-    ).div(BigNumber.from(totalUSDSize));
+      BigNumber.from(scaledValue)
+    ).div(BigNumber.from(scaledSum));
   });
+
+  // Used for debugging and visualization
+  // const nums = Object.values(ribbonThetaVaultUsers).map((u) =>
+  //   parseInt(u.div(BigNumber.from(10).pow(BigNumber.from(18))).toString())
+  // );
+  // nums.sort();
+  // console.log(JSON.stringify(nums));
 
   //base
   ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
@@ -291,7 +313,6 @@ async function main() {
       strangle: _.mapValues(ribbonStrangleUsers, toInt),
       thetaVault: _.mapValues(ribbonThetaVaultUsers, toInt),
     };
-    console.log(JSON.stringify(distribution));
 
     fs.writeFileSync("breakdown.json", JSON.stringify(protocolBreakdown));
   } catch (err) {
