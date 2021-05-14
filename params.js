@@ -40,10 +40,10 @@ const AIRDROP_PARAMS = {
 
 // FOR SCRIPT
 const AIRDROP_SCRIPT_PARAMS = {
-  STRANGLE_AMOUNT: BigNumber.from("2000000").mul(
+  STRANGLE_AMOUNT: BigNumber.from("1000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  VAULT_BASE_AMOUNT: BigNumber.from("8000000").mul(
+  VAULT_BASE_AMOUNT: BigNumber.from("9000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
   VAULT_EXTRA_AMOUNT: BigNumber.from("4000000").mul(
