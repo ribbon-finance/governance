@@ -219,17 +219,28 @@ async function main() {
   );
 
   let totalUSDSize = _.sum(
-    Object.values(ribbonThetaVaultUsers).map((v) => parseInt(v))
-  ).toString();
+    Object.values(
+      _.mapValues(ribbonThetaVaultUsers, (v) => {
+        return parseInt(v.totalBalance.toString());
+      })
+    )
+  );
 
   const transformedValues = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    const proRataPercent = ribbonThetaVaultUsers[k] / totalUSDSize;
+    if (ribbonThetaVaultUsers[k].totalBalance <= MIN.toNumber()) {
+      return 0;
+    }
+
+    const proRataPercent = ribbonThetaVaultUsers[k].totalBalance / totalUSDSize;
     const extraRewards = AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.div(
       BigNumber.from(10).pow(BigNumber.from(18))
     ).toNumber();
     const proRataReward = proRataPercent * extraRewards;
 
-    return boxcox(proRataReward, AIRDROP_SCRIPT_PARAMS.BOXCOX_LAMBDA);
+    const ADJUST = 10;
+    const transformed =
+      boxcox(proRataReward, AIRDROP_SCRIPT_PARAMS.BOXCOX_LAMBDA) + ADJUST;
+    return transformed;
   });
 
   const transformedSum = _.sum(
@@ -237,43 +248,51 @@ async function main() {
   );
 
   //extra
-  ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    // Scale the floats up so that we have more precision
-    const scaleBy = 100000000;
-    const scaledValue = parseInt(transformedValues[k] * scaleBy);
-    const scaledSum = parseInt(transformedSum * scaleBy);
+  let ribbonThetaVaultRewards = _.mapValues(
+    ribbonThetaVaultUsers,
+    function (v, k) {
+      // Scale the floats up so that we have more precision
+      const scaleBy = 100000000;
+      const scaledValue = parseInt(transformedValues[k] * scaleBy);
+      const scaledSum = parseInt(transformedSum * scaleBy);
 
-    return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
-      BigNumber.from(scaledValue)
-    ).div(BigNumber.from(scaledSum));
-  });
+      return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
+        BigNumber.from(scaledValue)
+      ).div(BigNumber.from(scaledSum));
+    }
+  );
 
   // Used for debugging and visualization
-  // const nums = Object.values(ribbonThetaVaultUsers).map((u) =>
+  // const nums = Object.values(ribbonThetaVaultRewards).map((u) =>
   //   parseInt(u.div(BigNumber.from(10).pow(BigNumber.from(18))).toString())
   // );
   // nums.sort();
   // console.log(JSON.stringify(nums));
 
   //base
-  ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    return ribbonThetaVaultUsers[k].add(
+  ribbonThetaVaultRewards = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
+    let extraReward = ribbonThetaVaultRewards[k];
+    if (extraReward.isZero()) {
+      extraReward = BigNumber.from(0);
+    }
+
+    return extraReward.add(
       AIRDROP_SCRIPT_PARAMS.VAULT_BASE_AMOUNT.div(
-        BigNumber.from(Object.keys(ribbonThetaVaultUsers).length.toString())
+        BigNumber.from(Object.keys(ribbonThetaVaultRewards).length.toString())
       )
     );
   });
 
   console.log(
     `Num Ribbon Theta Vault Users: ${
-      Object.keys(ribbonThetaVaultUsers).length
+      Object.keys(ribbonThetaVaultRewards).length
     }\n`
   );
 
   masterBalance = mergeObjects(
     masterBalance,
     ribbonStrangleUsers,
-    ribbonThetaVaultUsers
+    ribbonThetaVaultRewards
   );
 
   Object.keys(masterBalance).map(function (k, i) {
@@ -310,7 +329,7 @@ async function main() {
       ),
       opyn: _.mapValues(opynWriters, () => toInt(externalAirdropAmount)),
       strangle: _.mapValues(ribbonStrangleUsers, toInt),
-      thetaVault: _.mapValues(ribbonThetaVaultUsers, toInt),
+      thetaVault: _.mapValues(ribbonThetaVaultRewards, toInt),
     };
 
     fs.writeFileSync("breakdown.json", JSON.stringify(protocolBreakdown));

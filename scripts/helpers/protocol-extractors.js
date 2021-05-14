@@ -381,17 +381,43 @@ async function getRibbonStrangleUsers(
 }
 
 async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
-  let balances = {};
+  let totalDeposits = {};
+  let totalBalance = {};
+  let seenAddresses = {};
+  const addresses = [];
 
-  async function getUser(event, decimals, price) {
+  async function getUserDeposits(event, decimals, price) {
     let user = event["args"]["account"];
 
     let amountInUSD = assetToUSD(event["args"]["amount"], decimals, price);
 
-    if (balances[user] == undefined) {
-      balances[user] = 0;
+    if (totalDeposits[user] === undefined) {
+      totalDeposits[user] = 0;
     }
-    balances[user] = Math.floor(balances[user] + amountInUSD);
+    totalDeposits[user] = Math.floor(totalDeposits[user] + amountInUSD);
+  }
+
+  async function getUserBalance(vaultAddress, user, decimals, price) {
+    const key = vaultAddress + "-" + user;
+    // don't double count balances
+    if (seenAddresses[key] !== undefined) {
+      return;
+    }
+    seenAddresses[key] = true;
+    addresses.push(key);
+
+    let ribbonThetaVaultContract = await getContractAt(
+      "IRibbonThetaVault",
+      vaultAddress
+    );
+    const balance = await ribbonThetaVaultContract.accountVaultBalance(user);
+
+    let amountInUSD = assetToUSD(balance, decimals, price);
+
+    if (totalBalance[user] == undefined) {
+      totalBalance[user] = 0;
+    }
+    totalBalance[user] = Math.floor(totalBalance[user] + amountInUSD);
   }
 
   for (const thetaVaultAddress of ribbonThetaVaultAddresses) {
@@ -408,23 +434,43 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
     let filter = ribbonThetaVaultContract.filters.Deposit(null, null, null);
 
     await Promise.all(
-      (await ribbonThetaVaultContract.queryFilter(filter)).map((e) =>
-        getUser(e, assetDecimals, chainlinkAssetPrice)
-      )
+      (await ribbonThetaVaultContract.queryFilter(filter)).map(async (e) => {
+        let user = e["args"]["account"];
+
+        await getUserDeposits(e, assetDecimals, chainlinkAssetPrice);
+
+        await getUserBalance(
+          thetaVaultAddress,
+          user,
+          assetDecimals,
+          chainlinkAssetPrice
+        );
+      })
     );
   }
 
-  balances = _.flow([
+  totalDeposits = _.flow([
     Object.entries,
     (arr) =>
       arr.filter(
         ([k, v]) => k != undefined && BigNumber.from(v.toString()).gt(min)
       ),
     Object.fromEntries,
-  ])(balances);
+  ])(totalDeposits);
 
-  return _.mapValues(balances, function (v, k) {
-    return BigNumber.from(balances[k].toString());
+  const originalLen = addresses.length;
+  const uniqLen = addresses.filter(function onlyUnique(value, index, self) {
+    return self.indexOf(value) === index;
+  }).length;
+  if (originalLen !== uniqLen) {
+    throw new Error("Double counting error for balance");
+  }
+
+  return _.mapValues(totalDeposits, function (v, k) {
+    return {
+      totalDeposits: BigNumber.from(totalDeposits[k].toString()),
+      totalBalance: BigNumber.from(totalBalance[k].toString()),
+    };
   });
 }
 
