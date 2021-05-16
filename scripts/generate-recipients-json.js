@@ -272,9 +272,6 @@ async function main() {
   //base
   ribbonThetaVaultRewards = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
     let extraReward = ribbonThetaVaultRewards[k];
-    if (extraReward.isZero()) {
-      extraReward = BigNumber.from(0);
-    }
 
     return extraReward.add(
       AIRDROP_SCRIPT_PARAMS.VAULT_BASE_AMOUNT.div(

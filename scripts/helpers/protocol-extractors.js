@@ -397,8 +397,8 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
     totalDeposits[user] = Math.floor(totalDeposits[user] + amountInUSD);
   }
 
-  async function getUserBalance(vaultAddress, user, decimals, price) {
-    const key = vaultAddress + "-" + user;
+  async function getUserBalance(vault, user, decimals, price) {
+    const key = vault.address + "-" + user;
     // don't double count balances
     if (seenAddresses[key] !== undefined) {
       return;
@@ -406,11 +406,7 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
     seenAddresses[key] = true;
     addresses.push(key);
 
-    let ribbonThetaVaultContract = await getContractAt(
-      "IRibbonThetaVault",
-      vaultAddress
-    );
-    const balance = await ribbonThetaVaultContract.accountVaultBalance(user);
+    const balance = await vault.accountVaultBalance(user);
 
     let amountInUSD = assetToUSD(balance, decimals, price);
 
@@ -440,7 +436,7 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
         await getUserDeposits(e, assetDecimals, chainlinkAssetPrice);
 
         await getUserBalance(
-          thetaVaultAddress,
+          ribbonThetaVaultContract,
           user,
           assetDecimals,
           chainlinkAssetPrice
@@ -457,14 +453,6 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
       ),
     Object.fromEntries,
   ])(totalDeposits);
-
-  const originalLen = addresses.length;
-  const uniqLen = addresses.filter(function onlyUnique(value, index, self) {
-    return self.indexOf(value) === index;
-  }).length;
-  if (originalLen !== uniqLen) {
-    throw new Error("Double counting error for balance");
-  }
 
   return _.mapValues(totalDeposits, function (v, k) {
     return {
