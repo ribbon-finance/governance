@@ -27,5 +27,7 @@ interface IRibbonThetaVault {
 
     function asset() external view returns (address);
 
+    function accountVaultBalance(address account) external view returns (uint256);
+
     event Deposit(address indexed account, uint256 amount, uint256 share);
 }

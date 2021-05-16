@@ -3,7 +3,8 @@ var _ = require("lodash");
 const fs = require("fs");
 const { Command } = require("commander");
 const { ethers, network } = require("hardhat");
-const { provider, constants, BigNumber, getContractAt, utils } = ethers;
+const { BigNumber } = ethers;
+const boxcox = require("@stdlib/math/base/special/boxcox");
 
 const { AIRDROP_SCRIPT_PARAMS } = require("../params");
 
@@ -130,6 +131,7 @@ async function main() {
   );
 
   masterBalance = mergeObjects(hegicEthWriters, hegicWBTCWriters);
+  const hegicWriters = { ...masterBalance };
 
   console.log(`Num Hegic Writers: ${Object.keys(masterBalance).length}\n`);
 
@@ -175,6 +177,10 @@ async function main() {
     primitiveWriters,
     opynWriters
   );
+  const externalAirdropAmount = AIRDROP_SCRIPT_PARAMS.EXTERNAL_PROTOCOLS_AMOUNT.div(
+    BigNumber.from(Object.keys(masterBalance).length.toString())
+  );
+
   masterBalance = _.mapValues(masterBalance, () =>
     AIRDROP_SCRIPT_PARAMS.EXTERNAL_PROTOCOLS_AMOUNT.div(
       BigNumber.from(Object.keys(masterBalance).length.toString())
@@ -213,35 +219,77 @@ async function main() {
   );
 
   let totalUSDSize = _.sum(
-    Object.values(ribbonThetaVaultUsers).map((v) => parseInt(v))
-  ).toString();
+    Object.values(
+      _.mapValues(ribbonThetaVaultUsers, (v) => {
+        return parseInt(v.totalBalance.toString());
+      })
+    )
+  );
 
-  //extra
-  ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
-      BigNumber.from(ribbonThetaVaultUsers[k])
-    ).div(BigNumber.from(totalUSDSize));
+  const transformedValues = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
+    if (ribbonThetaVaultUsers[k].totalBalance <= MIN.toNumber()) {
+      return 0;
+    }
+
+    const proRataPercent = ribbonThetaVaultUsers[k].totalBalance / totalUSDSize;
+    const extraRewards = AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.div(
+      BigNumber.from(10).pow(BigNumber.from(18))
+    ).toNumber();
+    const proRataReward = proRataPercent * extraRewards;
+
+    const ADJUST = 10;
+    const transformed =
+      boxcox(proRataReward, AIRDROP_SCRIPT_PARAMS.BOXCOX_LAMBDA) + ADJUST;
+    return transformed;
   });
 
+  const transformedSum = _.sum(
+    Object.values(transformedValues).map((v) => parseInt(v))
+  );
+
+  //extra
+  let ribbonThetaVaultRewards = _.mapValues(
+    ribbonThetaVaultUsers,
+    function (v, k) {
+      // Scale the floats up so that we have more precision
+      const scaleBy = 100000000;
+      const scaledValue = parseInt(transformedValues[k] * scaleBy);
+      const scaledSum = parseInt(transformedSum * scaleBy);
+
+      return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
+        BigNumber.from(scaledValue)
+      ).div(BigNumber.from(scaledSum));
+    }
+  );
+
+  // Used for debugging and visualization
+  // const nums = Object.values(ribbonThetaVaultRewards).map((u) =>
+  //   parseInt(u.div(BigNumber.from(10).pow(BigNumber.from(18))).toString())
+  // );
+  // nums.sort();
+  // console.log(JSON.stringify(nums));
+
   //base
-  ribbonThetaVaultUsers = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    return ribbonThetaVaultUsers[k].add(
+  ribbonThetaVaultRewards = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
+    let extraReward = ribbonThetaVaultRewards[k];
+
+    return extraReward.add(
       AIRDROP_SCRIPT_PARAMS.VAULT_BASE_AMOUNT.div(
-        BigNumber.from(Object.keys(ribbonThetaVaultUsers).length.toString())
+        BigNumber.from(Object.keys(ribbonThetaVaultRewards).length.toString())
       )
     );
   });
 
   console.log(
     `Num Ribbon Theta Vault Users: ${
-      Object.keys(ribbonThetaVaultUsers).length
+      Object.keys(ribbonThetaVaultRewards).length
     }\n`
   );
 
   masterBalance = mergeObjects(
     masterBalance,
     ribbonStrangleUsers,
-    ribbonThetaVaultUsers
+    ribbonThetaVaultRewards
   );
 
   Object.keys(masterBalance).map(function (k, i) {
@@ -262,6 +310,29 @@ async function main() {
       Object.keys(masterBalance).length
     }`
   );
+
+  const toInt = (amount) => {
+    return parseInt(
+      amount.div(BigNumber.from("10").pow(BigNumber.from("18"))).toString()
+    );
+  };
+
+  try {
+    let protocolBreakdown = {
+      hegic: _.mapValues(hegicWriters, () => toInt(externalAirdropAmount)),
+      charm: _.mapValues(charmWriters, () => toInt(externalAirdropAmount)),
+      primitive: _.mapValues(primitiveWriters, () =>
+        toInt(externalAirdropAmount)
+      ),
+      opyn: _.mapValues(opynWriters, () => toInt(externalAirdropAmount)),
+      strangle: _.mapValues(ribbonStrangleUsers, toInt),
+      thetaVault: _.mapValues(ribbonThetaVaultRewards, toInt),
+    };
+
+    fs.writeFileSync("breakdown.json", JSON.stringify(protocolBreakdown));
+  } catch (err) {
+    console.error(err);
+  }
 
   try {
     fs.writeFileSync(program.opts().file, JSON.stringify(masterBalance));
