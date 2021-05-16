@@ -40,17 +40,17 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
 
 Airdrop Recipient Reward Methodology:
 
-* 6M $RBN split equally between:
+* 4M $RBN split equally between:
     * **only current** HEGIC LPs (ETH & WBTC pools)
     * PRIMITIVE LPs
     * OPYN, CHARM option writers of options that expire in 2021
     * _NOTE:_ cumulative LP position or option collateral must be **at least** $50 with current prices
-* 2M $RBN split equally between:
+* 1M $RBN split equally between:
     * ribbon strangle buyers
     * _NOTE:_ cumulative strangle premium must be **at least** $50 with current prices
-* 8M $RBN split equally between:
+* 9M $RBN split equally between:
     * ETH/WBTC CAll/PUT depositors
-    * _NOTE:_ cumulative deposit value across all vaults must be **at least** $50 with current prices
-* 4M $RBN split _pro rata_ between:
+    * _NOTE:_ cumulative deposit value across all vaults must be **at least** $100 with current prices
+* 4M $RBN split among current depositors _pro rata_ after being normalized with Box Cox transformation between:
     * ETH/WBTC CAll/PUT depositors
-    * _NOTE:_ cumulative deposit value across all vaults must be **at least** $50 with current prices
+    * _NOTE:_ cumulative deposit value across all vaults must be **at least** $100 with current prices

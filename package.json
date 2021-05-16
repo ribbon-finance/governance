@@ -29,6 +29,7 @@
   "dependencies": {
     "@nomiclabs/hardhat-truffle5": "^2.0.0",
     "@openzeppelin/contracts": "^4.0.0",
+    "@stdlib/stdlib": "^0.0.94",
     "commander": "^7.2.0",
     "dotenv": "^8.2.0",
     "ethereumjs-util": "^7.0.10",
