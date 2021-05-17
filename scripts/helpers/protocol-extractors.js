@@ -1,6 +1,7 @@
 var _ = require("lodash");
 const { ethers, network } = require("hardhat");
 const { provider, constants, BigNumber, getContractAt, utils } = ethers;
+const fs = require("fs");
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -462,6 +463,19 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
   });
 }
 
+async function getDiscordUsers(file, airdropAmount) {
+  fs.readfile("file", "utf8", function (err, data) {
+    if (err) throw err;
+    let obj = {};
+    let splitted = data.toString().split("\n");
+    let amountPerUser = airdropAmount.div(BigNumber.from(splitted.length));
+    for (let i = 0; i < splitted.length; i++) {
+      obj[splitted] = amountPerUser;
+    }
+    return obj;
+  });
+}
+
 async function preloadChainlinkPrices() {
   await _.mapValues(chainlinkPrices, async function (v, k) {
     let chainlinkContract = await getContractAt(
@@ -506,3 +520,4 @@ module.exports.getRibbonStrangleUsers = getRibbonStrangleUsers;
 module.exports.getRibbonThetaVaultUsers = getRibbonThetaVaultUsers;
 module.exports.mergeObjects = mergeObjects;
 module.exports.preloadChainlinkPrices = preloadChainlinkPrices;
+module.exports.getDiscordUsers = getDiscordUsers;

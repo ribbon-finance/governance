@@ -52,6 +52,12 @@ const AIRDROP_SCRIPT_PARAMS = {
   EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("4000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
+  DISCORD_RHAT_AMOUNT: BigNumber.from("1815000").mul(
+    BigNumber.from("10").pow(BigNumber.from("18"))
+  ),
+  DISCORD_NO_RHAT_AMOUNT: BigNumber.from("185000").mul(
+    BigNumber.from("10").pow(BigNumber.from("18"))
+  ),
   BOXCOX_LAMBDA: 0.7,
 };
 
