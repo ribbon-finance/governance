@@ -34,6 +34,7 @@ const {
   getRibbonThetaVaultUsers,
   preloadChainlinkPrices,
   mergeObjects,
+  sortObject,
 } = require("./helpers/protocol-extractors");
 
 // ribbon -> strangle + tv
@@ -248,7 +249,7 @@ async function main() {
   );
 
   //extra
-  let ribbonThetaVaultRewards = _.mapValues(
+  let ribbonThetaVaultExtras = _.mapValues(
     ribbonThetaVaultUsers,
     function (v, k) {
       // Scale the floats up so that we have more precision
@@ -269,16 +270,18 @@ async function main() {
   // nums.sort();
   // console.log(JSON.stringify(nums));
 
-  //base
-  ribbonThetaVaultRewards = _.mapValues(ribbonThetaVaultUsers, function (v, k) {
-    let extraReward = ribbonThetaVaultRewards[k];
+  const baseAmount = AIRDROP_SCRIPT_PARAMS.VAULT_BASE_AMOUNT.div(
+    BigNumber.from(Object.keys(ribbonThetaVaultUsers).length.toString())
+  );
 
-    return extraReward.add(
-      AIRDROP_SCRIPT_PARAMS.VAULT_BASE_AMOUNT.div(
-        BigNumber.from(Object.keys(ribbonThetaVaultRewards).length.toString())
-      )
-    );
-  });
+  // base
+  const ribbonThetaVaultRewards = _.mapValues(
+    ribbonThetaVaultUsers,
+    function (v, k) {
+      let extraReward = ribbonThetaVaultExtras[k];
+      return extraReward.add(baseAmount);
+    }
+  );
 
   console.log(
     `Num Ribbon Theta Vault Users: ${
@@ -326,16 +329,25 @@ async function main() {
       ),
       opyn: _.mapValues(opynWriters, () => toInt(externalAirdropAmount)),
       strangle: _.mapValues(ribbonStrangleUsers, toInt),
-      thetaVault: _.mapValues(ribbonThetaVaultRewards, toInt),
+      thetaVaultBase: _.mapValues(ribbonThetaVaultRewards, () =>
+        toInt(baseAmount)
+      ),
+      thetaVaultBonus: _.mapValues(ribbonThetaVaultExtras, toInt),
     };
 
-    fs.writeFileSync("breakdown.json", JSON.stringify(protocolBreakdown));
+    fs.writeFileSync(
+      "breakdown.json",
+      JSON.stringify(sortObject(protocolBreakdown))
+    );
   } catch (err) {
     console.error(err);
   }
 
   try {
-    fs.writeFileSync(program.opts().file, JSON.stringify(masterBalance));
+    fs.writeFileSync(
+      program.opts().file,
+      JSON.stringify(sortObject(masterBalance))
+    );
   } catch (err) {
     console.error(err);
   }
