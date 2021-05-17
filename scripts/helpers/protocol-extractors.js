@@ -512,6 +512,28 @@ function mergeObjects(...objs) {
   }, {});
 }
 
+function sortObject(unordered, sortArrays = false) {
+  if (!unordered || typeof unordered !== "object") {
+    return unordered;
+  }
+
+  if (Array.isArray(unordered)) {
+    const newArr = unordered.map((item) => sortObject(item, sortArrays));
+    if (sortArrays) {
+      newArr.sort();
+    }
+    return newArr;
+  }
+
+  const ordered = {};
+  Object.keys(unordered)
+    .sort()
+    .forEach((key) => {
+      ordered[key] = sortObject(unordered[key], sortArrays);
+    });
+  return ordered;
+}
+
 module.exports.getHegicWriters = getHegicWriters;
 module.exports.getCharmWriters = getCharmWriters;
 module.exports.getPrimitiveWriters = getPrimitiveWriters;
@@ -521,3 +543,4 @@ module.exports.getRibbonThetaVaultUsers = getRibbonThetaVaultUsers;
 module.exports.mergeObjects = mergeObjects;
 module.exports.preloadChainlinkPrices = preloadChainlinkPrices;
 module.exports.getDiscordUsers = getDiscordUsers;
+module.exports.sortObject = sortObject;
