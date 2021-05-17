@@ -32,6 +32,7 @@ const {
   getOpynWriters,
   getRibbonStrangleUsers,
   getRibbonThetaVaultUsers,
+  getDiscordUsers,
   preloadChainlinkPrices,
   mergeObjects,
 } = require("./helpers/protocol-extractors");
@@ -84,6 +85,9 @@ let ribbonThetaVaultAddresses = [
   "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c",
   // ribbonBtcPutThetaVaultAddress
 ];
+
+let discordHatFile = "discord-users/hat.txt";
+let discordNoHatFile = "discord-users/non-hat.txt";
 
 // MIN REQUIREMENT for option writing sizes
 
@@ -286,10 +290,40 @@ async function main() {
     }\n`
   );
 
+  console.log(`Pulling Discord Contributors without rHat...`);
+
+  let discordNoHatRewards = getDiscordUsers(
+    discordNoHatFile,
+    AIRDROP_SCRIPT_PARAMS.DISCORD_NO_RHAT_AMOUNT
+  );
+
+  console.log(
+    `Num Discord Contributors without rHat: ${
+      Object.keys(discordNoHatRewards).length
+    }\n`
+  );
+
+  console.log(discordHatRewards);
+
+  console.log(`Pulling Discord Contributors with rHat...`);
+
+  let discordHatRewards = getDiscordUsers(
+    discordHatFile,
+    AIRDROP_SCRIPT_PARAMS.DISCORD_RHAT_AMOUNT
+  );
+
+  console.log(
+    `Num Discord Contributors with rHat: ${
+      Object.keys(discordHatRewards).length
+    }\n`
+  );
+
   masterBalance = mergeObjects(
     masterBalance,
     ribbonStrangleUsers,
-    ribbonThetaVaultRewards
+    ribbonThetaVaultRewards,
+    discordNoHatRewards,
+    discordHatRewards
   );
 
   Object.keys(masterBalance).map(function (k, i) {
@@ -327,6 +361,8 @@ async function main() {
       opyn: _.mapValues(opynWriters, () => toInt(externalAirdropAmount)),
       strangle: _.mapValues(ribbonStrangleUsers, toInt),
       thetaVault: _.mapValues(ribbonThetaVaultRewards, toInt),
+      discordNoHat: _.mapValues(discordNoHatRewards, toInt),
+      discordHat: _.mapValues(discordHatRewards, toInt),
     };
 
     fs.writeFileSync("breakdown.json", JSON.stringify(protocolBreakdown));
