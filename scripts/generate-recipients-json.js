@@ -87,8 +87,8 @@ let ribbonThetaVaultAddresses = [
   // ribbonBtcPutThetaVaultAddress
 ];
 
-let discordHatFile = "discord-users/hat.txt";
-let discordNoHatFile = "discord-users/non-hat.txt";
+let discordHatFile = "./discord-users/hat.txt";
+let discordNoHatFile = "./discord-users/non-hat.txt";
 
 // MIN REQUIREMENT for option writing sizes
 
@@ -306,8 +306,6 @@ async function main() {
     }\n`
   );
 
-  console.log(discordHatRewards);
-
   console.log(`Pulling Discord Contributors with rHat...`);
 
   let discordHatRewards = getDiscordUsers(
@@ -321,12 +319,13 @@ async function main() {
     }\n`
   );
 
+  let discordRewards = mergeObjects(discordNoHatRewards, discordHatRewards);
+
   masterBalance = mergeObjects(
     masterBalance,
     ribbonStrangleUsers,
     ribbonThetaVaultRewards,
-    discordNoHatRewards,
-    discordHatRewards
+    discordRewards
   );
 
   Object.keys(masterBalance).map(function (k, i) {
@@ -367,8 +366,7 @@ async function main() {
         toInt(baseAmount)
       ),
       thetaVaultBonus: _.mapValues(ribbonThetaVaultExtras, toInt),
-      discordNoHat: _.mapValues(discordNoHatRewards, toInt),
-      discordHat: _.mapValues(discordHatRewards, toInt),
+      discord: _.mapValues(discordRewards, toInt),
     };
 
     fs.writeFileSync(

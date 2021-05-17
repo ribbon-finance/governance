@@ -463,17 +463,22 @@ async function getRibbonThetaVaultUsers(ribbonThetaVaultAddresses, min) {
   });
 }
 
-async function getDiscordUsers(file, airdropAmount) {
-  fs.readfile("file", "utf8", function (err, data) {
-    if (err) throw err;
-    let obj = {};
-    let splitted = data.toString().split("\n");
+function getDiscordUsers(file, airdropAmount) {
+  try {
+    let users = {};
+    let splitted = fs
+      .readFileSync(file, "utf8")
+      .toString()
+      .split("\n")
+      .filter((addr) => addr != "");
     let amountPerUser = airdropAmount.div(BigNumber.from(splitted.length));
     for (let i = 0; i < splitted.length; i++) {
-      obj[splitted] = amountPerUser;
+      users[splitted[i]] = amountPerUser;
     }
-    return obj;
-  });
+    return users;
+  } catch (err) {
+    console.log(err);
+  }
 }
 
 async function preloadChainlinkPrices() {
