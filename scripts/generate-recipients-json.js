@@ -242,28 +242,22 @@ async function main() {
     ).toNumber();
     const proRataReward = proRataPercent * extraRewards;
 
+    const SCALE_BY = 10000000000;
     const ADJUST = 10;
     const transformed =
       boxcox(proRataReward, AIRDROP_SCRIPT_PARAMS.BOXCOX_LAMBDA) + ADJUST;
-    return transformed;
+    return parseInt(transformed * SCALE_BY);
   });
 
-  const transformedSum = _.sum(
-    Object.values(transformedValues).map((v) => parseInt(v))
-  );
+  const transformedSum = _.sum(Object.values(transformedValues));
 
   //extra
   let ribbonThetaVaultExtras = _.mapValues(
     ribbonThetaVaultUsers,
     function (v, k) {
-      // Scale the floats up so that we have more precision
-      const scaleBy = 100000000;
-      const scaledValue = parseInt(transformedValues[k] * scaleBy);
-      const scaledSum = parseInt(transformedSum * scaleBy);
-
       return AIRDROP_SCRIPT_PARAMS.VAULT_EXTRA_AMOUNT.mul(
-        BigNumber.from(scaledValue)
-      ).div(BigNumber.from(scaledSum));
+        transformedValues[k]
+      ).div(transformedSum);
     }
   );
 
