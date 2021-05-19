@@ -71,10 +71,7 @@ contract MerkleDistributor is IMerkleDistributor, Owned {
 
         // Mark it claimed and send the token.
         _setClaimed(index);
-        require(
-            IERC20(token).transfer(account, amount),
-            "MerkleDistributor: Transfer failed."
-        );
+        IERC20(token).safeTransfer(account, amount);
 
         emit Claimed(index, account, amount);
     }
