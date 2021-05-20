@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "hardhat/console.sol";
 
 /**
  * RIBBON FINANCE: STRUCTURED PRODUCTS FOR THE PEOPLE
@@ -12,8 +13,8 @@ contract RibbonToken is AccessControl, ERC20 {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN");
     /// @dev The identifier of the role which allows accounts to mint tokens.
     bytes32 public constant MINTER_ROLE = keccak256("MINTER");
-    /// @dev The identifier of the role which allows special transfer privileges.
-    bytes32 public constant TRANSFER_ROLE = keccak256("TRANSFER");
+
+    mapping(address => bool) public canTransfer;
 
     /// @dev bool flag of whether transfer is currently allowed for all people.
     bool public transfersAllowed = false;
@@ -28,12 +29,8 @@ contract RibbonToken is AccessControl, ERC20 {
         _mint(beneficiary, totalSupply);
         // Add beneficiary as minter
         _setupRole(MINTER_ROLE, beneficiary);
-        // Add beneficiary as transferer
-        _setupRole(TRANSFER_ROLE, beneficiary);
         // Add beneficiary as admin
         _setupRole(ADMIN_ROLE, beneficiary);
-        // Set ADMIN role as admin of transfer role
-        _setRoleAdmin(TRANSFER_ROLE, ADMIN_ROLE);
     }
 
     /// @dev A modifier which checks that the caller has the minter role.
@@ -50,10 +47,11 @@ contract RibbonToken is AccessControl, ERC20 {
 
     /// @dev A modifier which checks that the caller has transfer privileges.
     modifier onlyTransferer(address from) {
+        console.log(transfersAllowed, msg.sender, canTransfer[msg.sender]);
         require(
             transfersAllowed ||
                 from == address(0) ||
-                hasRole(TRANSFER_ROLE, msg.sender),
+                canTransfer[msg.sender],
             "RibbonToken: no transfer privileges"
         );
         _;
@@ -72,6 +70,13 @@ contract RibbonToken is AccessControl, ERC20 {
     function setTransfersAllowed(bool _transfersAllowed) external onlyAdmin {
         transfersAllowed = _transfersAllowed;
         emit TransfersAllowed(transfersAllowed);
+    }
+
+    /// @dev Toggles ability to transfer for an address
+    ///
+    /// This function grants or revokes the ability to make transfers for an address.
+    function toggleTransferForAddress(address transferrer, bool _transfersAllowed) external onlyAdmin {
+        canTransfer[transferrer] = _transfersAllowed;
     }
 
     /// @dev Hook that is called before any transfer of tokens.
