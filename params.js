@@ -40,25 +40,25 @@ const AIRDROP_PARAMS = {
 
 // FOR SCRIPT
 const AIRDROP_SCRIPT_PARAMS = {
-  STRANGLE_AMOUNT: BigNumber.from("1000000").mul(
+  STRANGLE_AMOUNT: BigNumber.from("800000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  VAULT_BASE_AMOUNT: BigNumber.from("9000000").mul(
+  VAULT_BASE_AMOUNT: BigNumber.from("10200000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  VAULT_EXTRA_AMOUNT: BigNumber.from("4000000").mul(
+  VAULT_EXTRA_AMOUNT: BigNumber.from("10000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
   EXTERNAL_PROTOCOLS_AMOUNT: BigNumber.from("4000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  DISCORD_RHAT_AMOUNT: BigNumber.from("1815000").mul(
+  DISCORD_RHAT_AMOUNT: BigNumber.from("4000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  DISCORD_NO_RHAT_AMOUNT: BigNumber.from("185000").mul(
+  DISCORD_NO_RHAT_AMOUNT: BigNumber.from("1000000").mul(
     BigNumber.from("10").pow(BigNumber.from("18"))
   ),
-  BOXCOX_LAMBDA: 0.7,
+  BOXCOX_LAMBDA: 0.5,
 };
 
 // FOR TESTING
