@@ -262,7 +262,7 @@ async function main() {
   );
 
   // Used for debugging and visualization
-  // const nums = Object.values(ribbonThetaVaultRewards).map((u) =>
+  // const nums = Object.values(ribbonThetaVaultExtras).map((u) =>
   //   parseInt(u.div(BigNumber.from(10).pow(BigNumber.from(18))).toString())
   // );
   // nums.sort();
