@@ -17,7 +17,7 @@ async function main() {
   await ribbonStakingRewards.deployed();
 
   console.log(
-    `\nRibbon rETH-THETA Staking Rewards is deployed at ${ribbonStakingRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonStakingRewards.address}\n`
+    `\nRibbon rUSDCETHP-THETA Staking Rewards is deployed at ${ribbonStakingRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonStakingRewards.address}\n`
   );
 }
 
