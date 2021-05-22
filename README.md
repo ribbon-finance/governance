@@ -45,10 +45,10 @@ Airdrop Recipient Reward Methodology:
     * PRIMITIVE LPs
     * OPYN, CHARM option writers of options that expire in 2021
     * _NOTE:_ cumulative LP position or option collateral must be **at least** $50 with current prices
-* 800K $RBN split equally between:
+* 500K $RBN split equally between:
     * ribbon strangle buyers
     * _NOTE:_ cumulative strangle premium must be **at least** $50 with current prices
-* 10.2M $RBN split equally between:
+* 10.5M $RBN split equally between:
     * ETH/WBTC CAll/PUT depositors
     * _NOTE:_ cumulative deposit value across all vaults must be **at least** $100 with current prices
 * 10M $RBN split among current depositors _pro rata_ after being normalized with Box Cox transformation between:
