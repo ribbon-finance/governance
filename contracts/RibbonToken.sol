@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "hardhat/console.sol";
 
 /**
  * RIBBON FINANCE: STRUCTURED PRODUCTS FOR THE PEOPLE
@@ -14,7 +13,7 @@ contract RibbonToken is AccessControl, ERC20 {
     /// @dev The identifier of the role which allows accounts to mint tokens.
     bytes32 public constant MINTER_ROLE = keccak256("MINTER");
 
-    mapping(address => bool) public canTransfer;
+    mapping(address => bool) private canTransfer;
 
     /// @dev bool flag of whether transfer is currently allowed for all people.
     bool public transfersAllowed = false;
@@ -47,7 +46,6 @@ contract RibbonToken is AccessControl, ERC20 {
 
     /// @dev A modifier which checks that the caller has transfer privileges.
     modifier onlyTransferer(address from) {
-        console.log(transfersAllowed, msg.sender, canTransfer[msg.sender]);
         require(
             transfersAllowed ||
                 from == address(0) ||
