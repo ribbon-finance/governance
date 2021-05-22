@@ -146,12 +146,25 @@ describe("RibbonToken contract", function () {
 
     it("Should not let non-admin to transfer after toggle switched to false", async function () {
       await withSigner.setTransfersAllowed(false);
-      await withSigner.toggleTransferForAddress(withSigner.address, true);
-      console.log(await ribbonToken.canTransfer(withSigner.address));
+      await withSigner.toggleTransferForAddress(TOKEN_PARAMS.BENIFICIARY, true);
       await withSigner.transfer(addr1.address, 50);
-      // await expect(
-      //   ribbonToken.connect(addr1).transfer(addr2.address, 50)
-      // ).to.be.revertedWith("RibbonToken: no transfer privileges");
+      await expect(
+        ribbonToken.connect(addr1).transfer(addr2.address, 50)
+      ).to.be.revertedWith("RibbonToken: no transfer privileges");
+    });
+
+    it("Should let addresses that have been whitelisted to make transfer", async function () {
+      await withSigner.setTransfersAllowed(false);
+      await withSigner.toggleTransferForAddress(TOKEN_PARAMS.BENIFICIARY, true);
+      await withSigner.toggleTransferForAddress(addr1.address, true);
+      await withSigner.transfer(addr1.address, 50);
+      await ribbonToken.connect(addr1).transfer(addr2.address, 50);
+    });
+
+    it("Should revert when non-admin toggle transfer", async function () {
+      await expect(
+        ribbonToken.connect(addr1).toggleTransferForAddress(addr2.address, true)
+      ).to.be.revertedWith("RibbonToken: only admin");
     });
   });
 
