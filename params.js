@@ -40,7 +40,7 @@ const AIRDROP_PARAMS = {
   OWNER: beneficiary,
   TOKEN_ADDRESS: "",
   MERKLE_ROOT:
-    "9795e2e7758a7cd25497d4da259bfd9dbf1c388cb685ca138ce10dc7dabab0a9",
+    "0x9795e2e7758a7cd25497d4da259bfd9dbf1c388cb685ca138ce10dc7dabab0a9",
   DAYS_UNTIL_UNLOCK: "200",
 };
 
