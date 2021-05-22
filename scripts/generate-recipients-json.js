@@ -14,14 +14,14 @@ program
   .option(
     "-b, --block <blocknum>",
     "block number to use for extracting airdrop recipients",
-    "12378107"
+    "12480786"
   )
   .option(
     "-f, --file <file>",
     "json file to load addresses -> balances into",
     "airdrop.json"
   )
-  .option("-t, --threshold <dollars>", "min value threshold", "50");
+  .option("-t, --threshold <dollars>", "min value threshold", "100");
 
 program.parse(process.argv);
 
