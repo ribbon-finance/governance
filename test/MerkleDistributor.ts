@@ -139,6 +139,10 @@ describe("MerkleDistributor contract", function () {
       );
       await localDistributor.deployed();
 
+      await ribbonToken
+        .connect(owner)
+        .toggleTransferForAddress(owner.address, true);
+
       await ribbonToken.connect(owner).transfer(localDistributor.address, 1000);
     });
 
@@ -153,10 +157,7 @@ describe("MerkleDistributor contract", function () {
     it("successful claim after granted transfer role", async () => {
       let owner = (await ethers.getSigners())[0];
       let withSigner = await ribbonToken.connect(owner);
-      await withSigner.grantRole(
-        await ribbonToken.TRANSFER_ROLE(),
-        localDistributor.address
-      );
+      await withSigner.toggleTransferForAddress(localDistributor.address, true);
 
       const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
       await expect(localDistributor.claim(1, wallet1.address, 101, proof1))
@@ -167,10 +168,7 @@ describe("MerkleDistributor contract", function () {
     it("transfers the token", async () => {
       let owner = (await ethers.getSigners())[0];
       let withSigner = await ribbonToken.connect(owner);
-      await withSigner.grantRole(
-        await ribbonToken.TRANSFER_ROLE(),
-        localDistributor.address
-      );
+      await withSigner.toggleTransferForAddress(localDistributor.address, true);
 
       const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
       expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);
@@ -182,10 +180,7 @@ describe("MerkleDistributor contract", function () {
       let owner = (await ethers.getSigners())[0];
       let randomAddress = (await ethers.getSigners())[1];
       let withSigner = await ribbonToken.connect(owner);
-      await withSigner.grantRole(
-        await ribbonToken.TRANSFER_ROLE(),
-        localDistributor.address
-      );
+      await withSigner.toggleTransferForAddress(localDistributor.address, true);
 
       const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
       expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);
@@ -203,10 +198,7 @@ describe("MerkleDistributor contract", function () {
       let owner = (await ethers.getSigners())[0];
       let randomAddress = (await ethers.getSigners())[1];
       let withSigner = await ribbonToken.connect(owner);
-      await withSigner.grantRole(
-        await ribbonToken.TRANSFER_ROLE(),
-        localDistributor.address
-      );
+      await withSigner.toggleTransferForAddress(localDistributor.address, true);
 
       const proof1 = tree.getProof(1, wallet1.address, BigNumber.from(101));
       expect(await ribbonToken.balanceOf(wallet1.address)).to.equal(0);

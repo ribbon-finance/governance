@@ -166,6 +166,18 @@ describe("RibbonToken contract", function () {
         ribbonToken.connect(addr1).toggleTransferForAddress(addr2.address, true)
       ).to.be.revertedWith("RibbonToken: only admin");
     });
+
+    it("Should be able to transfer when previously blacklist", async function () {
+      await withSigner.toggleTransferForAddress(
+        TOKEN_PARAMS.BENIFICIARY,
+        false
+      );
+      await expect(withSigner.transfer(addr1.address, 50)).to.be.revertedWith(
+        "RibbonToken: no transfer privileges"
+      );
+      await withSigner.setTransfersAllowed(true);
+      await withSigner.transfer(addr1.address, 50);
+    });
   });
 
   // Test admin privileges
