@@ -87,8 +87,8 @@ let ribbonThetaVaultAddresses = [
   // ribbonBtcPutThetaVaultAddress
 ];
 
-let discordHatFile = "./discord-users/hat.txt";
-let discordNoHatFile = "./discord-users/non-hat.txt";
+let discordHatFile = "./airdrop-data/hat.txt";
+let discordNoHatFile = "./airdrop-data/non-hat.txt";
 
 // MIN REQUIREMENT for option writing sizes
 
