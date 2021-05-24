@@ -1,6 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-truffle5");
 require("dotenv").config();
+require("@nomiclabs/hardhat-etherscan");
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
@@ -29,12 +30,22 @@ module.exports = {
     kovan: {
       url: process.env.KOVAN_URI,
       accounts: {
-        mnemonic: process.env.KOVAN_MNEMONIC
-      }
+        mnemonic: process.env.KOVAN_MNEMONIC,
+      },
       // accounts: [`0x${process.env.KOVAN_KEY}`,`0x${process.env.KOVAN_KEY2}`]
-    }
+    },
+    mainnet: {
+      url: process.env.MAINNET_URI,
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+      },
+      // accounts: [`0x${process.env.KOVAN_KEY}`,`0x${process.env.KOVAN_KEY2}`]
+    },
   },
   mocha: {
     timeout: 200000,
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
 };
