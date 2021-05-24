@@ -2,7 +2,7 @@ const hre = require("hardhat");
 const { TOKEN_PARAMS } = require("../params");
 
 async function main() {
-  const [deployer] = await ethers.getSigners();
+  const [deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -16,6 +16,11 @@ async function main() {
   const symbol = network === "kovan" ? "TT" : TOKEN_PARAMS.SYMBOL;
   const beneficiary =
     network === "kovan" ? deployer.address : TOKEN_PARAMS.BENIFICIARY;
+
+  console.log("name", name);
+  console.log("symbol", symbol);
+  console.log("beneficiary", beneficiary);
+  console.log("supply", TOKEN_PARAMS.SUPPLY.toString());
 
   const ribbonToken = await RibbonToken.deploy(
     name,

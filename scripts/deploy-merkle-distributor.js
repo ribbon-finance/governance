@@ -25,6 +25,11 @@ async function main() {
       ? "0x2018c6b9b1a3fd7822b79c24c3dd87ad8545030c0a305a0389d8fd10a361b2f8"
       : AIRDROP_PARAMS.MERKLE_ROOT;
 
+  console.log("owner", owner);
+  console.log("tokenAddress", tokenAddress);
+  console.log("merkleRoot", merkleRoot);
+  console.log(AIRDROP_PARAMS.DAYS_UNTIL_UNLOCK);
+
   const merkleDistributor = await MerkleDistributor.deploy(
     owner,
     tokenAddress,
