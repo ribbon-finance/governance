@@ -26,10 +26,7 @@ async function main() {
     name,
     symbol,
     TOKEN_PARAMS.SUPPLY,
-    beneficiary,
-    {
-      gasPrice: 95000000000,
-    }
+    beneficiary
   );
 
   await ribbonToken.deployed();
