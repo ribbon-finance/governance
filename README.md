@@ -1,10 +1,43 @@
-[Token Deployer Params](https://github.com/ribbon-finance/token/blob/18883f75335af47844f64c13744bdcf95445f6db/params.js#L5) \
-[Staking Rewards Deployer Params](https://github.com/ribbon-finance/token/blob/18883f75335af47844f64c13744bdcf95445f6db/params.js#L16)
+RBN 🎀
+===
 
+RBN is Ribbon's governance token. It is used to
+- Steward the development of the protocol & get community feedback on important parameters such as fee models
+- Align incentives between the Ribbon stakeholders (product creators, users, team), such as liquidity mining programs or grants
+- Unite all current and future Ribbon products under a single umbrella
+
+Getting Started
+---
+
+Install node dependencies with yarn:
+
+```
+yarn install
+```
 
 Testing Contracts
+---
 
-* `npx hardhat test`
+To run tests, you will need to have access to an archive node. Create a .env file in the root with the variable:
+
+```
+TEST_URI=<archive node uri>
+```
+
+Run tests with hardhat:
+
+```
+npx hardhat test
+```
+
+Token Parameters
+---
+
+- [Token Deployer Params](https://github.com/ribbon-finance/token/blob/18883f75335af47844f64c13744bdcf95445f6db/params.js#L5)
+- [Staking Rewards Deployer Params](https://github.com/ribbon-finance/token/blob/18883f75335af47844f64c13744bdcf95445f6db/params.js#L16)
+
+Deploying
+---
 
 Deploying Ribbon token to Mainnet ([reference](https://hardhat.org/tutorial/deploying-to-a-live-network.html))
 
@@ -23,7 +56,7 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
 * add token address to params.js under AIRDROP_PARAMS object
 * add merkle root to params.js under AIRDROP_PARAMS object
   * `node scripts/generate-recipients-json.js -b <BLOCKNUM> -f <FILEPATH>` 
-      * ex: `node scripts/generate-recipients-json.js -b 12378107 -f airdrop.json`
+      * ex: `node scripts/generate-recipients-json.js -b 12480786 -f airdrop.json`
       * This will generate the address -> balance mapping of all relevant users 
         from hegic, opyn, charm, primitive, ribbon strangle, ribbon theta vault
       * _NOTE:_ this will take a few minutes (~10m) the first time around, but afterwards will be quicker as 
@@ -38,7 +71,9 @@ Deploying Merkle Airdrop to Mainnet ([reference](https://hardhat.org/tutorial/de
 * add days until unlock for owner to params.js under AIRDROP_PARAMS object
 * `npx hardhat run scripts/deploy-merkle-distributor.js --network mainnet`
 
-Airdrop Recipient Reward Methodology:
+
+Airdrop Recipient Reward Methodology
+---
 
 * 4M $RBN split equally between:
     * **only current** HEGIC LPs (ETH & WBTC pools)
@@ -54,5 +89,5 @@ Airdrop Recipient Reward Methodology:
 * 10M $RBN split among current depositors _pro rata_ after being normalized with Box Cox transformation between:
     * ETH/WBTC CAll/PUT depositors
     * _NOTE:_ cumulative deposit value across all vaults must be **at least** $100 with current prices
-* 4M $RBN split equally between the Discord users that sent more than 5 messages, and selected the Ribbon Hat option ([see hat.txt](https://github.com/ribbon-finance/token/blob/main/discord-users/hat.txt))
-* 1M $RBN split equally between the Discord users that sent more than 5 messages, and selected the small airdrop option ([see non-hat.txt](https://github.com/ribbon-finance/token/blob/main/discord-users/non-hat.txt))
+* 4M $RBN split equally between the Discord users that sent more than 5 messages, and selected the Ribbon Hat option ([see hat.txt](https://github.com/ribbon-finance/token/blob/main/airdrop-data/hat.txt))
+* 1M $RBN split equally between the Discord users that sent more than 5 messages, and selected the small airdrop option ([see non-hat.txt](https://github.com/ribbon-finance/token/blob/main/airdrop-data/non-hat.txt))
