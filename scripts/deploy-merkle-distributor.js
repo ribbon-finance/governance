@@ -34,10 +34,7 @@ async function main() {
     owner,
     tokenAddress,
     merkleRoot,
-    AIRDROP_PARAMS.DAYS_UNTIL_UNLOCK,
-    {
-      gasPrice: 70000000000,
-    }
+    AIRDROP_PARAMS.DAYS_UNTIL_UNLOCK
   );
 
   await merkleDistributor.deployed();
