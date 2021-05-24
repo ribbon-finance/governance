@@ -322,18 +322,24 @@ async function main() {
     discordRewards
   );
 
+  let totalBigNumber = BigNumber.from(0);
+  let totalInt = 0;
+  const scaleBy = BigNumber.from("10").pow(BigNumber.from("18"));
+
   Object.keys(masterBalance).map(function (k, i) {
-    masterBalance[k] = parseInt(
-      masterBalance[k]
-        .div(BigNumber.from("10").pow(BigNumber.from("18")))
-        .toString()
-    );
+    // truncates numbers behind the decimal
+    const amount = masterBalance[k].div(scaleBy).mul(scaleBy);
+    totalBigNumber = totalBigNumber.add(amount);
+    totalInt += parseInt(masterBalance[k].div(scaleBy).toString());
+
+    // Set hex representation without 0x
+    masterBalance[k] = ethers.utils
+      .hexStripZeros(amount.toHexString())
+      .slice(2);
   });
 
   console.log(
-    `Tokens to distribute: ${_.sum(
-      Object.values(masterBalance)
-    )} (we round down from 18 decimals token airdrop values)`
+    `Tokens to distribute: ${totalBigNumber.toString()} ${totalInt} (we round down from 18 decimals token airdrop values)`
   );
   console.log(
     `Finished data extraction! Total Addresses: ${

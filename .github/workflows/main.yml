@@ -37,10 +37,14 @@ jobs:
           TEST_URI: ${{ secrets.TEST_URI }}
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           KOVAN_URI: ${{ secrets.KOVAN_URI }}
+          MNEMONIC: ${{ secrets.MNEMONIC }}
+          MAINNET_URI: ${{ secrets.MAINNET_URI }}
           CI: true
       - run: yarn test
         env:
           TEST_URI: ${{ secrets.TEST_URI }}
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           KOVAN_URI: ${{ secrets.KOVAN_URI }}
+          MNEMONIC: ${{ secrets.MNEMONIC }}
+          MAINNET_URI: ${{ secrets.MAINNET_URI }}
           CI: true
