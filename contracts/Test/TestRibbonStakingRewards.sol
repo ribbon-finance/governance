@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Inheritance
-import "./interfaces/IStakingRewards.sol";
-import "./RewardsDistributionRecipient.sol";
-import "./Pausable.sol";
+import "././interfaces/IStakingRewards.sol";
+import "././RewardsDistributionRecipient.sol";
+import "././Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
 contract KovanStakingRewards is
