@@ -34,6 +34,11 @@ async function main() {
   console.log(
     `\nRibbon token is deployed at ${ribbonToken.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonToken.address}\n`
   );
+
+  await hre.run("verify:verify", {
+    address: ribbonToken.address,
+    constructorArguments: [name, symbol, TOKEN_PARAMS.SUPPLY, beneficiary],
+  });
 }
 
 // We recommend this pattern to be able to use async/await everywhere
