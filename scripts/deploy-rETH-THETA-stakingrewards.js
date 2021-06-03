@@ -23,23 +23,18 @@ async function main() {
   /** Kovan will be $KRBN */
   const rewardsToken =
     network === "kovan"
-      ? "0x567e482AF973187648Af9FC56d2Caec212c1CAca"
+      ? "0xfD55C3bB2d78d4FB67EB27807c9FD9B36F5ce592"
       : STAKING_REWARDS_rETHTHETA_PARAMS.REWARDS_TOKEN;
   const stakingToken =
     network === "kovan"
       ? "0x5B8E6eaB6502CC642d00A55F0d8B5f5557c94Bc5"
       : STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN;
   /**
-   * Kovan will always be set to next saturday 1200 UTC
+   * Kovan will always start 1 minute from deployment
    */
   const startEmission =
     network === "kovan"
-      ? moment()
-          .startOf("isoWeek")
-          .add(1, "week")
-          .utc(true)
-          .day("saturday")
-          .unix()
+      ? moment().add(1, "minutes").unix()
       : STAKING_REWARDS_rETHTHETA_PARAMS.START_EMISSION;
 
   /** Deploy Address */
