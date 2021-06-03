@@ -8,7 +8,7 @@ async function main() {
 
   /** We get the contract to deploy */
   const RibbonStakingRewards = await hre.ethers.getContractFactory(
-    "StakingRewards"
+    network === "kovan" ? "KovanStakingRewards" : "StakingRewards"
   );
 
   /** Set parameter */
