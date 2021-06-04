@@ -35,6 +35,8 @@ async function main() {
     `\nRibbon token is deployed at ${ribbonToken.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonToken.address}\n`
   );
 
+  await ribbonToken.deployTransaction.wait(5);
+
   await hre.run("verify:verify", {
     address: ribbonToken.address,
     constructorArguments: [name, symbol, TOKEN_PARAMS.SUPPLY, beneficiary],

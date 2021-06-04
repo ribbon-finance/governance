@@ -35,7 +35,7 @@ contract KovanStakingRewards is
   // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
   uint256 public startEmission;
 
-  uint256 private constant WEEK = 10 seconds;
+  uint256 private constant WEEK = 100 seconds;
 
   mapping(address => uint256) public userRewardPerTokenPaid;
   mapping(address => uint256) public rewards;
