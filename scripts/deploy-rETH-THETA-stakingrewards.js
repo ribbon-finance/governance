@@ -52,6 +52,8 @@ async function main() {
     `\nRibbon rETH-THETA Staking Rewards is deployed at ${ribbonStakingRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${ribbonStakingRewards.address}\n`
   );
 
+  await ribbonStakingRewards.deployTransaction.wait(5);
+
   await hre.run("verify:verify", {
     address: ribbonStakingRewards.address,
     constructorArguments: [
