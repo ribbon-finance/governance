@@ -1,4 +1,5 @@
-const { contract, ethers } = require("hardhat");
+const hre = require("hardhat");
+const { contract, ethers } = hre;
 
 const { ensureOnlyExpectedMutativeFunctions } = require("./helpers");
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
@@ -71,6 +72,7 @@ describe("StakingRewards contract", function () {
 
     // Get staking rewards contract
     RibbonStakingRewards = await ethers.getContractFactory("StakingRewards");
+
     stakingRewards = await RibbonStakingRewards.deploy(
       owner.address,
       mockRewardsDistributionAddress.address,
@@ -78,6 +80,15 @@ describe("StakingRewards contract", function () {
       STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
       startEmission
     );
+
+    await owner.sendTransaction({
+      to: TOKEN_PARAMS.BENIFICIARY,
+      value: ethers.utils.parseEther("1.0"),
+    });
+    await owner.sendTransaction({
+      to: STAKING_TOKEN_PARAMS.MAIN_HOLDER,
+      value: ethers.utils.parseEther("1.0"),
+    });
 
     // Get address of ribbon token holder
     // Allow impersonation of new account
@@ -530,6 +541,29 @@ describe("StakingRewards contract", function () {
       assert.isAbove(parseInt(earned), 0);
     });
 
+    it("should be > 0 when staking and after emission hit (attack vector)", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await fastForward(DAY * 6);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await stakingRewards.connect(owner).setRewardsDuration(seventyDays);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 2);
+      const earned = await stakingRewards.earned(deployerAccount.address);
+
+      assert.isAbove(parseInt(earned), 0);
+    });
+
     it("should be same after emission hit + 1 day", async () => {
       const totalToStake = toUnit("100");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
@@ -701,11 +735,11 @@ describe("StakingRewards contract", function () {
   });
 
   describe("setRewardsDuration()", () => {
-    const sevenDays = DAY * 7;
+    const thirtyDays = DAY * 30;
     const seventyDays = DAY * 70;
     it("should increase rewards duration before starting distribution", async () => {
       const defaultDuration = await stakingRewards.rewardsDuration();
-      assert.bnEqual(defaultDuration, sevenDays);
+      assert.bnEqual(defaultDuration, thirtyDays);
 
       await stakingRewards.connect(owner).setRewardsDuration(seventyDays);
       const newDuration = await stakingRewards.rewardsDuration();
@@ -754,7 +788,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 31);
 
       await expect(
         stakingRewards.connect(owner).setRewardsDuration(seventyDays)
@@ -788,7 +822,7 @@ describe("StakingRewards contract", function () {
 
       await fastForward(DAY * 4);
       await stakingRewards.connect(deployerAccount).getReward();
-      await fastForward(DAY * 4);
+      await fastForward(DAY * 27);
 
       // New Rewards period much lower
       await rewardsTokenOwner.transfer(
