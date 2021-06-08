@@ -758,11 +758,11 @@ describe("StakingRewards contract", function () {
   });
 
   describe("setRewardsDuration()", () => {
-    const thirtyDays = DAY * 30;
+    const twentyOneDays = DAY * 21;
     const seventyDays = DAY * 70;
     it("should increase rewards duration before starting distribution", async () => {
       const defaultDuration = await stakingRewards.rewardsDuration();
-      assert.bnEqual(defaultDuration, thirtyDays);
+      assert.bnEqual(defaultDuration, twentyOneDays);
 
       await stakingRewards.connect(owner).setRewardsDuration(seventyDays);
       const newDuration = await stakingRewards.rewardsDuration();
