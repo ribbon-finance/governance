@@ -152,6 +152,9 @@ contract StakingRewards is
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
+        if(block.timestamp < periodFinish){
+          rewards[msg.sender] = 0;
+        }
         stakingToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
