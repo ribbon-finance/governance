@@ -730,7 +730,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 71);
+      await fastForward(DAY * 81);
 
       const initialRewardBal = await rewardsToken.balanceOf(
         deployerAccount.address
@@ -941,7 +941,7 @@ describe("StakingRewards contract", function () {
 
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
-      await fastForward(DAY * 31);
+      await fastForward(DAY * 41);
 
       await stakingRewards.connect(deployerAccount).withdraw(totalToStake);
 
@@ -1036,7 +1036,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(toUnit(5000.0));
 
-      await fastForward(DAY * 71);
+      await fastForward(DAY * 81);
 
       const initialRewardBal = await rewardsToken.balanceOf(
         deployerAccount.address
