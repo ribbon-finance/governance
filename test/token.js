@@ -27,6 +27,11 @@ describe("RibbonToken contract", function () {
     );
 
     await ribbonToken.deployed();
+    
+    await owner.sendTransaction({
+      to: TOKEN_PARAMS.BENIFICIARY,
+      value: ethers.utils.parseEther("5.0"),
+    });
 
     // Allow impersonation of new account
     await hre.network.provider.request({
