@@ -27,7 +27,7 @@ contract StakingRewards is
     IERC20 public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 21 days;
+    uint256 public rewardsDuration = 28 days;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
@@ -150,7 +150,7 @@ contract StakingRewards is
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
-        if(block.timestamp < periodFinish.add(8 days)){
+        if(block.timestamp < periodFinish.add(1 days)){
           rewards[msg.sender] = 0;
         }
         stakingToken.safeTransfer(msg.sender, amount);
@@ -158,7 +158,7 @@ contract StakingRewards is
     }
 
     function getReward() public override nonReentrant updateReward(msg.sender) {
-        uint256 reward = block.timestamp >= periodFinish.add(8 days) ? rewards[msg.sender] : 0;
+        uint256 reward = block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
         if (reward > 0) {
             rewards[msg.sender] = 0;
             rewardsToken.safeTransfer(msg.sender, reward);
@@ -175,7 +175,7 @@ contract StakingRewards is
         if (time < startEmission) {
             return 0;
         }
-        return time.sub(startEmission).div(1 weeks);
+        return time.sub(startEmission).div(1 weeks).add(1);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
