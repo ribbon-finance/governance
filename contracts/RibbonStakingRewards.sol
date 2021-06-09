@@ -27,15 +27,13 @@ contract StakingRewards is
     IERC20 public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 7 days;
+    uint256 public rewardsDuration = 21 days;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
     // timestamp dictating at what time of week to release rewards
     // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
     uint256 public startEmission;
-
-    uint256 private constant WEEK = 7 days;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
@@ -95,7 +93,7 @@ contract StakingRewards is
     function lastTimeRewardApplicable() public view override returns (uint256) {
         return
             Math.min(
-                _numWeeksPassed(block.timestamp).mul(WEEK).add(startEmission),
+                _numWeeksPassed(block.timestamp).mul(1 weeks).add(startEmission),
                 periodFinish
             );
     }
@@ -152,12 +150,15 @@ contract StakingRewards is
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
+        if(block.timestamp < periodFinish.add(8 days)){
+          rewards[msg.sender] = 0;
+        }
         stakingToken.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
 
     function getReward() public override nonReentrant updateReward(msg.sender) {
-        uint256 reward = rewards[msg.sender];
+        uint256 reward = block.timestamp >= periodFinish.add(8 days) ? rewards[msg.sender] : 0;
         if (reward > 0) {
             rewards[msg.sender] = 0;
             rewardsToken.safeTransfer(msg.sender, reward);
@@ -174,7 +175,7 @@ contract StakingRewards is
         if (time < startEmission) {
             return 0;
         }
-        return time.sub(startEmission).div(WEEK);
+        return time.sub(startEmission).div(1 weeks);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */

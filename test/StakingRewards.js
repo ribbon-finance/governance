@@ -1,4 +1,5 @@
-const { contract, ethers } = require("hardhat");
+const hre = require("hardhat");
+const { contract, ethers } = hre;
 
 const { ensureOnlyExpectedMutativeFunctions } = require("./helpers");
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
@@ -78,6 +79,15 @@ describe("StakingRewards contract", function () {
       STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
       startEmission
     );
+
+    await owner.sendTransaction({
+      to: TOKEN_PARAMS.BENIFICIARY,
+      value: ethers.utils.parseEther("1.0"),
+    });
+    await owner.sendTransaction({
+      to: STAKING_TOKEN_PARAMS.MAIN_HOLDER,
+      value: ethers.utils.parseEther("1.0"),
+    });
 
     // Get address of ribbon token holder
     // Allow impersonation of new account
@@ -653,6 +663,53 @@ describe("StakingRewards contract", function () {
   describe("getReward()", () => {
     const seventyDays = DAY * 70;
 
+    it("rewards balance should remain unchanged if getting reward BEFORE end of program", async () => {
+      const totalToStake = toUnit("100");
+      const totalToDistribute = toUnit("5000");
+
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await stakingRewards.connect(owner).setRewardsDuration(seventyDays);
+
+      await rewardsTokenOwner.transfer(
+        stakingRewards.address,
+        totalToDistribute
+      );
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(totalToDistribute);
+
+      const initialRewardBal = await rewardsToken.balanceOf(
+        deployerAccount.address
+      );
+      const initialEarnedBal = await stakingRewards.earned(
+        deployerAccount.address
+      );
+
+      await fastForward(DAY * 15);
+
+      await stakingRewards.connect(deployerAccount).getReward();
+      const postRewardBal = await rewardsToken.balanceOf(
+        deployerAccount.address
+      );
+      const postEarnedBal = await stakingRewards.earned(
+        deployerAccount.address
+      );
+
+      assert.isAbove(
+        parseInt(postEarnedBal.toString()),
+        parseInt(initialEarnedBal.toString())
+      );
+      assert.equal(
+        parseInt(postRewardBal.toString()),
+        parseInt(initialRewardBal.toString())
+      );
+    });
+
     it("should increase rewards token balance", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute = toUnit("5000");
@@ -673,7 +730,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 81);
 
       const initialRewardBal = await rewardsToken.balanceOf(
         deployerAccount.address
@@ -701,11 +758,11 @@ describe("StakingRewards contract", function () {
   });
 
   describe("setRewardsDuration()", () => {
-    const sevenDays = DAY * 7;
+    const twentyOneDays = DAY * 21;
     const seventyDays = DAY * 70;
     it("should increase rewards duration before starting distribution", async () => {
       const defaultDuration = await stakingRewards.rewardsDuration();
-      assert.bnEqual(defaultDuration, sevenDays);
+      assert.bnEqual(defaultDuration, twentyOneDays);
 
       await stakingRewards.connect(owner).setRewardsDuration(seventyDays);
       const newDuration = await stakingRewards.rewardsDuration();
@@ -754,7 +811,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 31);
 
       await expect(
         stakingRewards.connect(owner).setRewardsDuration(seventyDays)
@@ -788,7 +845,7 @@ describe("StakingRewards contract", function () {
 
       await fastForward(DAY * 4);
       await stakingRewards.connect(deployerAccount).getReward();
-      await fastForward(DAY * 4);
+      await fastForward(DAY * 27);
 
       // New Rewards period much lower
       await rewardsTokenOwner.transfer(
@@ -836,6 +893,62 @@ describe("StakingRewards contract", function () {
     it("cannot withdraw if nothing staked", async () => {
       await expect(stakingRewards.connect(owner).withdraw(toUnit("100"))).to.be
         .reverted;
+    });
+
+    it("should set rewards to 0 if withdrawing BEFORE end of mining program", async () => {
+      const totalToStake = toUnit("100");
+      const totalToDistribute = toUnit("5000");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      await rewardsTokenOwner.transfer(
+        stakingRewards.address,
+        totalToDistribute
+      );
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(totalToDistribute);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 15);
+
+      await stakingRewards.connect(deployerAccount).withdraw(totalToStake);
+
+      assert.equal(
+        BigNumber.from(0),
+        (await stakingRewards.rewards(deployerAccount.address)).toString()
+      );
+    });
+
+    it("rewards should remain unchanged if withdrawing AFTER end of mining program", async () => {
+      const totalToStake = toUnit("100");
+      const totalToDistribute = toUnit("10");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      await rewardsTokenOwner.transfer(
+        stakingRewards.address,
+        totalToDistribute
+      );
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(totalToDistribute);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 41);
+
+      await stakingRewards.connect(deployerAccount).withdraw(totalToStake);
+
+      assert.bnLt(
+        BigNumber.from(0),
+        await stakingRewards.rewards(deployerAccount.address)
+      );
     });
 
     it("should increases lp token balance and decreases staking balance", async () => {
@@ -923,7 +1036,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(toUnit(5000.0));
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 81);
 
       const initialRewardBal = await rewardsToken.balanceOf(
         deployerAccount.address
