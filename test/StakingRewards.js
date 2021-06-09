@@ -42,7 +42,8 @@ describe("StakingRewards contract", function () {
       deployerAccount,
       owner,
       mockRewardsDistributionAddress,
-      ...account4
+      account3,
+      account4
     ] = await ethers.getSigners();
 
     // Get rewards token (RIBBON)
@@ -361,8 +362,6 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY);
-
       const rewardPerToken = await stakingRewards.rewardPerToken();
       assert.bnEqual(parseInt(rewardPerToken), "0");
     });
@@ -440,7 +439,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 1);
 
       const rewardPerToken = await stakingRewards.rewardPerToken();
 
@@ -509,8 +508,6 @@ describe("StakingRewards contract", function () {
       await stakingRewards
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
-
-      await fastForward(DAY);
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
@@ -583,7 +580,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue);
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 1);
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
@@ -593,6 +590,94 @@ describe("StakingRewards contract", function () {
 
       assert.isAbove(parseInt(earned), 0);
       assert.bnEqual(parseInt(earned2), parseInt(earned) * 2);
+    });
+
+    it("should be increasing 4 times throughout program", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingTokenOwner.transfer(owner.address, totalToStake);
+      await stakingTokenOwner.transfer(account3.address, totalToStake);
+      await stakingTokenOwner.transfer(account4.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingToken
+        .connect(owner)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingToken
+        .connect(account3)
+        .approve(stakingRewards.address, totalToStake);
+      await stakingToken
+        .connect(account4)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 1);
+
+      await stakingRewards.connect(owner).stake(totalToStake);
+
+      assert.isAbove(await stakingRewards.earned(deployerAccount.address), "0");
+      assert.bnEqual(await stakingRewards.earned(owner.address), "0");
+
+      await fastForward(DAY * 7);
+
+      await stakingRewards.connect(account3).stake(totalToStake);
+      assert.isAbove(await stakingRewards.earned(deployerAccount.address), "0");
+      assert.isAbove(await stakingRewards.earned(owner.address), "0");
+      assert.bnEqual(await stakingRewards.earned(account3.address), "0");
+
+      await fastForward(DAY * 7);
+
+      await stakingRewards.connect(account4).stake(totalToStake);
+      assert.isAbove(await stakingRewards.earned(deployerAccount.address), "0");
+      assert.isAbove(await stakingRewards.earned(owner.address), "0");
+      assert.isAbove(await stakingRewards.earned(account3.address), "0");
+      assert.bnEqual(await stakingRewards.earned(account4.address), "0");
+
+      await fastForward(DAY * 7);
+
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+      let ownerEarned = await stakingRewards.earned(owner.address);
+      let account3Earned = await stakingRewards.earned(account3.address);
+      let account4Earned = await stakingRewards.earned(account4.address);
+
+      assert.isAbove(deployerEarned, "0");
+      assert.isAbove(ownerEarned, "0");
+      assert.isAbove(account3Earned, "0");
+      assert.isAbove(account4Earned, "0");
+
+      await fastForward(DAY * 7);
+
+      console.log(deployerEarned.toString());
+      console.log(ownerEarned.toString());
+      console.log(account3Earned.toString());
+      console.log(account4Earned.toString());
+
+      assert.isAbove(deployerEarned, ownerEarned);
+      assert.isAbove(ownerEarned, account3Earned);
+      assert.isAbove(account3Earned, account4Earned);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
+      );
+      assert.bnEqual(ownerEarned, await stakingRewards.earned(owner.address));
+      assert.bnEqual(
+        account3Earned,
+        await stakingRewards.earned(account3.address)
+      );
+      assert.bnEqual(
+        account4Earned,
+        await stakingRewards.earned(account4.address)
+      );
     });
 
     it("rewardRate should increase if new rewards come before DURATION ends", async () => {
@@ -632,7 +717,7 @@ describe("StakingRewards contract", function () {
         .approve(stakingRewards.address, totalToStake);
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
-      await stakingRewards.connect(owner).setRewardsDuration(DAY * 8);
+      await stakingRewards.connect(owner).setRewardsDuration(DAY * 7);
 
       await rewardsTokenOwner.transfer(
         stakingRewards.address,
@@ -642,7 +727,7 @@ describe("StakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute);
 
-      await fastForward(DAY * 8);
+      await fastForward(DAY * 7);
       const earnedFirst = await stakingRewards.earned(deployerAccount.address);
 
       await rewardsTokenOwner.transfer(
@@ -656,7 +741,9 @@ describe("StakingRewards contract", function () {
       await fastForward(DAY * 7);
       const earnedSecond = await stakingRewards.earned(deployerAccount.address);
 
-      assert.bnEqual(earnedSecond, earnedFirst.add(earnedFirst));
+      // not exact match but we are not calling notifyRewardAmount
+      // after liquidity mining ends (to increase duration)
+      assert.isAbove(earnedSecond, earnedFirst.add(earnedFirst));
     });
   });
 
@@ -758,11 +845,11 @@ describe("StakingRewards contract", function () {
   });
 
   describe("setRewardsDuration()", () => {
-    const twentyOneDays = DAY * 21;
+    const twentyEightDays = DAY * 28;
     const seventyDays = DAY * 70;
     it("should increase rewards duration before starting distribution", async () => {
       const defaultDuration = await stakingRewards.rewardsDuration();
-      assert.bnEqual(defaultDuration, twentyOneDays);
+      assert.bnEqual(defaultDuration, twentyEightDays);
 
       await stakingRewards.connect(owner).setRewardsDuration(seventyDays);
       const newDuration = await stakingRewards.rewardsDuration();
