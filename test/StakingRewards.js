@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const { contract, ethers } = hre;
+const { ethers } = hre;
 
 const { ensureOnlyExpectedMutativeFunctions } = require("./helpers");
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
@@ -13,6 +13,7 @@ const {
   STAKING_TOKEN_PARAMS,
   EXTERNAL_TOKEN_PARAMS,
 } = require("../params");
+const { formatEther, parseEther } = require("@ethersproject/units");
 
 // Tests taken from https://github.com/Synthetixio/synthetix/blob/master/test/contracts/StakingRewards.js
 describe("StakingRewards contract", function () {
@@ -43,7 +44,7 @@ describe("StakingRewards contract", function () {
       owner,
       mockRewardsDistributionAddress,
       account3,
-      account4
+      account4,
     ] = await ethers.getSigners();
 
     // Get rewards token (RIBBON)
@@ -495,6 +496,30 @@ describe("StakingRewards contract", function () {
       assert.bnEqual(await stakingRewards.earned(deployerAccount.address), "0");
     });
 
+    it("should get 1 week of stake when staking one day after startEmission", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 7);
+
+      const earned = await stakingRewards.earned(deployerAccount.address);
+
+      assert.bnGt(earned, toUnit("1249.99"));
+    });
+
     it("should be 0 when staking but before emission hit", async () => {
       const totalToStake = toUnit("100");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
@@ -534,7 +559,7 @@ describe("StakingRewards contract", function () {
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
-      assert.isAbove(parseInt(earned), 0);
+      assert.bnGt(earned, toUnit("999.999"));
     });
 
     it("should be same after emission hit + 1 day", async () => {
@@ -656,10 +681,10 @@ describe("StakingRewards contract", function () {
 
       await fastForward(DAY * 7);
 
-      console.log(deployerEarned.toString());
-      console.log(ownerEarned.toString());
-      console.log(account3Earned.toString());
-      console.log(account4Earned.toString());
+      // console.log(deployerEarned.toString());
+      // console.log(ownerEarned.toString());
+      // console.log(account3Earned.toString());
+      // console.log(account4Earned.toString());
 
       assert.isAbove(deployerEarned, ownerEarned);
       assert.isAbove(ownerEarned, account3Earned);
