@@ -5,7 +5,7 @@ const { ensureOnlyExpectedMutativeFunctions } = require("./helpers");
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
 const { currentTime, toUnit, fastForward } = require("./utils")();
 
-const { BigNumber } = ethers;
+const { provider, BigNumber } = ethers;
 
 const {
   TOKEN_PARAMS,
@@ -518,6 +518,34 @@ describe("StakingRewards contract", function () {
       const earned = await stakingRewards.earned(deployerAccount.address);
 
       assert.bnGt(earned, toUnit("1249.99"));
+
+      await fastForward((await stakingRewards.periodFinish()).add(DAY * 7));
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      console.log(formatEther(earned1));
+    });
+
+    it("should get 3 week of stake when staking one week after startEmission", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 7 + 1);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward((await stakingRewards.periodFinish()).add(DAY * 7));
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      console.log(formatEther(earned1));
     });
 
     it("should be 0 when staking but before emission hit", async () => {
@@ -536,7 +564,17 @@ describe("StakingRewards contract", function () {
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
+      console.log(
+        (await provider.getBlock()).timestamp,
+        (await stakingRewards.periodFinish()).toNumber()
+      );
+
       assert.bnEqual(parseInt(earned), "0");
+
+      await fastForward((await stakingRewards.periodFinish()).add(DAY * 7));
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      console.log(formatEther(earned1));
     });
 
     it("should be > 0 when staking and after emission hit", async () => {
