@@ -544,10 +544,7 @@ describe("StakingRewards contract", function () {
 
       await fastForward(DAY * 30);
 
-      // await fastForward((await stakingRewards.periodFinish()).add(DAY * 7));
-
       const earned1 = await stakingRewards.earned(deployerAccount.address);
-      console.log("Weird case")
       console.log(earned1.toString());
     });
 
