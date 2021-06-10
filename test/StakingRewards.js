@@ -1,11 +1,11 @@
 const hre = require("hardhat");
-const { contract, ethers } = hre;
+const { ethers } = hre;
 
 const { ensureOnlyExpectedMutativeFunctions } = require("./helpers");
 const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
 const { currentTime, toUnit, fastForward } = require("./utils")();
 
-const { BigNumber } = ethers;
+const { provider, BigNumber } = ethers;
 
 const {
   TOKEN_PARAMS,
@@ -13,6 +13,7 @@ const {
   STAKING_TOKEN_PARAMS,
   EXTERNAL_TOKEN_PARAMS,
 } = require("../params");
+const { formatEther, parseEther } = require("@ethersproject/units");
 
 // Tests taken from https://github.com/Synthetixio/synthetix/blob/master/test/contracts/StakingRewards.js
 describe("StakingRewards contract", function () {
@@ -43,7 +44,7 @@ describe("StakingRewards contract", function () {
       owner,
       mockRewardsDistributionAddress,
       account3,
-      account4
+      account4,
     ] = await ethers.getSigners();
 
     // Get rewards token (RIBBON)
@@ -495,6 +496,61 @@ describe("StakingRewards contract", function () {
       assert.bnEqual(await stakingRewards.earned(deployerAccount.address), "0");
     });
 
+    it("should get 1 week of stake when staking one day after startEmission", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 7);
+
+      const earned = await stakingRewards.earned(deployerAccount.address);
+
+      assert.bnGt(earned, toUnit("1249.99"));
+
+      await fastForward(DAY * 30);
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      console.log(formatEther(earned1));
+    });
+
+    it("should get 3 week of stake when staking one week after startEmission", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 1);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 30);
+
+      // await fastForward((await stakingRewards.periodFinish()).add(DAY * 7));
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      console.log("Weird case")
+      console.log(earned1.toString());
+    });
+
     it("should be 0 when staking but before emission hit", async () => {
       const totalToStake = toUnit("100");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
@@ -511,7 +567,17 @@ describe("StakingRewards contract", function () {
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
+      console.log(
+        (await provider.getBlock()).timestamp,
+        (await stakingRewards.periodFinish()).toNumber()
+      );
+
       assert.bnEqual(parseInt(earned), "0");
+
+      await fastForward(DAY * 30);
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      console.log("earned", formatEther(earned1));
     });
 
     it("should be > 0 when staking and after emission hit", async () => {
@@ -534,7 +600,7 @@ describe("StakingRewards contract", function () {
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
-      assert.isAbove(parseInt(earned), 0);
+      assert.bnGt(earned, toUnit("999.999"));
     });
 
     it("should be same after emission hit + 1 day", async () => {
@@ -677,6 +743,242 @@ describe("StakingRewards contract", function () {
       assert.bnEqual(
         account4Earned,
         await stakingRewards.earned(account4.address)
+      );
+    });
+
+
+    it("T0 Stake", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 22);
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+
+      assert.isAbove(
+        deployerEarned,
+        rewardValue.mul(98).div(100)
+      );
+
+      assert.isBelow(
+        deployerEarned,
+        rewardValue
+      );
+
+      await fastForward(DAY * 7);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
+      );
+    });
+
+    it("T0 Start Emission Stake (you can stake EXACTLY at start emission)", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(parseInt(startEmission) - await currentTime());
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 22);
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+
+      assert.isAbove(
+        deployerEarned,
+        rewardValue.mul(98).div(100)
+      );
+
+      assert.isBelow(
+        deployerEarned,
+        rewardValue
+      );
+
+      await fastForward(DAY * 7);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
+      );
+    });
+
+
+    it("T1 Stake", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 1);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 21);
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+
+      console.log(deployerEarned.toString())
+
+      assert.isAbove(
+        deployerEarned,
+        rewardValue.mul(298).div(400)
+      );
+
+      assert.isBelow(
+        deployerEarned,
+        rewardValue.mul(3).div(4)
+      );
+
+      await fastForward(DAY * 7);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
+      );
+    });
+
+
+    it("T2 Stake", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 8);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 14);
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+
+      console.log(deployerEarned.toString())
+      assert.isAbove(
+        deployerEarned,
+        rewardValue.mul(98).div(200)
+      );
+
+      assert.isBelow(
+        deployerEarned,
+        rewardValue.mul(1).div(2)
+      );
+
+      await fastForward(DAY * 7);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
+      );
+    });
+
+    it("T3 Stake", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 15);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 7);
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+
+      console.log(deployerEarned.toString())
+
+      assert.isAbove(
+        deployerEarned,
+        rewardValue.mul(98).div(400)
+      );
+
+      assert.isBelow(
+        deployerEarned,
+        rewardValue.mul(1).div(4)
+      );
+
+      await fastForward(DAY * 7);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
+      );
+    });
+
+    it("T4 Stake", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue = toUnit("5000");
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(DAY * 22);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 7);
+      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
+
+      console.log(deployerEarned.toString())
+      assert.bnEqual(
+        deployerEarned,
+        rewardValue.mul(0).div(4)
+      );
+
+      await fastForward(DAY * 7);
+
+      assert.bnEqual(
+        deployerEarned,
+        await stakingRewards.earned(deployerAccount.address)
       );
     });
 
