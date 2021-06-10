@@ -784,46 +784,6 @@ describe("StakingRewards contract", function () {
       );
     });
 
-    it("T0 Start Emission Stake (you can stake EXACTLY at start emission)", async () => {
-      const totalToStake = toUnit("100");
-      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
-
-      await stakingToken
-        .connect(deployerAccount)
-        .approve(stakingRewards.address, totalToStake);
-
-      const rewardValue = toUnit("5000");
-      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
-      await stakingRewards
-        .connect(mockRewardsDistributionAddress)
-        .notifyRewardAmount(rewardValue);
-
-      await fastForward(parseInt(startEmission) - await currentTime());
-
-      await stakingRewards.connect(deployerAccount).stake(totalToStake);
-
-      await fastForward(DAY * 22);
-      let deployerEarned = await stakingRewards.earned(deployerAccount.address);
-
-      assert.isAbove(
-        deployerEarned,
-        rewardValue.mul(98).div(100)
-      );
-
-      assert.isBelow(
-        deployerEarned,
-        rewardValue
-      );
-
-      await fastForward(DAY * 7);
-
-      assert.bnEqual(
-        deployerEarned,
-        await stakingRewards.earned(deployerAccount.address)
-      );
-    });
-
-
     it("T1 Stake", async () => {
       const totalToStake = toUnit("100");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
