@@ -574,7 +574,7 @@ describe("StakingRewards contract", function () {
       await fastForward((await stakingRewards.periodFinish()).add(DAY * 7));
 
       const earned1 = await stakingRewards.earned(deployerAccount.address);
-      console.log(formatEther(earned1));
+      console.log("earned", formatEther(earned1));
     });
 
     it("should be > 0 when staking and after emission hit", async () => {
