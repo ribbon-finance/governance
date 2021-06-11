@@ -204,7 +204,7 @@ contract StakingRewards is
             "Provided reward too high"
         );
 
-        periodFinish = Math.max(block.timestamp, startEmission).add(rewardsDuration);
+        periodFinish = startEmission.add(rewardsDuration);
         lastUpdateTime = lastTimeRewardApplicable();
         emit RewardAdded(reward);
     }
