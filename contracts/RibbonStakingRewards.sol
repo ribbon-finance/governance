@@ -161,7 +161,7 @@ contract StakingRewards is
         uint256 reward = block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            rewardsToken.safeTransfer(msg.sender, reward);
+            rewardsToken.safeTransfer(msg.sender, Math.min(reward, rewardsToken.balanceOf(address(this))));
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -204,7 +204,7 @@ contract StakingRewards is
             "Provided reward too high"
         );
 
-        periodFinish = block.timestamp.add(rewardsDuration);
+        periodFinish = startEmission.add(rewardsDuration);
         lastUpdateTime = lastTimeRewardApplicable();
         emit RewardAdded(reward);
     }
@@ -240,6 +240,14 @@ contract StakingRewards is
         emit RewardsDurationUpdated(rewardsDuration);
     }
 
+    function setStartEmission(uint256 _startEmission) external onlyOwner {
+        require(
+            block.timestamp < _startEmission,
+            "Start emission must be in the future"
+        );
+        startEmission = _startEmission;
+        emit StartEmissionUpdated(startEmission);
+    }
     /* ========== MODIFIERS ========== */
 
     modifier updateReward(address account) {
@@ -259,5 +267,6 @@ contract StakingRewards is
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
     event RewardsDurationUpdated(uint256 newDuration);
+    event StartEmissionUpdated(uint256 StartEmissionUpdated);
     event Recovered(address token, uint256 amount);
 }
