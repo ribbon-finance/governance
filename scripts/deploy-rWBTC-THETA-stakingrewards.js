@@ -35,7 +35,7 @@ async function main() {
   const startEmission =
     network === "kovan"
       ? moment().add(1, "minutes").unix()
-      : STAKING_REWARDS_rETHTHETA_PARAMS.START_EMISSION;
+      : STAKING_REWARDS_rWBTCTHETA_PARAMS.START_EMISSION;
 
   const ribbonStakingRewards = await RibbonStakingRewards.deploy(
     owner,
