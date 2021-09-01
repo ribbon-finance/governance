@@ -208,16 +208,7 @@ contract StakingRewards is
         lastUpdateTime = lastTimeRewardApplicable();
         emit RewardAdded(reward);
     }
-
-    // End rewards emission earlier
-    function updatePeriodFinish(uint256 timestamp)
-        external
-        onlyOwner
-        updateReward(address(0))
-    {
-        periodFinish = timestamp;
-    }
-
+    
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
     function recoverERC20(address tokenAddress, uint256 tokenAmount)
         external
