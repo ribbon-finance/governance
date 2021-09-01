@@ -146,7 +146,6 @@ describe("StakingRewards contract", function () {
         "setRewardsDuration",
         "setStartEmission",
         "recoverERC20",
-        "updatePeriodFinish",
       ],
     });
   });
@@ -216,15 +215,6 @@ describe("StakingRewards contract", function () {
       );
       assert.revert(
         stakingRewards.connect(deployerAccount).setPaused(true),
-        "Only the contract owner may perform this action"
-      );
-    });
-
-    it("only owner can call updatePeriodFinish", async () => {
-      await stakingRewards.connect(owner).updatePeriodFinish(0);
-
-      assert.revert(
-        stakingRewards.connect(deployerAccount).updatePeriodFinish(0),
         "Only the contract owner may perform this action"
       );
     });
@@ -1412,22 +1402,6 @@ describe("StakingRewards contract", function () {
         stakingRewards.connect(owner).withdraw("0"),
         "Cannot withdraw 0"
       );
-    });
-  });
-
-  describe("updatePeriodFinish()", () => {
-    const updateTimeStamp = toUnit("100");
-
-    it("should update periodFinish", async () => {
-      await stakingRewards.connect(owner).updatePeriodFinish(updateTimeStamp);
-      const periodFinish = await stakingRewards.periodFinish();
-      assert.bnEqual(periodFinish, updateTimeStamp);
-    });
-
-    it("should update rewardRate to zero", async () => {
-      await stakingRewards.connect(owner).updatePeriodFinish(updateTimeStamp);
-      const rewardRate = await stakingRewards.rewardRate();
-      assert.bnEqual(rewardRate, "0");
     });
   });
 
