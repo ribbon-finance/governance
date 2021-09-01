@@ -146,7 +146,6 @@ describe("StakingRewards contract", function () {
         "setRewardsDuration",
         "setStartEmission",
         "recoverERC20",
-        "updatePeriodFinish",
       ],
     });
   });
@@ -216,15 +215,6 @@ describe("StakingRewards contract", function () {
       );
       assert.revert(
         stakingRewards.connect(deployerAccount).setPaused(true),
-        "Only the contract owner may perform this action"
-      );
-    });
-
-    it("only owner can call updatePeriodFinish", async () => {
-      await stakingRewards.connect(owner).updatePeriodFinish(0);
-
-      assert.revert(
-        stakingRewards.connect(deployerAccount).updatePeriodFinish(0),
         "Only the contract owner may perform this action"
       );
     });
@@ -744,7 +734,6 @@ describe("StakingRewards contract", function () {
       );
     });
 
-
     it("T0 Stake", async () => {
       const totalToStake = toUnit("100");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
@@ -764,15 +753,9 @@ describe("StakingRewards contract", function () {
       await fastForward(DAY * 22);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
 
-      assert.isAbove(
-        deployerEarned,
-        rewardValue.mul(98).div(100)
-      );
+      assert.isAbove(deployerEarned, rewardValue.mul(98).div(100));
 
-      assert.isBelow(
-        deployerEarned,
-        rewardValue
-      );
+      assert.isBelow(deployerEarned, rewardValue);
 
       await fastForward(DAY * 7);
 
@@ -803,17 +786,11 @@ describe("StakingRewards contract", function () {
       await fastForward(DAY * 21);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
 
-      console.log(deployerEarned.toString())
+      console.log(deployerEarned.toString());
 
-      assert.isAbove(
-        deployerEarned,
-        rewardValue.mul(298).div(400)
-      );
+      assert.isAbove(deployerEarned, rewardValue.mul(298).div(400));
 
-      assert.isBelow(
-        deployerEarned,
-        rewardValue.mul(3).div(4)
-      );
+      assert.isBelow(deployerEarned, rewardValue.mul(3).div(4));
 
       await fastForward(DAY * 7);
 
@@ -822,7 +799,6 @@ describe("StakingRewards contract", function () {
         await stakingRewards.earned(deployerAccount.address)
       );
     });
-
 
     it("T2 Stake", async () => {
       const totalToStake = toUnit("100");
@@ -845,16 +821,10 @@ describe("StakingRewards contract", function () {
       await fastForward(DAY * 14);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
 
-      console.log(deployerEarned.toString())
-      assert.isAbove(
-        deployerEarned,
-        rewardValue.mul(98).div(200)
-      );
+      console.log(deployerEarned.toString());
+      assert.isAbove(deployerEarned, rewardValue.mul(98).div(200));
 
-      assert.isBelow(
-        deployerEarned,
-        rewardValue.mul(1).div(2)
-      );
+      assert.isBelow(deployerEarned, rewardValue.mul(1).div(2));
 
       await fastForward(DAY * 7);
 
@@ -885,17 +855,11 @@ describe("StakingRewards contract", function () {
       await fastForward(DAY * 7);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
 
-      console.log(deployerEarned.toString())
+      console.log(deployerEarned.toString());
 
-      assert.isAbove(
-        deployerEarned,
-        rewardValue.mul(98).div(400)
-      );
+      assert.isAbove(deployerEarned, rewardValue.mul(98).div(400));
 
-      assert.isBelow(
-        deployerEarned,
-        rewardValue.mul(1).div(4)
-      );
+      assert.isBelow(deployerEarned, rewardValue.mul(1).div(4));
 
       await fastForward(DAY * 7);
 
@@ -925,11 +889,8 @@ describe("StakingRewards contract", function () {
 
       await fastForward(DAY * 7);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
-      console.log(deployerEarned.toString())
-      assert.bnEqual(
-        deployerEarned,
-        rewardValue.mul(0).div(4)
-      );
+      console.log(deployerEarned.toString());
+      assert.bnEqual(deployerEarned, rewardValue.mul(0).div(4));
 
       await fastForward(DAY * 7);
 
@@ -1412,22 +1373,6 @@ describe("StakingRewards contract", function () {
         stakingRewards.connect(owner).withdraw("0"),
         "Cannot withdraw 0"
       );
-    });
-  });
-
-  describe("updatePeriodFinish()", () => {
-    const updateTimeStamp = toUnit("100");
-
-    it("should update periodFinish", async () => {
-      await stakingRewards.connect(owner).updatePeriodFinish(updateTimeStamp);
-      const periodFinish = await stakingRewards.periodFinish();
-      assert.bnEqual(periodFinish, updateTimeStamp);
-    });
-
-    it("should update rewardRate to zero", async () => {
-      await stakingRewards.connect(owner).updatePeriodFinish(updateTimeStamp);
-      const rewardRate = await stakingRewards.rewardRate();
-      assert.bnEqual(rewardRate, "0");
     });
   });
 
