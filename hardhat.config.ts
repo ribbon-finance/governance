@@ -2,6 +2,7 @@ require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-truffle5");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-web3");
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
@@ -11,7 +12,7 @@ module.exports = {
     mnemonic: process.env.TEST_MNEMONIC,
   },
   solidity: {
-    version: "0.8.0",
+    version: "0.8.4",
     settings: {
       optimizer: {
         runs: 200,

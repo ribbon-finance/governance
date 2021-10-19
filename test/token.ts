@@ -1,23 +1,23 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const { BigNumber } = ethers;
+import { expect } from "chai";
+import hre, { ethers } from "hardhat";
+import { BigNumber, Contract, ContractFactory } from "ethers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 const { formatBytes32String } = ethers.utils;
 
 const { TOKEN_PARAMS } = require("../params");
 
 describe("RibbonToken contract", function () {
-  let RibbonToken;
-  let ribbonToken;
-  let owner;
-  let addr1;
-  let addr2;
-  let addrs;
-  let withSigner;
+  let RibbonToken: ContractFactory;
+  let ribbonToken: Contract;
+  let owner: SignerWithAddress;
+  let addr1: SignerWithAddress;
+  let addr2: SignerWithAddress;
+  let withSigner: Contract;
 
   beforeEach(async function () {
     // Get the ContractFactory and Signers here.
     RibbonToken = await ethers.getContractFactory("RibbonToken");
-    [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    [owner, addr1, addr2] = await ethers.getSigners();
 
     ribbonToken = await RibbonToken.deploy(
       TOKEN_PARAMS.NAME,
@@ -27,7 +27,7 @@ describe("RibbonToken contract", function () {
     );
 
     await ribbonToken.deployed();
-    
+
     await owner.sendTransaction({
       to: TOKEN_PARAMS.BENIFICIARY,
       value: ethers.utils.parseEther("5.0"),

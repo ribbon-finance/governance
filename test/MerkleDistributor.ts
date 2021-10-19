@@ -6,9 +6,9 @@ import { parseBalanceMap } from "../scripts/helpers/parse-balance-map";
 import BalanceTree from "../scripts/helpers/balance-tree";
 import { BigNumber, constants, Contract, ContractFactory } from "ethers";
 // import { currentTime, fastForward } from "../utils/index";
-const { currentTime, fastForward } = require("./utils")();
+import { currentTime, fastForward } from "./utils";
 
-const { TOKEN_PARAMS } = require("../params");
+import { TOKEN_PARAMS } from "../params";
 
 const ONE_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000001";
