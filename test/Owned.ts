@@ -1,26 +1,22 @@
 "use strict";
 
+import { Contract } from "@ethersproject/contracts";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
 let ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 describe("Owned contract", function () {
-  let Owned;
-  let deployerAccount;
-  let account1;
-  let account2;
-  let account3;
-  let account4;
+  let Owned: Contract;
+  let deployerAccount: SignerWithAddress;
+  let account1: SignerWithAddress;
+  let account2: SignerWithAddress;
 
   beforeEach(async function () {
     Owned = await ethers.getContractFactory("Owned");
-    [
-      deployerAccount,
-      account1,
-      account2,
-      ...account4
-    ] = await ethers.getSigners();
+    [deployerAccount, account1, account2] = await ethers.getSigners();
   });
 
   it("should revert when owner parameter is passed the zero address", async () => {
@@ -36,7 +32,7 @@ describe("Owned contract", function () {
   });
 
   describe("given an instance", () => {
-    let ownedContractInstance;
+    let ownedContractInstance: Contract;
 
     beforeEach(async () => {
       ownedContractInstance = await Owned.deploy(account1.address);
