@@ -6,9 +6,9 @@ import { parseBalanceMap } from "../scripts/helpers/parse-balance-map";
 import BalanceTree from "../scripts/helpers/balance-tree";
 import { BigNumber, constants, Contract, ContractFactory } from "ethers";
 // import { currentTime, fastForward } from "../utils/index";
-const { currentTime, fastForward } = require("./utils")();
+import { currentTime, fastForward } from "./utils";
 
-const { TOKEN_PARAMS } = require("../params");
+import { TOKEN_PARAMS } from "../params";
 
 const ONE_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -362,7 +362,7 @@ describe("MerkleDistributor contract", function () {
         const proof = tree.getProof(0, wallet0.address, BigNumber.from(100));
         const tx = await localDistributor.claim(0, wallet0.address, 100, proof);
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(82661);
+        expect(receipt.gasUsed).to.equal(82352);
       });
     });
     describe("larger tree", () => {
@@ -407,7 +407,7 @@ describe("MerkleDistributor contract", function () {
           proof
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(85430);
+        expect(receipt.gasUsed).to.equal(85031);
       });
 
       it("gas second down about 15k", async () => {
@@ -424,7 +424,7 @@ describe("MerkleDistributor contract", function () {
           tree.getProof(1, wallets[1].address, BigNumber.from(2))
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(68320);
+        expect(receipt.gasUsed).to.equal(67921);
       });
     });
 
@@ -481,7 +481,7 @@ describe("MerkleDistributor contract", function () {
           proof
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(97366);
+        expect(receipt.gasUsed).to.equal(96577);
       });
       it("gas deeper node", async () => {
         const proof = tree.getProof(
@@ -496,7 +496,7 @@ describe("MerkleDistributor contract", function () {
           proof
         );
         const receipt = await tx.wait();
-        expect(receipt.gasUsed).to.equal(97302);
+        expect(receipt.gasUsed).to.equal(96513);
       });
       it("gas average random distribution", async () => {
         let total: BigNumber = BigNumber.from(0);
@@ -514,7 +514,7 @@ describe("MerkleDistributor contract", function () {
           count++;
         }
         const average = total.div(count);
-        expect(average).to.equal(80756);
+        expect(average).to.equal(79973);
       });
       // this is what we gas golfed by packing the bitmap
       it("gas average first 25", async () => {
@@ -533,7 +533,7 @@ describe("MerkleDistributor contract", function () {
           count++;
         }
         const average = total.div(count);
-        expect(average).to.equal(64508);
+        expect(average).to.equal(63719);
       });
 
       it("no double claims in random distribution", async () => {

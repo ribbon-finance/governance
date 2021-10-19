@@ -1,30 +1,24 @@
 "use strict";
 
-const { ethers } = require("hardhat");
-const { expect } = require("chai");
-
-const { assert, addSnapshotBeforeRestoreAfterEach } = require("./common");
-
-const { timeIsClose } = require("./helpers");
-const { currentTime, fastForward } = require("./utils")();
+import { ethers } from "hardhat";
+import { expect } from "chai";
+import { assert, addSnapshotBeforeRestoreAfterEach } from "./common";
+import { timeIsClose } from "./helpers";
+import { currentTime, fastForward } from "./utils";
+import { Contract, ContractFactory } from "@ethersproject/contracts";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { Transaction } from "@ethersproject/transactions";
 
 describe("Pausable contract", function () {
-  let TestablePausable;
-  let deployerAccount;
-  let account1;
-  let account2;
-  let account3;
-  let account4;
-  let instance;
+  let TestablePausable: ContractFactory;
+  let deployerAccount: SignerWithAddress;
+  let account1: SignerWithAddress;
+  let account2: SignerWithAddress;
+  let instance: Contract;
 
   beforeEach(async function () {
     TestablePausable = await ethers.getContractFactory("TestablePausable");
-    [
-      deployerAccount,
-      account1,
-      account2,
-      ...account4
-    ] = await ethers.getSigners();
+    [deployerAccount, account1, account2] = await ethers.getSigners();
   });
 
   // we must snapshot here so that invoking fastForward() later on in this test does not
@@ -55,8 +49,9 @@ describe("Pausable contract", function () {
         );
       });
       describe("when invoked by the owner to true", () => {
-        let txn;
-        let timestamp;
+        let txn: Transaction;
+        let timestamp: number;
+
         beforeEach(async () => {
           timestamp = await currentTime();
           txn = await instance.connect(account1).setPaused(true);
@@ -82,7 +77,7 @@ describe("Pausable contract", function () {
           });
         });
         describe("when invoked by the owner to false", () => {
-          let txn;
+          let txn: Transaction;
           beforeEach(async () => {
             await fastForward(100);
             txn = await instance.connect(account1).setPaused(false);
