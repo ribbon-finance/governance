@@ -41,10 +41,12 @@ export const fastForward = async (seconds: BigNumberish) => {
   // It's handy to be able to be able to pass big numbers in as we can just
   // query them from the contract, then send them back. If not changed to
   // a number, this causes much larger fast forwards than expected without error.
-  if (BN.isBN(seconds)) secondsNum = seconds.toNumber();
+  if (BigNumber.isBigNumber(seconds)) secondsNum = seconds.toNumber();
 
   // And same with strings.
   if (typeof seconds === "string") secondsNum = parseFloat(seconds);
+
+  if (typeof seconds === "number") secondsNum = seconds;
 
   let params = {
     method: "evm_increaseTime",
