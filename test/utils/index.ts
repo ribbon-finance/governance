@@ -87,7 +87,7 @@ export const fastForwardTo = async (dateTime: Date) => {
  *  Takes a snapshot and returns the ID of the snapshot for restoring later.
  */
 export const takeSnapshot = async () => {
-  const { result } = await send({ method: "evm_snapshot" });
+  const result = await send({ method: "evm_snapshot" });
   await mineBlock();
 
   return result;
