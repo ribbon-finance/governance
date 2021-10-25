@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Inheritance
-import "./interfaces/IStakingRewards.sol";
+import "../interfaces/IStakingRewards.sol";
 import "./RewardsDistributionRecipient.sol";
-import "./Pausable.sol";
+import "../common/Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
 contract StakingRewards is
@@ -49,7 +49,7 @@ contract StakingRewards is
         address _rewardsToken,
         address _stakingToken,
         uint256 _startEmission
-    ) public Owned(_owner) {
+    ) Owned(_owner) {
         require(_owner != address(0), "Owner must be non-zero address");
         require(
             _rewardsToken != address(0),

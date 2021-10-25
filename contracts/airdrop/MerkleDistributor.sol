@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "./interfaces/IMerkleDistributor.sol";
-import "./Owned.sol";
+import "../interfaces/IMerkleDistributor.sol";
+import "../common/Owned.sol";
 
 contract MerkleDistributor is IMerkleDistributor, Owned {
     using SafeMath for uint256;
@@ -25,7 +25,7 @@ contract MerkleDistributor is IMerkleDistributor, Owned {
         address _token,
         bytes32 _merkleRoot,
         uint256 _daysUntilUnlock
-    ) public Owned(_owner) {
+    ) Owned(_owner) {
         require(_owner != address(0), "Owner must be non-zero address");
         require(_token != address(0), "Airdrop token must be non-zero address");
         require(_merkleRoot != bytes32(0), "Merkle root must be non-zero");

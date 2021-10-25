@@ -8,7 +8,7 @@ contract TestERC20 is ERC20 {
         string memory name_,
         string memory symbol_,
         uint256 amountToMint
-    ) public ERC20(name_, symbol_) {
+    ) ERC20(name_, symbol_) {
         setBalance(msg.sender, amountToMint);
     }
 
