@@ -12,13 +12,26 @@ module.exports = {
     mnemonic: process.env.TEST_MNEMONIC,
   },
   solidity: {
-    version: "0.8.4",
-    settings: {
-      optimizer: {
-        runs: 9999,
-        enabled: true,
+    compilers: [
+      {
+        version: "0.5.16",
+        settings: {
+          optimizer: {
+            runs: 9999,
+            enabled: true,
+          },
+        },
       },
-    },
+      {
+        version: "0.8.4",
+        settings: {
+          optimizer: {
+            runs: 9999,
+            enabled: true,
+          },
+        },
+      },
+    ],
   },
   networks: {
     hardhat: {

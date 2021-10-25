@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0
+// Credit: Compound Finance & Uniswap
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
@@ -107,6 +109,62 @@ contract sRBN {
 
         // move delegates
         _moveDelegates(address(0), delegates[dst], amount);
+    }
+
+    /**
+     * @notice Burns tokens
+     * @param src The address of the destination account
+     * @param rawAmount The number of tokens to be minted
+     */
+    function _burn(address src, uint rawAmount) internal {
+        require(msg.sender == minter, "RBN::burn: only the minter can burn");
+        require(src != address(0), "RBN::burn: cannot transfer to the zero address");
+
+        // mint the amount
+        uint96 amount = safe96(rawAmount, "RBN::burn: amount exceeds 96 bits");
+        // totalSupply cannot underflow
+        totalSupply = safe96(totalSupply - amount, "RBN::burn: totalSupply exceeds 96 bits");
+
+        // transfer the amount to the recipient
+        balances[src] = sub96(balances[src], amount, "RBN::burn: transfer amount overflows");
+        emit Transfer(src, address(0), amount);
+
+        // move delegates
+        _moveDelegates(delegates[src], address(0), amount);
+    }
+
+    /**
+     * @dev Destroys `amount` tokens from the caller.
+     *
+     * See {ERC20-_burn}.
+     */
+    function burn(uint256 amount) public virtual {
+        _burn(msg.sender, amount);
+    }
+
+    /**
+     * @dev Destroys `amount` tokens from `account`, deducting from the caller's
+     * allowance.
+     *
+     * See {ERC20-_burn} and {ERC20-allowance}.
+     *
+     * Requirements:
+     *
+     * - the caller must have allowance for ``accounts``'s tokens of at least
+     * `amount`.
+     */
+    function burnFrom(address account, uint256 rawAmount) public virtual {
+        uint96 amount = safe96(rawAmount, "RBN::burn: amount exceeds 96 bits");
+
+        uint256 currentAllowance = allowances[account][msg.sender];
+        require(currentAllowance >= amount, "RBN::burnFrom: burn amount exceeds allowance");
+
+        allowances[account][msg.sender] = sub96(
+            allowances[account][msg.sender],
+            amount,
+            "RBN::burnFrom: burn amount exceeds allowance"
+        );
+        _burn(account, amount);
     }
 
     /**
