@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0
-// Credit: Compound Finance & Uniswap
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.4;
+pragma solidity ^0.5.16;
+pragma experimental ABIEncoderV2;
 
-contract sRBN {
+import "./SafeMath.sol";
+
+contract Uni {
     /// @notice EIP-20 token name for this token
-    string public constant name = "Staked RBN";
+    string public constant name = "Staked Ribbon";
 
     /// @notice EIP-20 token symbol for this token
     string public constant symbol = "sRBN";
@@ -14,7 +14,7 @@ contract sRBN {
     uint8 public constant decimals = 18;
 
     /// @notice Total number of tokens in circulation
-    uint public totalSupply;
+    uint public totalSupply = 1_000_000_000e18; // 1 billion Uni
 
     /// @notice Address which may mint new tokens
     address public minter;
@@ -72,7 +72,7 @@ contract sRBN {
      * @param account The initial account to grant all the tokens
      * @param minter_ The account with minting ability
      */
-    constructor(address account, address minter_) {
+    constructor(address account, address minter_) public {
         balances[account] = uint96(totalSupply);
         emit Transfer(address(0), account, totalSupply);
         minter = minter_;
@@ -100,8 +100,7 @@ contract sRBN {
 
         // mint the amount
         uint96 amount = safe96(rawAmount, "RBN::mint: amount exceeds 96 bits");
-        // totalSupply cannot overflow
-        totalSupply = safe96(totalSupply + amount, "RBN::mint: totalSupply exceeds 96 bits");
+        totalSupply = safe96(SafeMath.add(totalSupply, amount), "RBN::mint: totalSupply exceeds 96 bits");
 
         // transfer the amount to the recipient
         balances[dst] = add96(balances[dst], amount, "RBN::mint: transfer amount overflows");
@@ -138,7 +137,7 @@ contract sRBN {
      *
      * See {ERC20-_burn}.
      */
-    function burn(uint256 amount) public virtual {
+    function burn(uint256 amount) external {
         _burn(msg.sender, amount);
     }
 
@@ -153,7 +152,7 @@ contract sRBN {
      * - the caller must have allowance for ``accounts``'s tokens of at least
      * `amount`.
      */
-    function burnFrom(address account, uint256 rawAmount) public virtual {
+    function burnFrom(address account, uint256 rawAmount) external {
         uint96 amount = safe96(rawAmount, "RBN::burn: amount exceeds 96 bits");
 
         uint256 currentAllowance = allowances[account][msg.sender];
@@ -186,7 +185,12 @@ contract sRBN {
      * @return Whether or not the approval succeeded
      */
     function approve(address spender, uint rawAmount) external returns (bool) {
-        uint96 amount = safe96(rawAmount, "RBN::approve: amount exceeds 96 bits");
+        uint96 amount;
+        if (rawAmount == uint(-1)) {
+            amount = uint96(-1);
+        } else {
+            amount = safe96(rawAmount, "RBN::approve: amount exceeds 96 bits");
+        }
 
         allowances[msg.sender][spender] = amount;
 
@@ -205,7 +209,12 @@ contract sRBN {
      * @param s Half of the ECDSA signature pair
      */
     function permit(address owner, address spender, uint rawAmount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
-        uint96 amount = safe96(rawAmount, "RBN::permit: amount exceeds 96 bits");
+        uint96 amount;
+        if (rawAmount == uint(-1)) {
+            amount = uint96(-1);
+        } else {
+            amount = safe96(rawAmount, "RBN::permit: amount exceeds 96 bits");
+        }
 
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
         bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, rawAmount, nonces[owner]++, deadline));
@@ -213,7 +222,7 @@ contract sRBN {
         address signatory = ecrecover(digest, v, r, s);
         require(signatory != address(0), "RBN::permit: invalid signature");
         require(signatory == owner, "RBN::permit: unauthorized");
-        require(block.timestamp <= deadline, "RBN::permit: signature expired");
+        require(now <= deadline, "RBN::permit: signature expired");
 
         allowances[owner][spender] = amount;
 
@@ -253,7 +262,7 @@ contract sRBN {
         uint96 spenderAllowance = allowances[src][spender];
         uint96 amount = safe96(rawAmount, "RBN::approve: amount exceeds 96 bits");
 
-        if (spender != src) {
+        if (spender != src && spenderAllowance != uint96(-1)) {
             uint96 newAllowance = sub96(spenderAllowance, amount, "RBN::transferFrom: transfer amount exceeds spender allowance");
             allowances[src][spender] = newAllowance;
 
@@ -288,7 +297,7 @@ contract sRBN {
         address signatory = ecrecover(digest, v, r, s);
         require(signatory != address(0), "RBN::delegateBySig: invalid signature");
         require(nonce == nonces[signatory]++, "RBN::delegateBySig: invalid nonce");
-        require(block.timestamp <= expiry, "RBN::delegateBySig: signature expired");
+        require(now <= expiry, "RBN::delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
@@ -416,7 +425,7 @@ contract sRBN {
         return a - b;
     }
 
-    function getChainId() internal view returns (uint) {
+    function getChainId() internal pure returns (uint) {
         uint256 chainId;
         assembly { chainId := chainid() }
         return chainId;
