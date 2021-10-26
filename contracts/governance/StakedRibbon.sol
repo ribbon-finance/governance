@@ -14,7 +14,7 @@ contract StakedRibbon {
     uint8 public constant decimals = 18;
 
     /// @notice Total number of tokens in circulation
-    uint public totalSupply = 1_000_000_000e18; // 1 billion Uni
+    uint public totalSupply;
 
     /// @notice Address which may mint new tokens
     address public minter;
@@ -69,12 +69,9 @@ contract StakedRibbon {
 
     /**
      * @notice Construct a new Uni token
-     * @param account The initial account to grant all the tokens
      * @param minter_ The account with minting ability
      */
-    constructor(address account, address minter_) public {
-        balances[account] = uint96(totalSupply);
-        emit Transfer(address(0), account, totalSupply);
+    constructor(address minter_) public {
         minter = minter_;
         emit MinterChanged(address(0), minter);
     }
