@@ -3,7 +3,9 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+  SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 
@@ -51,21 +53,19 @@ library VaultLifecycle {
     // After closing the short, if the options expire in-the-money
     // vault pricePerShare would go down because vault's asset balance decreased.
     // This ensures that the newly-minted shares do not take on the loss.
-    uint256 _mintShares = ShareMath.assetToShares(
-      pendingAmount,
-      newPricePerShare,
-      decimals
-    );
+    uint256 _mintShares =
+      ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
     uint256 newSupply = currentShareSupply.add(_mintShares);
 
-    uint256 queuedWithdraw = newSupply > 0
-      ? ShareMath.sharesToAsset(
-        queuedWithdrawShares,
-        newPricePerShare,
-        decimals
-      )
-      : 0;
+    uint256 queuedWithdraw =
+      newSupply > 0
+        ? ShareMath.sharesToAsset(
+          queuedWithdrawShares,
+          newPricePerShare,
+          decimals
+        )
+        : 0;
 
     return (
       currentBalance.sub(queuedWithdraw),
@@ -78,23 +78,17 @@ library VaultLifecycle {
   /**
    * @notice Verify the constructor params satisfy requirements
    * @param owner is the owner of the vault with critical permissions
-   * @param tokenName is the name of the token
-   * @param tokenSymbol is the symbol of the token
    * @param vaultAssets is ribbon vault assets
    * @param _vaultParams is the struct with vault general data
    */
   function verifyInitializerParams(
     address owner,
     address keeper,
-    string calldata tokenName,
-    string calldata tokenSymbol,
     address[] calldata vaultAssets,
     Vault.VaultParams calldata _vaultParams
   ) external pure {
     require(owner != address(0), "!owner");
     require(keeper != address(0), "!keeper");
-    require(bytes(tokenName).length > 0, "!tokenName");
-    require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
     require(
       vaultAssets.length > 0 && vaultAssets[0] != address(0),
