@@ -4,6 +4,7 @@ import { Contract } from "ethers";
 import { solidity } from "ethereum-waffle";
 
 import { parseEther } from "@ethersproject/units";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 chai.use(solidity);
 
@@ -11,6 +12,7 @@ interface GovernanceFixture {
   sRBN: Contract;
   timelock: Contract;
   governorBravo: Contract;
+  minter: SignerWithAddress;
 }
 
 const DAO_MULTISIG = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674";
@@ -74,5 +76,5 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
     ethers.provider
   );
 
-  return { sRBN, timelock, governorBravo };
+  return { sRBN, timelock, governorBravo, minter };
 }
