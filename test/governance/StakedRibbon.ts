@@ -1,20 +1,22 @@
 /**
- * Credit to Uniswap
+ * Credit to sRBNswap
  */
 import chai, { expect } from "chai";
-import { BigNumber, Contract, constants, utils } from "ethers";
+import { BigNumber, Contract, constants, utils, Wallet } from "ethers";
+import { solidity, MockProvider, createFixtureLoader } from "ethereum-waffle";
 import {
-  solidity,
-  MockProvider,
-  createFixtureLoader,
-  deployContract,
-} from "ethereum-waffle";
-import { ecsign } from "ethereumjs-util";
+  bufferToHex,
+  ecrecover,
+  ecsign,
+  pubToAddress,
+  keccak256,
+} from "ethereumjs-util";
 
 import { governanceFixture } from "./fixtures";
 import { expandTo18Decimals, mineBlock } from "./utils";
-
-import Uni from "../build/Uni.json";
+import { ethers } from "hardhat";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { Provider } from "@ethersproject/abstract-provider";
 
 chai.use(solidity);
 
@@ -30,32 +32,32 @@ const PERMIT_TYPEHASH = utils.keccak256(
   )
 );
 
-describe("Uni", () => {
-  const provider = new MockProvider({
-    ganacheOptions: {
-      hardfork: "istanbul",
-      mnemonic: "horn horn horn horn horn horn horn horn horn horn horn horn",
-      gasLimit: 9999999,
-    },
-  });
-  const [wallet, other0, other1] = provider.getWallets();
-  const loadFixture = createFixtureLoader([wallet], provider);
+describe("StakedRibbon", () => {
+  let sRBN: Contract;
+  let wallet: Wallet, other0: SignerWithAddress, other1: SignerWithAddress;
+  let provider: Provider;
 
-  let uni: Contract;
   beforeEach(async () => {
-    const fixture = await loadFixture(governanceFixture);
-    uni = fixture.uni;
+    wallet = await ethers.Wallet.fromMnemonic(
+      "test test test test test test test test test test test junk"
+    );
+    [other0, other1] = await ethers.getSigners();
+    const fixture = await governanceFixture();
+    sRBN = fixture.sRBN;
+    provider = ethers.provider;
   });
 
   it("permit", async () => {
+    const chainId = 31337;
+
     const domainSeparator = utils.keccak256(
       utils.defaultAbiCoder.encode(
         ["bytes32", "bytes32", "uint256", "address"],
         [
           DOMAIN_TYPEHASH,
-          utils.keccak256(utils.toUtf8Bytes("Uniswap")),
-          1,
-          uni.address,
+          utils.keccak256(utils.toUtf8Bytes("Staked Ribbon")),
+          chainId,
+          sRBN.address,
         ]
       )
     );
@@ -63,7 +65,7 @@ describe("Uni", () => {
     const owner = wallet.address;
     const spender = other0.address;
     const value = 123;
-    const nonce = await uni.nonces(wallet.address);
+    const nonce = await sRBN.nonces(owner);
     const deadline = constants.MaxUint256;
     const digest = utils.keccak256(
       utils.solidityPack(
@@ -94,7 +96,7 @@ describe("Uni", () => {
       Buffer.from(wallet.privateKey.slice(2), "hex")
     );
 
-    await uni.permit(
+    await sRBN.permit(
       owner,
       spender,
       value,
@@ -103,70 +105,66 @@ describe("Uni", () => {
       utils.hexlify(r),
       utils.hexlify(s)
     );
-    expect(await uni.allowance(owner, spender)).to.eq(value);
-    expect(await uni.nonces(owner)).to.eq(1);
+    expect(await sRBN.allowance(owner, spender)).to.eq(value);
+    expect(await sRBN.nonces(owner)).to.eq(1);
 
-    await uni.connect(other0).transferFrom(owner, spender, value);
+    await sRBN.connect(other0).transferFrom(owner, spender, value);
   });
 
   it("nested delegation", async () => {
-    await uni.transfer(other0.address, expandTo18Decimals(1));
-    await uni.transfer(other1.address, expandTo18Decimals(2));
+    await sRBN.transfer(other0.address, expandTo18Decimals(1));
+    await sRBN.transfer(other1.address, expandTo18Decimals(2));
 
-    let currectVotes0 = await uni.getCurrentVotes(other0.address);
-    let currectVotes1 = await uni.getCurrentVotes(other1.address);
+    let currectVotes0 = await sRBN.getCurrentVotes(other0.address);
+    let currectVotes1 = await sRBN.getCurrentVotes(other1.address);
     expect(currectVotes0).to.be.eq(0);
     expect(currectVotes1).to.be.eq(0);
 
-    await uni.connect(other0).delegate(other1.address);
-    currectVotes1 = await uni.getCurrentVotes(other1.address);
+    await sRBN.connect(other0).delegate(other1.address);
+    currectVotes1 = await sRBN.getCurrentVotes(other1.address);
     expect(currectVotes1).to.be.eq(expandTo18Decimals(1));
 
-    await uni.connect(other1).delegate(other1.address);
-    currectVotes1 = await uni.getCurrentVotes(other1.address);
+    await sRBN.connect(other1).delegate(other1.address);
+    currectVotes1 = await sRBN.getCurrentVotes(other1.address);
     expect(currectVotes1).to.be.eq(
       expandTo18Decimals(1).add(expandTo18Decimals(2))
     );
 
-    await uni.connect(other1).delegate(wallet.address);
-    currectVotes1 = await uni.getCurrentVotes(other1.address);
+    await sRBN.connect(other1).delegate(wallet.address);
+    currectVotes1 = await sRBN.getCurrentVotes(other1.address);
     expect(currectVotes1).to.be.eq(expandTo18Decimals(1));
   });
 
   it("mints", async () => {
-    const { timestamp: now } = await provider.getBlock("latest");
-    const uni = await deployContract(wallet, Uni, [
-      wallet.address,
-      wallet.address,
-      now + 60 * 60,
-    ]);
-    const supply = await uni.totalSupply();
+    const StakedRibbon = await ethers.getContractFactory("StakedRibbon");
+    const sRBN = await StakedRibbon.deploy(wallet.address);
+    const supply = await sRBN.totalSupply();
 
-    await expect(uni.mint(wallet.address, 1)).to.be.revertedWith(
-      "Uni::mint: minting not allowed yet"
+    await expect(sRBN.mint(wallet.address, 1)).to.be.revertedWith(
+      "sRBN::mint: minting not allowed yet"
     );
 
-    let timestamp = await uni.mintingAllowedAfter();
+    let timestamp = await sRBN.mintingAllowedAfter();
     await mineBlock(provider, timestamp.toString());
 
     await expect(
-      uni.connect(other1).mint(other1.address, 1)
-    ).to.be.revertedWith("Uni::mint: only the minter can mint");
+      sRBN.connect(other1).mint(other1.address, 1)
+    ).to.be.revertedWith("sRBN::mint: only the minter can mint");
     await expect(
-      uni.mint("0x0000000000000000000000000000000000000000", 1)
-    ).to.be.revertedWith("Uni::mint: cannot transfer to the zero address");
+      sRBN.mint("0x0000000000000000000000000000000000000000", 1)
+    ).to.be.revertedWith("sRBN::mint: cannot transfer to the zero address");
 
     // can mint up to 2%
-    const mintCap = BigNumber.from(await uni.mintCap());
+    const mintCap = BigNumber.from(await sRBN.mintCap());
     const amount = supply.mul(mintCap).div(100);
-    await uni.mint(wallet.address, amount);
-    expect(await uni.balanceOf(wallet.address)).to.be.eq(supply.add(amount));
+    await sRBN.mint(wallet.address, amount);
+    expect(await sRBN.balanceOf(wallet.address)).to.be.eq(supply.add(amount));
 
-    timestamp = await uni.mintingAllowedAfter();
+    timestamp = await sRBN.mintingAllowedAfter();
     await mineBlock(provider, timestamp.toString());
     // cannot mint 2.01%
     await expect(
-      uni.mint(wallet.address, supply.mul(mintCap.add(1)))
-    ).to.be.revertedWith("Uni::mint: exceeded mint cap");
+      sRBN.mint(wallet.address, supply.mul(mintCap.add(1)))
+    ).to.be.revertedWith("sRBN::mint: exceeded mint cap");
   });
 });

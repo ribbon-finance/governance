@@ -2,6 +2,7 @@ pragma solidity ^0.5.16;
 pragma experimental ABIEncoderV2;
 
 import "./SafeMath.sol";
+import "hardhat/console.sol";
 
 contract StakedRibbon {
     /// @notice EIP-20 token name for this token
@@ -81,7 +82,7 @@ contract StakedRibbon {
      * @param minter_ The address of the new minter
      */
     function setMinter(address minter_) external {
-        require(msg.sender == minter, "RBN::setMinter: only the minter can change the minter address");
+        require(msg.sender == minter, "sRBN::setMinter: only the minter can change the minter address");
         emit MinterChanged(minter, minter_);
         minter = minter_;
     }
@@ -92,15 +93,15 @@ contract StakedRibbon {
      * @param rawAmount The number of tokens to be minted
      */
     function mint(address dst, uint rawAmount) external {
-        require(msg.sender == minter, "RBN::mint: only the minter can mint");
-        require(dst != address(0), "RBN::mint: cannot transfer to the zero address");
+        require(msg.sender == minter, "sRBN::mint: only the minter can mint");
+        require(dst != address(0), "sRBN::mint: cannot transfer to the zero address");
 
         // mint the amount
-        uint96 amount = safe96(rawAmount, "RBN::mint: amount exceeds 96 bits");
-        totalSupply = safe96(SafeMath.add(totalSupply, amount), "RBN::mint: totalSupply exceeds 96 bits");
+        uint96 amount = safe96(rawAmount, "sRBN::mint: amount exceeds 96 bits");
+        totalSupply = safe96(SafeMath.add(totalSupply, amount), "sRBN::mint: totalSupply exceeds 96 bits");
 
         // transfer the amount to the recipient
-        balances[dst] = add96(balances[dst], amount, "RBN::mint: transfer amount overflows");
+        balances[dst] = add96(balances[dst], amount, "sRBN::mint: transfer amount overflows");
         emit Transfer(address(0), dst, amount);
 
         // move delegates
@@ -113,16 +114,16 @@ contract StakedRibbon {
      * @param rawAmount The number of tokens to be minted
      */
     function _burn(address src, uint rawAmount) internal {
-        require(msg.sender == minter, "RBN::burn: only the minter can burn");
-        require(src != address(0), "RBN::burn: cannot transfer to the zero address");
+        require(msg.sender == minter, "sRBN::burn: only the minter can burn");
+        require(src != address(0), "sRBN::burn: cannot transfer to the zero address");
 
         // mint the amount
-        uint96 amount = safe96(rawAmount, "RBN::burn: amount exceeds 96 bits");
+        uint96 amount = safe96(rawAmount, "sRBN::burn: amount exceeds 96 bits");
         // totalSupply cannot underflow
-        totalSupply = safe96(totalSupply - amount, "RBN::burn: totalSupply exceeds 96 bits");
+        totalSupply = safe96(totalSupply - amount, "sRBN::burn: totalSupply exceeds 96 bits");
 
         // transfer the amount to the recipient
-        balances[src] = sub96(balances[src], amount, "RBN::burn: transfer amount overflows");
+        balances[src] = sub96(balances[src], amount, "sRBN::burn: transfer amount overflows");
         emit Transfer(src, address(0), amount);
 
         // move delegates
@@ -150,15 +151,15 @@ contract StakedRibbon {
      * `amount`.
      */
     function burnFrom(address account, uint256 rawAmount) external {
-        uint96 amount = safe96(rawAmount, "RBN::burn: amount exceeds 96 bits");
+        uint96 amount = safe96(rawAmount, "sRBN::burn: amount exceeds 96 bits");
 
         uint256 currentAllowance = allowances[account][msg.sender];
-        require(currentAllowance >= amount, "RBN::burnFrom: burn amount exceeds allowance");
+        require(currentAllowance >= amount, "sRBN::burnFrom: burn amount exceeds allowance");
 
         allowances[account][msg.sender] = sub96(
             allowances[account][msg.sender],
             amount,
-            "RBN::burnFrom: burn amount exceeds allowance"
+            "sRBN::burnFrom: burn amount exceeds allowance"
         );
         _burn(account, amount);
     }
@@ -186,7 +187,7 @@ contract StakedRibbon {
         if (rawAmount == uint(-1)) {
             amount = uint96(-1);
         } else {
-            amount = safe96(rawAmount, "RBN::approve: amount exceeds 96 bits");
+            amount = safe96(rawAmount, "sRBN::approve: amount exceeds 96 bits");
         }
 
         allowances[msg.sender][spender] = amount;
@@ -210,21 +211,41 @@ contract StakedRibbon {
         if (rawAmount == uint(-1)) {
             amount = uint96(-1);
         } else {
-            amount = safe96(rawAmount, "RBN::permit: amount exceeds 96 bits");
+            amount = safe96(rawAmount, "sRBN::permit: amount exceeds 96 bits");
         }
 
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
         bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, rawAmount, nonces[owner]++, deadline));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
-        address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "RBN::permit: invalid signature");
-        require(signatory == owner, "RBN::permit: unauthorized");
-        require(now <= deadline, "RBN::permit: signature expired");
+        require(signatory != address(0), "sRBN::permit: invalid signature");
+        require(signatory == owner, "sRBN::permit: unauthorized");
+        require(now <= deadline, "sRBN::permit: signature expired");
 
         allowances[owner][spender] = amount;
 
         emit Approval(owner, spender, amount);
     }
+
+    function toHex16 (bytes16 data) internal pure returns (bytes32 result) {
+    result = bytes32 (data) & 0xFFFFFFFFFFFFFFFF000000000000000000000000000000000000000000000000 |
+          (bytes32 (data) & 0x0000000000000000FFFFFFFFFFFFFFFF00000000000000000000000000000000) >> 64;
+    result = result & 0xFFFFFFFF000000000000000000000000FFFFFFFF000000000000000000000000 |
+          (result & 0x00000000FFFFFFFF000000000000000000000000FFFFFFFF0000000000000000) >> 32;
+    result = result & 0xFFFF000000000000FFFF000000000000FFFF000000000000FFFF000000000000 |
+          (result & 0x0000FFFF000000000000FFFF000000000000FFFF000000000000FFFF00000000) >> 16;
+    result = result & 0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000 |
+          (result & 0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000) >> 8;
+    result = (result & 0xF000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000) >> 4 |
+          (result & 0x0F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F00) >> 8;
+    result = bytes32 (0x3030303030303030303030303030303030303030303030303030303030303030 +
+           uint256 (result) +
+           (uint256 (result) + 0x0606060606060606060606060606060606060606060606060606060606060606 >> 4 &
+           0x0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F) * 7);
+}
+
+function bytes32ToString (bytes32 data) public pure returns (string memory) {
+    return string (abi.encodePacked ("0x", toHex16 (bytes16 (data)), toHex16 (bytes16 (data << 128))));
+}
 
     /**
      * @notice Get the number of tokens held by the `account`
@@ -242,7 +263,7 @@ contract StakedRibbon {
      * @return Whether or not the transfer succeeded
      */
     function transfer(address dst, uint rawAmount) external returns (bool) {
-        uint96 amount = safe96(rawAmount, "RBN::transfer: amount exceeds 96 bits");
+        uint96 amount = safe96(rawAmount, "sRBN::transfer: amount exceeds 96 bits");
         _transferTokens(msg.sender, dst, amount);
         return true;
     }
@@ -257,10 +278,10 @@ contract StakedRibbon {
     function transferFrom(address src, address dst, uint rawAmount) external returns (bool) {
         address spender = msg.sender;
         uint96 spenderAllowance = allowances[src][spender];
-        uint96 amount = safe96(rawAmount, "RBN::approve: amount exceeds 96 bits");
+        uint96 amount = safe96(rawAmount, "sRBN::approve: amount exceeds 96 bits");
 
         if (spender != src && spenderAllowance != uint96(-1)) {
-            uint96 newAllowance = sub96(spenderAllowance, amount, "RBN::transferFrom: transfer amount exceeds spender allowance");
+            uint96 newAllowance = sub96(spenderAllowance, amount, "sRBN::transferFrom: transfer amount exceeds spender allowance");
             allowances[src][spender] = newAllowance;
 
             emit Approval(src, spender, newAllowance);
@@ -292,9 +313,9 @@ contract StakedRibbon {
         bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "RBN::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "RBN::delegateBySig: invalid nonce");
-        require(now <= expiry, "RBN::delegateBySig: signature expired");
+        require(signatory != address(0), "sRBN::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "sRBN::delegateBySig: invalid nonce");
+        require(now <= expiry, "sRBN::delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
@@ -316,7 +337,7 @@ contract StakedRibbon {
      * @return The number of votes the account had as of the given block
      */
     function getPriorVotes(address account, uint blockNumber) public view returns (uint96) {
-        require(blockNumber < block.number, "RBN::getPriorVotes: not yet determined");
+        require(blockNumber < block.number, "sRBN::getPriorVotes: not yet determined");
 
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -360,11 +381,11 @@ contract StakedRibbon {
     }
 
     function _transferTokens(address src, address dst, uint96 amount) internal {
-        require(src != address(0), "RBN::_transferTokens: cannot transfer from the zero address");
-        require(dst != address(0), "RBN::_transferTokens: cannot transfer to the zero address");
+        require(src != address(0), "sRBN::_transferTokens: cannot transfer from the zero address");
+        require(dst != address(0), "sRBN::_transferTokens: cannot transfer to the zero address");
 
-        balances[src] = sub96(balances[src], amount, "RBN::_transferTokens: transfer amount exceeds balance");
-        balances[dst] = add96(balances[dst], amount, "RBN::_transferTokens: transfer amount overflows");
+        balances[src] = sub96(balances[src], amount, "sRBN::_transferTokens: transfer amount exceeds balance");
+        balances[dst] = add96(balances[dst], amount, "sRBN::_transferTokens: transfer amount overflows");
         emit Transfer(src, dst, amount);
 
         _moveDelegates(delegates[src], delegates[dst], amount);
@@ -375,21 +396,21 @@ contract StakedRibbon {
             if (srcRep != address(0)) {
                 uint32 srcRepNum = numCheckpoints[srcRep];
                 uint96 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].votes : 0;
-                uint96 srcRepNew = sub96(srcRepOld, amount, "RBN::_moveVotes: vote amount underflows");
+                uint96 srcRepNew = sub96(srcRepOld, amount, "sRBN::_moveVotes: vote amount underflows");
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
 
             if (dstRep != address(0)) {
                 uint32 dstRepNum = numCheckpoints[dstRep];
                 uint96 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].votes : 0;
-                uint96 dstRepNew = add96(dstRepOld, amount, "RBN::_moveVotes: vote amount overflows");
+                uint96 dstRepNew = add96(dstRepOld, amount, "sRBN::_moveVotes: vote amount overflows");
                 _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
         }
     }
 
     function _writeCheckpoint(address delegatee, uint32 nCheckpoints, uint96 oldVotes, uint96 newVotes) internal {
-      uint32 blockNumber = safe32(block.number, "RBN::_writeCheckpoint: block number exceeds 32 bits");
+      uint32 blockNumber = safe32(block.number, "sRBN::_writeCheckpoint: block number exceeds 32 bits");
 
       if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
           checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
