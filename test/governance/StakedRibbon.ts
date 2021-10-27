@@ -2,15 +2,9 @@
  * Credit to sRBNswap
  */
 import chai, { expect } from "chai";
-import { BigNumber, Contract, constants, utils, Wallet } from "ethers";
-import { solidity, MockProvider, createFixtureLoader } from "ethereum-waffle";
-import {
-  bufferToHex,
-  ecrecover,
-  ecsign,
-  pubToAddress,
-  keccak256,
-} from "ethereumjs-util";
+import { Contract, constants, utils, Wallet } from "ethers";
+import { solidity } from "ethereum-waffle";
+import { ecsign } from "ethereumjs-util";
 
 import { governanceFixture } from "./fixtures";
 import { expandTo18Decimals, mineBlock } from "./utils";
