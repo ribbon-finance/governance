@@ -15,13 +15,13 @@ interface GovernanceFixture {
 
 const DAO_MULTISIG = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674";
 
-const VOTING_PERIOD = 5760; // 24 hours
+const VOTING_PERIOD = 40320; // half a day
 
 const VOTING_DELAY = 1;
 
 const PROPOSAL_THRESHOLD = parseEther("50000");
 
-const TIMELOCK_DELAY = 604800;
+const TIMELOCK_DELAY = 172800; // 48 hours
 
 export async function governanceFixture(): Promise<GovernanceFixture> {
   const [minter] = await ethers.getSigners();
@@ -68,5 +68,11 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
   const timelock = await Timelock.deploy(governorAddress, TIMELOCK_DELAY);
   expect(timelock.address).to.be.eq(timelockAddress);
 
-  return { sRBN, timelock, governorBravo: governorBravoDelegator };
+  const governorBravo = new ethers.Contract(
+    governorBravoDelegator.address,
+    governorBravoDelegate.interface,
+    ethers.provider
+  );
+
+  return { sRBN, timelock, governorBravo };
 }
