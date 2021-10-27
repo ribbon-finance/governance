@@ -7,7 +7,7 @@ import { solidity } from "ethereum-waffle";
 import { ecsign } from "ethereumjs-util";
 
 import { governanceFixture } from "./fixtures";
-import { expandTo18Decimals, mineBlock } from "./utils";
+import { expandTo18Decimals } from "./utils";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Provider } from "@ethersproject/abstract-provider";
