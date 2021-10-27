@@ -3,20 +3,28 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {
+  SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import {
+  ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {
+  OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
 
+import {StakedRibbon} from "../../governance/StakedRibbon.sol";
+
 contract RibbonVault is
   ReentrancyGuardUpgradeable,
   OwnableUpgradeable,
-  ERC20Upgradeable
+  StakedRibbon
 {
   using SafeERC20 for IERC20;
   using SafeMath for uint256;
@@ -90,7 +98,7 @@ contract RibbonVault is
    * @notice Initializes the contract with immutable variables
    * @param _rbn is the RBN contract
    */
-  constructor(address _rbn) {
+  constructor(address _rbn) StakedRibbon(address(this)) {
     require(_rbn != address(0), "!_rbn");
 
     RBN = _rbn;
@@ -110,14 +118,11 @@ contract RibbonVault is
     VaultLifecycle.verifyInitializerParams(
       _owner,
       _keeper,
-      _tokenName,
-      _tokenSymbol,
       _vaultAssets,
       _vaultParams
     );
 
     __ReentrancyGuard_init();
-    __ERC20_init(_tokenName, _tokenSymbol);
     __Ownable_init();
     transferOwnership(_owner);
 
@@ -242,11 +247,12 @@ contract RibbonVault is
     Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
     // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-    uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
-      currentRound,
-      roundPricePerShare[depositReceipt.round],
-      vaultParams.decimals
-    );
+    uint256 unredeemedShares =
+      depositReceipt.getSharesFromReceipt(
+        currentRound,
+        roundPricePerShare[depositReceipt.round],
+        vaultParams.decimals
+      );
 
     uint256 depositAmount = amount;
 
@@ -308,12 +314,12 @@ contract RibbonVault is
     ShareMath.assertUint128(withdrawalShares);
     withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
-    uint256 newQueuedWithdrawShares = uint256(vaultState.queuedWithdrawShares)
-      .add(numShares);
+    uint256 newQueuedWithdrawShares =
+      uint256(vaultState.queuedWithdrawShares).add(numShares);
     ShareMath.assertUint128(newQueuedWithdrawShares);
     vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-    _transfer(msg.sender, address(this), numShares);
+    _transferTokens(msg.sender, address(this), numShares);
   }
 
   /**
@@ -336,11 +342,12 @@ contract RibbonVault is
       uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
     );
 
-    uint256 withdrawAmount = ShareMath.sharesToAsset(
-      withdrawalShares,
-      roundPricePerShare[withdrawalRound],
-      vaultParams.decimals
-    );
+    uint256 withdrawAmount =
+      ShareMath.sharesToAsset(
+        withdrawalShares,
+        roundPricePerShare[withdrawalRound],
+        vaultParams.decimals
+      );
 
     emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
@@ -378,11 +385,12 @@ contract RibbonVault is
     // Because we start with round = 1 at `initialize`
     uint256 currentRound = vaultState.round;
 
-    uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
-      currentRound,
-      roundPricePerShare[depositReceipt.round],
-      vaultParams.decimals
-    );
+    uint256 unredeemedShares =
+      depositReceipt.getSharesFromReceipt(
+        currentRound,
+        roundPricePerShare[depositReceipt.round],
+        vaultParams.decimals
+      );
 
     numShares = isMax ? unredeemedShares : numShares;
     if (numShares == 0) {
@@ -404,7 +412,7 @@ contract RibbonVault is
 
     emit Redeem(msg.sender, numShares, depositReceipt.round);
 
-    _transfer(address(this), msg.sender, numShares);
+    _transferTokens(address(this), msg.sender, numShares);
   }
 
   /************************************************
@@ -439,12 +447,8 @@ contract RibbonVault is
 
     vaultState.nextBuyback = VaultLifecycle.getNextFriday(block.timestamp);
 
-    (
-      uint256 _lockedBalance,
-      ,
-      uint256 newPricePerShare,
-      uint256 mintShares
-    ) = VaultLifecycle.rollover(
+    (uint256 _lockedBalance, , uint256 newPricePerShare, uint256 mintShares) =
+      VaultLifecycle.rollover(
         totalSupply(),
         vaultParams.asset,
         vaultParams.decimals,
@@ -462,7 +466,7 @@ contract RibbonVault is
     vaultState.totalPending = 0;
     vaultState.round = uint16(currentRound + 1);
 
-    _mint(address(this), mintShares);
+    mint(address(this), mintShares);
 
     return lockedBalance;
   }
@@ -482,12 +486,13 @@ contract RibbonVault is
     returns (uint256)
   {
     uint256 _decimals = vaultParams.decimals;
-    uint256 assetPerShare = ShareMath.pricePerShare(
-      totalSupply(),
-      totalBalance(),
-      vaultState.totalPending,
-      _decimals
-    );
+    uint256 assetPerShare =
+      ShareMath.pricePerShare(
+        totalSupply(),
+        totalBalance(),
+        vaultState.totalPending,
+        _decimals
+      );
     return ShareMath.sharesToAsset(shares(account), assetPerShare, _decimals);
   }
 
@@ -518,11 +523,12 @@ contract RibbonVault is
       return (balanceOf(account), 0);
     }
 
-    uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
-      vaultState.round,
-      roundPricePerShare[depositReceipt.round],
-      vaultParams.decimals
-    );
+    uint256 unredeemedShares =
+      depositReceipt.getSharesFromReceipt(
+        vaultState.round,
+        roundPricePerShare[depositReceipt.round],
+        vaultParams.decimals
+      );
 
     return (balanceOf(account), unredeemedShares);
   }

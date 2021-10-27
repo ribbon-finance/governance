@@ -3,8 +3,12 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {RibbonStakingVaultStorage} from "../storage/RibbonStakingVaultStorage.sol";
+import {
+  SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+  RibbonStakingVaultStorage
+} from "../storage/RibbonStakingVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
@@ -44,27 +48,16 @@ contract RibbonStakingVault is RibbonVault, RibbonStakingVaultStorage {
   /**
    * @notice Initializes the Vault contract with storage variables.
    * @param _owner is the owner of the vault with critical permissions
-   * @param _tokenName is the name of the token
-   * @param _tokenSymbol is the symbol of the token
    * @param _vaultAssets is ribbon vault assets
    * @param _vaultParams is the struct with vault general data
    */
   function initialize(
     address _owner,
     address _keeper,
-    string memory _tokenName,
-    string memory _tokenSymbol,
     address[] memory _vaultAssets,
     Vault.VaultParams calldata _vaultParams
   ) external initializer {
-    baseInitialize(
-      _owner,
-      _keeper,
-      _tokenName,
-      _tokenSymbol,
-      _vaultAssets,
-      _vaultParams
-    );
+    baseInitialize(_owner, _keeper, _vaultAssets, _vaultParams);
   }
 
   /************************************************
