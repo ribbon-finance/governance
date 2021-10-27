@@ -42,8 +42,9 @@ contract RibbonStakingVault is RibbonVault, RibbonStakingVaultStorage {
   /**
    * @notice Initializes the contract with immutable variables
    * @param _rbn is the RBN contract
+   * @param _srbn is the sRBN contract
    */
-  constructor(address _rbn) RibbonVault(_rbn) {}
+  constructor(address _rbn, address _srbn) RibbonVault(_rbn, _srbn) {}
 
   /**
    * @notice Initializes the Vault contract with storage variables.

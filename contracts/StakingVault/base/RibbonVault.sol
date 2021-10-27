@@ -6,7 +6,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
   SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import {
   ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -18,14 +17,9 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
+import {ISRBN} from "../../interfaces/ISRBN.sol";
 
-import {StakedRibbon} from "../../governance/StakedRibbon.sol";
-
-contract RibbonVault is
-  ReentrancyGuardUpgradeable,
-  OwnableUpgradeable,
-  StakedRibbon
-{
+contract RibbonVault is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   using SafeERC20 for IERC20;
   using SafeMath for uint256;
   using ShareMath for Vault.DepositReceipt;
@@ -71,6 +65,8 @@ contract RibbonVault is
 
   /// @notice RBN 0x6123b0049f904d730db3c36a31167d9d4121fa6b
   address public immutable RBN;
+  /// @notice sRBN
+  ISRBN public immutable sRBN;
 
   /************************************************
    *  EVENTS
@@ -97,11 +93,14 @@ contract RibbonVault is
   /**
    * @notice Initializes the contract with immutable variables
    * @param _rbn is the RBN contract
+   * @param _srbn is the sRBN contract
    */
-  constructor(address _rbn) StakedRibbon(address(this)) {
+  constructor(address _rbn, address _srbn) {
     require(_rbn != address(0), "!_rbn");
+    require(_srbn != address(0), "!_srbn");
 
     RBN = _rbn;
+    sRBN = ISRBN(_srbn);
   }
 
   /**
@@ -110,8 +109,6 @@ contract RibbonVault is
   function baseInitialize(
     address _owner,
     address _keeper,
-    string memory _tokenName,
-    string memory _tokenSymbol,
     address[] memory _vaultAssets,
     Vault.VaultParams calldata _vaultParams
   ) internal initializer {
@@ -319,7 +316,7 @@ contract RibbonVault is
     ShareMath.assertUint128(newQueuedWithdrawShares);
     vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-    _transferTokens(msg.sender, address(this), numShares);
+    sRBN.transferFrom(msg.sender, address(this), numShares);
   }
 
   /**
@@ -351,7 +348,7 @@ contract RibbonVault is
 
     emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
-    _burn(address(this), withdrawalShares);
+    sRBN.burn(withdrawalShares);
 
     require(withdrawAmount > 0, "!withdrawAmount");
     IERC20(vaultParams.asset).safeTransfer(msg.sender, withdrawAmount);
@@ -412,7 +409,7 @@ contract RibbonVault is
 
     emit Redeem(msg.sender, numShares, depositReceipt.round);
 
-    _transferTokens(address(this), msg.sender, numShares);
+    sRBN.transfer(msg.sender, numShares);
   }
 
   /************************************************
@@ -449,7 +446,7 @@ contract RibbonVault is
 
     (uint256 _lockedBalance, , uint256 newPricePerShare, uint256 mintShares) =
       VaultLifecycle.rollover(
-        totalSupply(),
+        sRBN.totalSupply(),
         vaultParams.asset,
         vaultParams.decimals,
         uint256(vaultState.totalPending),
@@ -466,7 +463,7 @@ contract RibbonVault is
     vaultState.totalPending = 0;
     vaultState.round = uint16(currentRound + 1);
 
-    mint(address(this), mintShares);
+    sRBN.mint(address(this), mintShares);
 
     return lockedBalance;
   }
@@ -488,7 +485,7 @@ contract RibbonVault is
     uint256 _decimals = vaultParams.decimals;
     uint256 assetPerShare =
       ShareMath.pricePerShare(
-        totalSupply(),
+        sRBN.totalSupply(),
         totalBalance(),
         vaultState.totalPending,
         _decimals
@@ -520,7 +517,7 @@ contract RibbonVault is
     Vault.DepositReceipt memory depositReceipt = depositReceipts[account];
 
     if (depositReceipt.round < ShareMath.PLACEHOLDER_UINT) {
-      return (balanceOf(account), 0);
+      return (sRBN.balanceOf(account), 0);
     }
 
     uint256 unredeemedShares =
@@ -530,7 +527,7 @@ contract RibbonVault is
         vaultParams.decimals
       );
 
-    return (balanceOf(account), unredeemedShares);
+    return (sRBN.balanceOf(account), unredeemedShares);
   }
 
   /**
@@ -539,7 +536,7 @@ contract RibbonVault is
   function pricePerShare() external view returns (uint256) {
     return
       ShareMath.pricePerShare(
-        totalSupply(),
+        sRBN.totalSupply(),
         totalBalance(),
         vaultState.totalPending,
         vaultParams.decimals
@@ -560,7 +557,7 @@ contract RibbonVault is
   /**
    * @notice Returns the token decimals
    */
-  function decimals() public view override returns (uint8) {
+  function decimals() public view returns (uint8) {
     return vaultParams.decimals;
   }
 
