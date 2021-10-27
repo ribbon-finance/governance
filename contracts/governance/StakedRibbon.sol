@@ -217,6 +217,7 @@ contract StakedRibbon {
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this)));
         bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, rawAmount, nonces[owner]++, deadline));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        address signatory = ecrecover(digest, v, r, s);
         require(signatory != address(0), "sRBN::permit: invalid signature");
         require(signatory == owner, "sRBN::permit: unauthorized");
         require(now <= deadline, "sRBN::permit: signature expired");

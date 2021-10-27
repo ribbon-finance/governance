@@ -17,6 +17,7 @@ import { expandTo18Decimals, mineBlock } from "./utils";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Provider } from "@ethersproject/abstract-provider";
+import { parseEther } from "@ethersproject/units";
 
 chai.use(solidity);
 
@@ -34,6 +35,7 @@ const PERMIT_TYPEHASH = utils.keccak256(
 
 describe("StakedRibbon", () => {
   let sRBN: Contract;
+  let minter: SignerWithAddress;
   let wallet: Wallet, other0: SignerWithAddress, other1: SignerWithAddress;
   let provider: Provider;
 
@@ -41,10 +43,15 @@ describe("StakedRibbon", () => {
     wallet = await ethers.Wallet.fromMnemonic(
       "test test test test test test test test test test test junk"
     );
-    [other0, other1] = await ethers.getSigners();
+    [, other0, other1] = await ethers.getSigners();
     const fixture = await governanceFixture();
     sRBN = fixture.sRBN;
     provider = ethers.provider;
+    minter = fixture.minter;
+
+    await sRBN.mint(wallet.address, parseEther("100"), {
+      from: minter.address,
+    });
   });
 
   it("permit", async () => {
@@ -138,14 +145,6 @@ describe("StakedRibbon", () => {
   it("mints", async () => {
     const StakedRibbon = await ethers.getContractFactory("StakedRibbon");
     const sRBN = await StakedRibbon.deploy(wallet.address);
-    const supply = await sRBN.totalSupply();
-
-    await expect(sRBN.mint(wallet.address, 1)).to.be.revertedWith(
-      "sRBN::mint: minting not allowed yet"
-    );
-
-    let timestamp = await sRBN.mintingAllowedAfter();
-    await mineBlock(provider, timestamp.toString());
 
     await expect(
       sRBN.connect(other1).mint(other1.address, 1)
@@ -153,18 +152,5 @@ describe("StakedRibbon", () => {
     await expect(
       sRBN.mint("0x0000000000000000000000000000000000000000", 1)
     ).to.be.revertedWith("sRBN::mint: cannot transfer to the zero address");
-
-    // can mint up to 2%
-    const mintCap = BigNumber.from(await sRBN.mintCap());
-    const amount = supply.mul(mintCap).div(100);
-    await sRBN.mint(wallet.address, amount);
-    expect(await sRBN.balanceOf(wallet.address)).to.be.eq(supply.add(amount));
-
-    timestamp = await sRBN.mintingAllowedAfter();
-    await mineBlock(provider, timestamp.toString());
-    // cannot mint 2.01%
-    await expect(
-      sRBN.mint(wallet.address, supply.mul(mintCap.add(1)))
-    ).to.be.revertedWith("sRBN::mint: exceeded mint cap");
   });
 });
