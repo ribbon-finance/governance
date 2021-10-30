@@ -111,10 +111,12 @@ describe("StakedRibbon", () => {
     expect(await sRBN.allowance(owner, spender)).to.eq(value);
     expect(await sRBN.nonces(owner)).to.eq(1);
 
+    await sRBN.connect(admin).setTransfersAllowed(true);
     await sRBN.connect(other0).transferFrom(owner, spender, value);
   });
 
   it("nested delegation", async () => {
+    await sRBN.connect(admin).setTransfersAllowed(true);
     await sRBN.transfer(other0.address, expandTo18Decimals(1));
     await sRBN.transfer(other1.address, expandTo18Decimals(2));
 
