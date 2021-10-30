@@ -116,10 +116,12 @@ describe("StakedRibbon", () => {
   });
 
   it("nested delegation", async () => {
+    console.log(admin.address)
+    console.log(sRBN.connect(admin).admin())
     await sRBN.connect(admin).setTransfersAllowed(true);
     await sRBN.transfer(other0.address, expandTo18Decimals(1));
     await sRBN.transfer(other1.address, expandTo18Decimals(2));
-
+    console.log("hello");
     let currectVotes0 = await sRBN.getCurrentVotes(other0.address);
     let currectVotes1 = await sRBN.getCurrentVotes(other1.address);
     expect(currectVotes0).to.be.eq(0);
