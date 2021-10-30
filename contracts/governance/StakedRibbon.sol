@@ -108,7 +108,7 @@ contract StakedRibbon {
     bool transfersAllowed_
   ) public {
     minter = minter_;
-    admin_ = admin_;
+    admin = admin_;
     transfersAllowed = transfersAllowed_;
     emit MinterChanged(address(0), minter);
   }
