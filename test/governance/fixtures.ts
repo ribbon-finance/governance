@@ -13,6 +13,7 @@ interface GovernanceFixture {
   timelock: Contract;
   governorBravo: Contract;
   minter: SignerWithAddress;
+  admin: SignerWithAddress;
 }
 
 const DAO_MULTISIG = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674";
@@ -76,5 +77,5 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
     ethers.provider
   );
 
-  return { sRBN, timelock, governorBravo, minter };
+  return { sRBN, timelock, governorBravo, minter, admin };
 }
