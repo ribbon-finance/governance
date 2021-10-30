@@ -86,7 +86,7 @@ contract StakedRibbon {
      constructor(
        address minter_,
        address admin_,
-       address transfersAllowed_
+       bool transfersAllowed_
      ) public {
        minter = minter_;
        admin = admin_;
