@@ -117,7 +117,7 @@ describe("StakedRibbon", () => {
 
   it("nested delegation", async () => {
     console.log(admin.address)
-    console.log(sRBN.connect(admin).admin())
+    console.log(await sRBN.connect(admin).admin())
     await sRBN.connect(admin).setTransfersAllowed(true);
     await sRBN.transfer(other0.address, expandTo18Decimals(1));
     await sRBN.transfer(other1.address, expandTo18Decimals(2));
