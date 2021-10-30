@@ -26,7 +26,7 @@ const PROPOSAL_THRESHOLD = parseEther("50000");
 const TIMELOCK_DELAY = 172800; // 48 hours
 
 export async function governanceFixture(): Promise<GovernanceFixture> {
-  const [minter] = await ethers.getSigners();
+  const [minter, admin] = await ethers.getSigners();
 
   // Contract factories
   const StakedRibbon = await ethers.getContractFactory("StakedRibbon");
@@ -38,7 +38,7 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
   );
   const Timelock = await ethers.getContractFactory("Timelock");
 
-  const sRBN = await StakedRibbon.deploy(minter.address);
+  const sRBN = await StakedRibbon.deploy(minter.address, admin.address, false);
 
   const governorBravoDelegate = await GovernorBravoDelegate.deploy();
 

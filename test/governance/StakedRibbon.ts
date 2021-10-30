@@ -30,6 +30,7 @@ const PERMIT_TYPEHASH = utils.keccak256(
 describe("StakedRibbon", () => {
   let sRBN: Contract;
   let minter: SignerWithAddress;
+  let admin: SignerWithAddress;
   let wallet: Wallet, other0: SignerWithAddress, other1: SignerWithAddress;
   let provider: Provider;
 
@@ -42,6 +43,7 @@ describe("StakedRibbon", () => {
     sRBN = fixture.sRBN;
     provider = ethers.provider;
     minter = fixture.minter;
+    admin = fixture.admin;
 
     await sRBN.mint(wallet.address, parseEther("100"), {
       from: minter.address,
@@ -138,7 +140,11 @@ describe("StakedRibbon", () => {
 
   it("mints", async () => {
     const StakedRibbon = await ethers.getContractFactory("StakedRibbon");
-    const sRBN = await StakedRibbon.deploy(wallet.address);
+    const sRBN = await StakedRibbon.deploy(
+      wallet.address,
+      admin.address,
+      false
+    );
 
     await expect(
       sRBN.connect(other1).mint(other1.address, 1)
@@ -146,5 +152,43 @@ describe("StakedRibbon", () => {
     await expect(
       sRBN.mint("0x0000000000000000000000000000000000000000", 1)
     ).to.be.revertedWith("sRBN::mint: cannot transfer to the zero address");
+  });
+
+  it("transfers", function () {
+    it("Should let admin toggle transfer flag", async function () {
+      await sRBN.connect(admin).setTransfersAllowed(true);
+      expect(await sRBN.connect(admin).transfersAllowed()).to.be.true;
+    });
+
+    it("Should let beneficiary toggle transfer flag #2", async function () {
+      await sRBN.connect(admin).setTransfersAllowed(false);
+      expect(await sRBN.connect(admin).transfersAllowed()).to.be.false;
+    });
+
+    it("Should not let non-admin toggle transfer flag", async function () {
+      await expect(
+        sRBN.connect(minter).setTransfersAllowed(true)
+      ).to.be.revertedWith(
+        "sRBN::setTransfersAllowed: only the admin can change the transfer toggle"
+      );
+    });
+
+    it("Should not let non-admin to transfer", async function () {
+      await expect(
+        sRBN.connect(wallet.address).transfer(admin.address, 1)
+      ).to.be.revertedWith("sRBN::_transferTokens: transfers not allowed");
+    });
+
+    it("Should let non-admin to transfer after toggle switched", async function () {
+      await sRBN.connect(admin).setTransfersAllowed(true);
+      await sRBN.connect(wallet.address).transfer(admin.address, 50);
+    });
+
+    it("Should not let non-admin to transfer after toggle switched to false", async function () {
+      await sRBN.connect(admin).setTransfersAllowed(false);
+      await expect(
+        sRBN.connect(wallet.address).transfer(admin.address, 50)
+      ).to.be.revertedWith("sRBN::_transferTokens: transfers not allowed");
+    });
   });
 });
