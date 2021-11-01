@@ -30,6 +30,9 @@ abstract contract RibbonStakingVaultStorageV1 {
   /// @notice Stores whether asset already exists
   mapping(address => bool) public vaultAssetMap;
 
+  /// @notice Stores whether the vault is paused for deposits/withdrawals
+  bool isPaused;
+
   // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
   uint256[30] private ____gap;
 
