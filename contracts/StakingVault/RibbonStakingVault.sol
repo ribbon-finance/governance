@@ -129,7 +129,7 @@ contract RibbonStakingVault is
   function initialize(
     address _owner,
     address _keeper,
-    address[] memory _vaultAssets,
+    address[] calldata _vaultAssets,
     Vault.VaultParams calldata _vaultParams
   ) external initializer {
     VaultLifecycle.verifyInitializerParams(
