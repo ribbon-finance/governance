@@ -51,6 +51,9 @@ contract RibbonVault is ReentrancyGuardUpgradeable, OwnableUpgradeable {
   /// @notice Stores addresses of assets of all ribbon vaults
   address[] public vaultAssets;
 
+  /// @notice Stores whether asset already exists
+  mapping(address => bool) public vaultAssetMap;
+
   // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
   uint256[30] private ____gap;
 
@@ -131,6 +134,7 @@ contract RibbonVault is ReentrancyGuardUpgradeable, OwnableUpgradeable {
 
     for (uint256 i = 0; i < _vaultAssets.length; i++) {
       vaultAssets.push(_vaultAssets[i]);
+      vaultAssetMap[_vaultAssets[i]] = true;
     }
   }
 
@@ -169,7 +173,10 @@ contract RibbonVault is ReentrancyGuardUpgradeable, OwnableUpgradeable {
     );
 
     for (uint256 i = 0; i < newVaultAssets.length; i++) {
-      vaultAssets.push(newVaultAssets[i]);
+      if (!vaultAssetMap[_vaultAssets[i]]) {
+        vaultAssets.push(_vaultAssets[i]);
+        vaultAssetMap[_vaultAssets[i]] = true;
+      }
     }
   }
 
