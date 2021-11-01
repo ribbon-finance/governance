@@ -23,7 +23,7 @@ contract RibbonToken is AccessControl, ERC20 {
         string memory symbol,
         uint256 totalSupply,
         address beneficiary
-    ) public ERC20(name, symbol) {
+    ) ERC20(name, symbol) {
         // We are minting initialSupply number of tokens
         _mint(beneficiary, totalSupply);
         // Add beneficiary as minter
