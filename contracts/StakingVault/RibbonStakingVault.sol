@@ -169,6 +169,14 @@ contract RibbonStakingVault is
     vaultParams.cap = uint104(newCap);
   }
 
+  /**
+   * @notice Sets whether contract is paused
+   * @param isPaused is whether the contract is paused
+   */
+  function setIsPaused(bool isPaused) external onlyOwner {
+    isPaused = isPaused;
+  }
+
   /************************************************
    *  DEPOSIT & WITHDRAWALS
    ***********************************************/
@@ -216,6 +224,7 @@ contract RibbonStakingVault is
    * @param creditor is the address to receieve the deposit
    */
   function _depositFor(uint256 amount, address creditor) private {
+    require(!isPaused, "Contract paused");
     uint256 currentRound = vaultState.round;
     uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
@@ -264,6 +273,7 @@ contract RibbonStakingVault is
    * @param numShares is the number of shares to withdraw
    */
   function initiateWithdraw(uint256 numShares) external nonReentrant {
+    require(!isPaused, "Contract paused");
     require(numShares > 0, "!numShares");
 
     // We do a max redeem before initiating a withdrawal
