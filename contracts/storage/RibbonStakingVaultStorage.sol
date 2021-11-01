@@ -3,13 +3,7 @@ pragma solidity =0.8.4;
 
 import {Vault} from "../libraries/Vault.sol";
 
-abstract contract RibbonStakingVaultStorageV1 {}
-
-// We are following Compound's method of upgrading new contract implementations
-// When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
-// e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
-// contract RibbonThetaVaultStorage is RibbonThetaVaultStorageV1, RibbonThetaVaultStorageV2
-abstract contract RibbonStakingVaultStorage is RibbonStakingVaultStorageV1 {
+abstract contract RibbonStakingVaultStorageV1 {
   /// @notice Stores the user's pending deposit for the round
   mapping(address => Vault.DepositReceipt) public depositReceipts;
 
@@ -43,4 +37,12 @@ abstract contract RibbonStakingVaultStorage is RibbonStakingVaultStorageV1 {
   // This is to prevent storage collisions. All storage variables should be appended to RibbonThetaVaultStorage
   // or RibbonDeltaVaultStorage instead. Read this documentation to learn more:
   // https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#modifying-your-contracts
+}
+
+// We are following Compound's method of upgrading new contract implementations
+// When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
+// e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
+// contract RibbonThetaVaultStorage is RibbonThetaVaultStorageV1, RibbonThetaVaultStorageV2
+abstract contract RibbonStakingVaultStorage is RibbonStakingVaultStorageV1 {
+
 }
