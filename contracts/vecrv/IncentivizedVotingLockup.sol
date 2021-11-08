@@ -53,8 +53,6 @@ contract IncentivisedVotingLockup is
   IERC20 public stakingToken;
   uint256 private constant WEEK = 7 days;
   uint256 public constant MAXTIME = 4 years;
-  uint256 public END;
-  bool public expired = false;
 
   /** Lockup */
   uint256 public globalEpoch;
@@ -121,14 +119,6 @@ contract IncentivisedVotingLockup is
 
     name = _name;
     symbol = _symbol;
-
-    END = block.timestamp + MAXTIME;
-  }
-
-  /** @dev Modifier to ensure contract has not yet expired */
-  modifier contractNotExpired() {
-    require(!expired, "Contract is expired");
-    _;
   }
 
   /**
@@ -419,7 +409,6 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    contractNotExpired
     updateReward(msg.sender)
   {
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
@@ -455,7 +444,6 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    contractNotExpired
     updateReward(msg.sender)
   {
     LockedBalance memory locked_ =
@@ -488,7 +476,6 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    contractNotExpired
     updateReward(msg.sender)
   {
     LockedBalance memory locked_ =
@@ -526,10 +513,7 @@ contract IncentivisedVotingLockup is
   function _withdraw(address _addr) internal nonReentrant updateReward(_addr) {
     LockedBalance memory oldLock =
       LockedBalance({end: locked[_addr].end, amount: locked[_addr].amount});
-    require(
-      block.timestamp >= oldLock.end || expired,
-      "The lock didn't expire"
-    );
+    require(block.timestamp >= oldLock.end, "The lock didn't expire");
     require(oldLock.amount > 0, "Must have something to withdraw");
 
     uint256 value = SafeCast.toUint256(oldLock.amount);
@@ -540,9 +524,8 @@ contract IncentivisedVotingLockup is
     // oldLocked can have either expired <= timestamp or zero end
     // currentLock has only 0 end
     // Both can have >= 0 amount
-    if (!expired) {
-      _checkpoint(_addr, oldLock, currentLock);
-    }
+    _checkpoint(_addr, oldLock, currentLock);
+
     stakingToken.safeTransfer(_addr, value);
 
     emit Withdraw(_addr, value, block.timestamp);
@@ -561,34 +544,11 @@ contract IncentivisedVotingLockup is
    * Leave it to the user to withdraw and claim their rewards.
    * @param _addr Address of the user
    */
-  function eject(address _addr)
-    external
-    override
-    contractNotExpired
-    lockupIsOver(_addr)
-  {
+  function eject(address _addr) external override lockupIsOver(_addr) {
     _withdraw(_addr);
 
     // solium-disable-next-line security/no-tx-origin
     emit Ejected(_addr, tx.origin, block.timestamp);
-  }
-
-  /**
-   * @dev Ends the contract, unlocking all stakes.
-   * No more staking can happen. Only withdraw and Claim.
-   */
-  function expireContract()
-    external
-    override
-    onlyGovernor
-    contractNotExpired
-    updateReward(address(0))
-  {
-    require(block.timestamp > periodFinish, "Period must be over");
-
-    expired = true;
-
-    emit Expired();
   }
 
   /***************************************
@@ -963,7 +923,6 @@ contract IncentivisedVotingLockup is
     external
     override
     onlyRewardsDistributor
-    contractNotExpired
     updateReward(address(0))
   {
     uint256 currentTime = block.timestamp;
