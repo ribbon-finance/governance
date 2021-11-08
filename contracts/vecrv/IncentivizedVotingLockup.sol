@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity 0.8.6;
+pragma solidity ^0.8.0;
 
 import {
   IIncentivisedVotingLockup
@@ -8,6 +8,7 @@ import {
   ReentrancyGuard
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {
   SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -52,7 +53,7 @@ contract IncentivisedVotingLockup is
   /** Shared Globals */
   IERC20 public stakingToken;
   uint256 private constant WEEK = 7 days;
-  uint256 public constant MAXTIME = 4 years;
+  uint256 public constant MAXTIME = 4 * 365 days; // 4 years
 
   /** Lockup */
   uint256 public globalEpoch;
@@ -66,21 +67,6 @@ contract IncentivisedVotingLockup is
   string public name;
   string public symbol;
   uint256 public decimals = 18;
-
-  /** Rewards */
-  // Updated upon admin deposit
-  uint256 public periodFinish = 0;
-  uint256 public rewardRate = 0;
-
-  // Globals updated per stake/deposit/withdrawal
-  uint256 public totalStaticWeight = 0;
-  uint256 public lastUpdateTime = 0;
-  uint256 public rewardPerTokenStored = 0;
-
-  // Per user storage updated per stake/deposit/withdrawal
-  mapping(address => uint256) public userRewardPerTokenPaid;
-  mapping(address => uint256) public rewards;
-  mapping(address => uint256) public rewardsPaid;
 
   /** Structs */
   struct Point {
@@ -100,10 +86,8 @@ contract IncentivisedVotingLockup is
   constructor(
     address _stakingToken,
     string memory _name,
-    string memory _symbol,
-    address _nexus,
-    address _rewardsDistributor
-  ) RewardsDistributionRecipient(_nexus, _rewardsDistributor) {
+    string memory _symbol
+  ) {
     stakingToken = IERC20(_stakingToken);
     Point memory init =
       Point({
@@ -114,7 +98,7 @@ contract IncentivisedVotingLockup is
       });
     pointHistory.push(init);
 
-    decimals = _stakingToken.decimals();
+    decimals = IERC20Detailed(_stakingToken).decimals();
     require(decimals <= 18, "Cannot have more than 18 decimals");
 
     name = _name;
@@ -212,20 +196,6 @@ contract IncentivisedVotingLockup is
       if (uEpoch == 0) {
         userPointHistory[_addr].push(userOldPoint);
       }
-      // track the total static weight
-      uint256 newStatic =
-        _staticBalance(userNewPoint.slope, block.timestamp, _newLocked.end);
-      uint256 additiveStaticWeight = totalStaticWeight + newStatic;
-      if (uEpoch > 0) {
-        uint256 oldStatic =
-          _staticBalance(
-            userPointHistory[_addr][uEpoch].slope,
-            userPointHistory[_addr][uEpoch].ts,
-            _oldLocked.end
-          );
-        additiveStaticWeight = additiveStaticWeight - oldStatic;
-      }
-      totalStaticWeight = additiveStaticWeight;
 
       userPointEpoch[_addr] = uEpoch + 1;
       userNewPoint.ts = block.timestamp;
@@ -409,7 +379,6 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    updateReward(msg.sender)
   {
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
     LockedBalance memory locked_ =
@@ -425,7 +394,10 @@ contract IncentivisedVotingLockup is
       unlock_time > block.timestamp,
       "Can only lock until time in the future"
     );
-    require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
+    require(
+      unlock_time <= block.timestamp + MAXTIME,
+      "Voting lock can be 4 years max"
+    );
 
     _depositFor(
       msg.sender,
@@ -440,12 +412,7 @@ contract IncentivisedVotingLockup is
    * @dev Increases amount of stake thats locked up & resets decay
    * @param _value Additional units of StakingToken to add to exiting stake
    */
-  function increaseLockAmount(uint256 _value)
-    external
-    override
-    nonReentrant
-    updateReward(msg.sender)
-  {
+  function increaseLockAmount(uint256 _value) external override nonReentrant {
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
@@ -476,7 +443,6 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    updateReward(msg.sender)
   {
     LockedBalance memory locked_ =
       LockedBalance({
@@ -488,7 +454,10 @@ contract IncentivisedVotingLockup is
     require(locked_.amount > 0, "Nothing is locked");
     require(locked_.end > block.timestamp, "Lock expired");
     require(unlock_time > locked_.end, "Can only increase lock WEEK");
-    require(unlock_time <= END, "Voting lock can be 1 year max (until recol)");
+    require(
+      unlock_time <= block.timestamp + MAXTIME,
+      "Voting lock can be 4 years max"
+    );
 
     _depositFor(
       msg.sender,
@@ -510,7 +479,7 @@ contract IncentivisedVotingLockup is
    * @dev Withdraws a given users stake, providing the lockup has finished
    * @param _addr User for which to withdraw
    */
-  function _withdraw(address _addr) internal nonReentrant updateReward(_addr) {
+  function _withdraw(address _addr) internal nonReentrant {
     LockedBalance memory oldLock =
       LockedBalance({end: locked[_addr].end, amount: locked[_addr].amount});
     require(block.timestamp >= oldLock.end, "The lock didn't expire");
@@ -529,26 +498,6 @@ contract IncentivisedVotingLockup is
     stakingToken.safeTransfer(_addr, value);
 
     emit Withdraw(_addr, value, block.timestamp);
-  }
-
-  /**
-   * @dev Withdraws and consequently claims rewards for the sender
-   */
-  function exit() external override {
-    _withdraw(msg.sender);
-    claimReward();
-  }
-
-  /**
-   * @dev Ejects a user from the reward allocation, given their lock has freshly expired.
-   * Leave it to the user to withdraw and claim their rewards.
-   * @param _addr Address of the user
-   */
-  function eject(address _addr) external override lockupIsOver(_addr) {
-    _withdraw(_addr);
-
-    // solium-disable-next-line security/no-tx-origin
-    emit Ejected(_addr, tx.origin, block.timestamp);
   }
 
   /***************************************
@@ -784,42 +733,6 @@ contract IncentivisedVotingLockup is
   }
 
   /***************************************
-                    REWARDS
-    ****************************************/
-
-  /** @dev Updates the reward for a given address, before executing function */
-  modifier updateReward(address _account) {
-    // Setting of global vars
-    uint256 newRewardPerToken = rewardPerToken();
-    // If statement protects against loss in initialisation case
-    if (newRewardPerToken > 0) {
-      rewardPerTokenStored = newRewardPerToken;
-      lastUpdateTime = lastTimeRewardApplicable();
-      // Setting of personal vars based on new globals
-      if (_account != address(0)) {
-        rewards[_account] = earned(_account);
-        userRewardPerTokenPaid[_account] = newRewardPerToken;
-      }
-    }
-    _;
-  }
-
-  /**
-   * @dev Claims outstanding rewards for the sender.
-   * First updates outstanding reward allocation and then transfers.
-   */
-  function claimReward() public override updateReward(msg.sender) {
-    uint256 reward = rewards[msg.sender];
-    if (reward > 0) {
-      rewards[msg.sender] = 0;
-      stakingToken.safeTransfer(msg.sender, reward);
-      rewardsPaid[msg.sender] = rewardsPaid[msg.sender] + reward;
-
-      emit RewardPaid(msg.sender, reward);
-    }
-  }
-
-  /***************************************
                 REWARDS - GETTERS
     ****************************************/
 
@@ -857,89 +770,7 @@ contract IncentivisedVotingLockup is
   /**
    * @dev Gets the RewardsToken
    */
-  function getRewardToken() external view override returns (IERC20) {
+  function getRewardToken() external view returns (IERC20) {
     return stakingToken;
-  }
-
-  /**
-   * @dev Gets the duration of the rewards period
-   */
-  function getDuration() external pure returns (uint256) {
-    return WEEK;
-  }
-
-  /**
-   * @dev Gets the last applicable timestamp for this reward period
-   */
-  function lastTimeRewardApplicable() public view returns (uint256) {
-    return StableMath.min(block.timestamp, periodFinish);
-  }
-
-  /**
-   * @dev Calculates the amount of unclaimed rewards per token since last update,
-   * and sums with stored to give the new cumulative reward per token
-   * @return 'Reward' per staked token
-   */
-  function rewardPerToken() public view returns (uint256) {
-    // If there is no StakingToken liquidity, avoid div(0)
-    uint256 totalStatic = totalStaticWeight;
-    if (totalStatic == 0) {
-      return rewardPerTokenStored;
-    }
-    // new reward units to distribute = rewardRate * timeSinceLastUpdate
-    uint256 rewardUnitsToDistribute =
-      rewardRate * (lastTimeRewardApplicable() - lastUpdateTime);
-    // new reward units per token = (rewardUnitsToDistribute * 1e18) / totalTokens
-    uint256 unitsToDistributePerToken =
-      rewardUnitsToDistribute.divPrecisely(totalStatic);
-    // return summed rate
-    return rewardPerTokenStored + unitsToDistributePerToken;
-  }
-
-  /**
-   * @dev Calculates the amount of unclaimed rewards a user has earned
-   * @param _addr User address
-   * @return Total reward amount earned
-   */
-  function earned(address _addr) public view override returns (uint256) {
-    // current rate per token - rate user previously received
-    uint256 userRewardDelta = rewardPerToken() - userRewardPerTokenPaid[_addr];
-    // new reward = staked tokens * difference in rate
-    uint256 userNewReward = staticBalanceOf(_addr).mulTruncate(userRewardDelta);
-    // add to previous rewards
-    return rewards[_addr] + userNewReward;
-  }
-
-  /***************************************
-                REWARDS - ADMIN
-    ****************************************/
-
-  /**
-   * @dev Notifies the contract that new rewards have been added.
-   * Calculates an updated rewardRate based on the rewards in period.
-   * @param _reward Units of RewardToken that have been added to the pool
-   */
-  function notifyRewardAmount(uint256 _reward)
-    external
-    override
-    onlyRewardsDistributor
-    updateReward(address(0))
-  {
-    uint256 currentTime = block.timestamp;
-    // If previous period over, reset rewardRate
-    if (currentTime >= periodFinish) {
-      rewardRate = _reward / WEEK;
-    }
-    // If additional reward to existing period, calc sum
-    else {
-      uint256 remaining = periodFinish - currentTime;
-      uint256 leftover = remaining * rewardRate;
-      rewardRate = (_reward + leftover) / WEEK;
-    }
-
-    lastUpdateTime = currentTime;
-    periodFinish = currentTime + WEEK;
-
-    emit RewardAdded(_reward);
   }
 }
