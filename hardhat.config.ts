@@ -3,6 +3,7 @@ require("@nomiclabs/hardhat-truffle5");
 require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-web3");
+require("@nomiclabs/hardhat-vyper");
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
