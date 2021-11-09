@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {ISeizer} from "../interfaces/ISeizer.sol";
-import {IVestingEscrow} from "../interfaces/IVestingEscrow.sol";
+import {IVotingEscrow} from "../interfaces/IVotingEscrow.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
   SafeERC20
@@ -20,7 +20,7 @@ contract Redeemer {
   // Seizer implementation
   ISeizer public seizerImplementation;
   // veCRV escrow contract
-  IVestingEscrow public vestingEscrowContract;
+  IVotingEscrow public votingEscrowContract;
 
   event RBNRedeemed(uint256 amountRedeemed);
 
@@ -41,15 +41,15 @@ contract Redeemer {
   }
 
   /**
-   * @dev Set new vesting escrow contract
-   * @param _vestingEscrowContract new vesting escrow contract
+   * @dev Set new voting escrow contract
+   * @param _votingEscrowContract new voting escrow contract
    */
-  function setVestingEscrowContract(address _vestingEscrowContract)
+  function setVotingEscrowContract(address _votingEscrowContract)
     external
     onlyAdmin
   {
-    require(_vestingEscrowContract != address(0), "!_vestingEscrowContract");
-    vestingEscrowContract = IVestingEscrow(_vestingEscrowContract);
+    require(_votingEscrowContract != address(0), "!_votingEscrowContract");
+    votingEscrowContract = IVotingEscrow(_votingEscrowContract);
   }
 
   /**
@@ -77,18 +77,18 @@ contract Redeemer {
    * @param _maxRedeemPCT new max redeem pct
    */
   function redeemRBN(uint256 _amount) external onlyAdmin {
-    require(vestingEscrowContract != address(0), "!vestingEscrowContract");
+    require(votingEscrowContract != address(0), "!votingEscrowContract");
 
     uint256 amountToRedeem =
       seizerImplementation == address(0)
         ? _amount
-        : seizerImplementation.amountToRedeem(vestingEscrowContract);
+        : seizerImplementation.amountToRedeem(votingEscrowContract);
     require(
       amountToRedeem <=
-        vestingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2)
+        votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2)
     );
 
-    vestingEscrowContract.redeemRBN(amountToRedeem);
+    votingEscrowContract.redeemRBN(amountToRedeem);
 
     emit RBNRedeemed(amountToRedeem);
   }
