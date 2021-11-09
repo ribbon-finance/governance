@@ -7,6 +7,7 @@ import {
 import {
   ReentrancyGuard
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IRBNRedeemer} from "../interfaces/IRBNRedeemer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {
@@ -50,6 +51,9 @@ contract IncentivisedVotingLockup is
   );
   event Withdraw(address indexed provider, uint256 value, uint256 ts);
 
+  // RBN Redeemer contract
+  IRBNRedeemer public rbnRedeemer;
+
   /** Shared Globals */
   IERC20 public stakingToken;
   uint256 private constant WEEK = 7 days;
@@ -57,6 +61,7 @@ contract IncentivisedVotingLockup is
 
   /** Lockup */
   uint256 public globalEpoch;
+  uint256 public totalLocked;
   Point[] public pointHistory;
   mapping(address => Point[]) public userPointHistory;
   mapping(address => uint256) public userPointEpoch;
@@ -85,9 +90,13 @@ contract IncentivisedVotingLockup is
 
   constructor(
     address _stakingToken,
+    address _rbnRedeemer,
     string memory _name,
     string memory _symbol
   ) {
+    require(_stakingToken != address(0), "!_stakingToken");
+    require(_rbnRedeemer != address(0), "!_rbnRedeemer");
+
     stakingToken = IERC20(_stakingToken);
     Point memory init =
       Point({
@@ -101,6 +110,7 @@ contract IncentivisedVotingLockup is
     decimals = IERC20Detailed(_stakingToken).decimals();
     require(decimals <= 18, "Cannot have more than 18 decimals");
 
+    rbnRedeemer = _rbnRedeemer;
     name = _name;
     symbol = _symbol;
   }
@@ -119,9 +129,26 @@ contract IncentivisedVotingLockup is
     _;
   }
 
+  /**
+   * @dev Validates that the tx sender is rbnRedeemer contract
+   */
+  modifier onlyRBNRedeemer() {
+    require(msg.sender == rbnRedeemer, "Must be rbn redeemer contract");
+    _;
+  }
+
   /***************************************
                 LOCKUP - GETTERS
     ****************************************/
+
+  /**
+   * @dev Redeems rbn to redeemer contract in case criterium met (i.e smart contract hack, vaults get rekt)
+   * @param _amount amount to withdraw to redeemer contract
+   */
+  function redeemRBN(uint256 _amount) external onlyRBNRedeemer {
+    stakingToken.safeTransfer(rbnRedeemer.admin(), _amount);
+    totalLocked -= _amount;
+  }
 
   /**
    * @dev Gets the last available user point
@@ -345,6 +372,7 @@ contract IncentivisedVotingLockup is
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
+    totalLocked += _value;
     if (_unlockTime != 0) {
       newLocked.end = _unlockTime;
     }
@@ -488,6 +516,7 @@ contract IncentivisedVotingLockup is
     uint256 value = SafeCast.toUint256(oldLock.amount);
 
     LockedBalance memory currentLock = LockedBalance({end: 0, amount: 0});
+    totalLocked -= value;
     locked[_addr] = currentLock;
 
     // oldLocked can have either expired <= timestamp or zero end
