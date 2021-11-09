@@ -77,6 +77,8 @@ contract Redeemer {
    * @param _maxRedeemPCT new max redeem pct
    */
   function redeemRBN(uint256 _amount) external onlyAdmin {
+    require(vestingEscrowContract != address(0), "!vestingEscrowContract");
+
     uint256 amountToRedeem =
       seizerImplementation == address(0)
         ? _amount
