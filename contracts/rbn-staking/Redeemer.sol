@@ -25,8 +25,11 @@ contract Redeemer {
   event RBNRedeemed(uint256 amountRedeemed);
 
   constructor(address _admin, uint8 _maxRedeemPCT) {
-    require(_admin != address(0), "!_admin");
-    require(_maxRedeemPCT > 0 && _maxRedeemPCT < 10000, "!_maxRedeemPCT");
+    require(_admin != address(0), "Admin is 0x0");
+    require(
+      _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
+      "maxRedeemPCT is not between 0% - 100%"
+    );
 
     admin = _admin;
     maxRedeemPCT = _maxRedeemPCT;
@@ -48,7 +51,7 @@ contract Redeemer {
     external
     onlyAdmin
   {
-    require(_votingEscrowContract != address(0), "!_votingEscrowContract");
+    require(_votingEscrowContract != address(0), "votingEscrowContract is 0x0");
     votingEscrowContract = IVotingEscrow(_votingEscrowContract);
   }
 
@@ -68,7 +71,10 @@ contract Redeemer {
    * @param _maxRedeemPCT new max redeem pct
    */
   function setMaxRedeemPCT(uint8 _maxRedeemPCT) external onlyAdmin {
-    require(_maxRedeemPCT > 0 && _maxRedeemPCT < 10000, "!_maxRedeemPCT");
+    require(
+      _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
+      "maxRedeemPCT is not between 0% - 100%"
+    );
     maxRedeemPCT = _maxRedeemPCT;
   }
 
@@ -77,7 +83,7 @@ contract Redeemer {
    * @param _maxRedeemPCT new max redeem pct
    */
   function redeemRBN(uint256 _amount) external onlyAdmin {
-    require(votingEscrowContract != address(0), "!votingEscrowContract");
+    require(votingEscrowContract != address(0), "votingEscrowContract is 0x0");
 
     uint256 amountToRedeem =
       seizerImplementation == address(0)
@@ -106,7 +112,7 @@ contract Redeemer {
    * @dev Sells RBN for vault assets and disperses accordingly
    */
   function sellAndDisperseFunds() external onlyAdmin {
-    require(seizerImplementation != address(0), "!seizerImplementation");
+    require(seizerImplementation != address(0), "seizerImplementation is 0x0");
     seizerImplementation.sellAndDisperseFunds();
   }
 }
