@@ -8,13 +8,12 @@ import {
   SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Redeemer {
+contract Redeemer is Ownable {
   using SafeERC20 for IERC20;
   using SafeMath for uint256;
 
-  // Multisig
-  address public admin;
   // Maximum % of rbn staked redeemable. 2 decimals i.e 100 * 10 ** 2 = 100% possible to redeem
   uint8 public maxRedeemPCT;
   // Seizer implementation
@@ -24,23 +23,16 @@ contract Redeemer {
 
   event RBNRedeemed(uint256 amountRedeemed);
 
-  constructor(address _admin, uint8 _maxRedeemPCT) {
-    require(_admin != address(0), "Admin is 0x0");
+  constructor(address _newOwner, uint8 _maxRedeemPCT) {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
     );
 
-    admin = _admin;
+    if(_newOwner != address(0)){
+      _transferOwnership(_newOwner);
+    }
     maxRedeemPCT = _maxRedeemPCT;
-  }
-
-  /**
-   * @dev Validates that the tx sender is admin multisig
-   */
-  modifier onlyAdmin() {
-    require(msg.sender == admin, "Must be admin");
-    _;
   }
 
   /**
@@ -49,7 +41,7 @@ contract Redeemer {
    */
   function setVotingEscrowContract(address _votingEscrowContract)
     external
-    onlyAdmin
+    onlyOwner
   {
     require(_votingEscrowContract != address(0), "votingEscrowContract is 0x0");
     votingEscrowContract = IVotingEscrow(_votingEscrowContract);
@@ -61,7 +53,7 @@ contract Redeemer {
    */
   function setSeizerImplementation(address _seizerImplementation)
     external
-    onlyAdmin
+    onlyOwner
   {
     seizerImplementation = ISeizer(_seizerImplementation);
   }
@@ -70,7 +62,7 @@ contract Redeemer {
    * @dev Set new max redeemeable pct
    * @param _maxRedeemPCT new max redeem pct
    */
-  function setMaxRedeemPCT(uint8 _maxRedeemPCT) external onlyAdmin {
+  function setMaxRedeemPCT(uint8 _maxRedeemPCT) external onlyOwner {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
@@ -82,7 +74,7 @@ contract Redeemer {
    * @dev Redeems the rbn
    * @param _maxRedeemPCT new max redeem pct
    */
-  function redeemRBN(uint256 _amount) external onlyAdmin {
+  function redeemRBN(uint256 _amount) external onlyOwner {
     require(votingEscrowContract != address(0), "votingEscrowContract is 0x0");
 
     uint256 amountToRedeem =
@@ -100,18 +92,18 @@ contract Redeemer {
   }
 
   /**
-   * @dev Sends the token to admin
+   * @dev Sends the token to owner
    * @param _token token address
    * @param _amount token amount
    */
-  function sendToMultisig(address _token, uint256 _amount) external onlyAdmin {
-    IERC20(_token).safeTransfer(admin, _amount);
+  function sendToAdmin(address _token, uint256 _amount) external onlyOwner {
+    IERC20(_token).safeTransfer(owner(), _amount);
   }
 
   /**
    * @dev Sells RBN for vault assets and disperses accordingly
    */
-  function sellAndDisperseFunds() external onlyAdmin {
+  function sellAndDisperseFunds() external onlyOwner {
     require(seizerImplementation != address(0), "seizerImplementation is 0x0");
     seizerImplementation.sellAndDisperseFunds();
   }
