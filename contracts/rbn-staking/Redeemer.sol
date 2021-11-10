@@ -92,4 +92,21 @@ contract Redeemer {
 
     emit RBNRedeemed(amountToRedeem);
   }
+
+  /**
+   * @dev Sends the token to admin
+   * @param _token token address
+   * @param _amount token amount
+   */
+  function sendToMultisig(address _token, uint256 _amount) external onlyAdmin {
+    IERC20(_token).safeTransfer(admin, _amount);
+  }
+
+  /**
+   * @dev Sells RBN for vault assets and disperses accordingly
+   */
+  function sellAndDisperseFunds() external onlyAdmin {
+    require(seizerImplementation != address(0), "!seizerImplementation");
+    seizerImplementation.sellAndDisperseFunds();
+  }
 }

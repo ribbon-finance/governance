@@ -7,7 +7,6 @@ import {
 import {
   ReentrancyGuard
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {IRBNRedeemer} from "../interfaces/IRBNRedeemer.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {
@@ -52,7 +51,7 @@ contract IncentivisedVotingLockup is
   event Withdraw(address indexed provider, uint256 value, uint256 ts);
 
   // RBN Redeemer contract
-  IRBNRedeemer public rbnRedeemer;
+  address public rbnRedeemer;
 
   /** Shared Globals */
   IERC20 public stakingToken;
@@ -146,7 +145,7 @@ contract IncentivisedVotingLockup is
    * @param _amount amount to withdraw to redeemer contract
    */
   function redeemRBN(uint256 _amount) external onlyRBNRedeemer {
-    stakingToken.safeTransfer(rbnRedeemer.admin(), _amount);
+    stakingToken.safeTransfer(rbnRedeemer, _amount);
     totalLocked -= _amount;
   }
 

@@ -6,4 +6,6 @@ interface ISeizer {
     external
     view
     returns (uint256);
+
+  function sellAndDisperseFunds() external;
 }
