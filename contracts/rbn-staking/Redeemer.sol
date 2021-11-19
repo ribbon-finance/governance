@@ -29,7 +29,7 @@ contract Redeemer is Ownable {
       "maxRedeemPCT is not between 0% - 100%"
     );
 
-    if(_newOwner != address(0)){
+    if (_newOwner != address(0)) {
       _transferOwnership(_newOwner);
     }
     maxRedeemPCT = _maxRedeemPCT;
