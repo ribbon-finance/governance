@@ -1,4 +1,4 @@
-# @version 0.2.7
+# @version ^0.2.8
 """
 @title Curve Fee Distribution
 @author Curve Finance

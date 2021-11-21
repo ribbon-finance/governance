@@ -23,6 +23,10 @@ contract Redeemer is Ownable {
 
   event RBNRedeemed(uint256 amountRedeemed);
 
+  /**
+   * @param _newOwner new owner
+   * @param _maxRedeemPCT max redeem pct
+   */
   constructor(address _newOwner, uint8 _maxRedeemPCT) {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
@@ -30,7 +34,7 @@ contract Redeemer is Ownable {
     );
 
     if (_newOwner != address(0)) {
-      _transferOwnership(_newOwner);
+      transferOwnership(_newOwner);
     }
     maxRedeemPCT = _maxRedeemPCT;
   }
@@ -72,15 +76,18 @@ contract Redeemer is Ownable {
 
   /**
    * @dev Redeems the rbn
-   * @param _maxRedeemPCT new max redeem pct
+   * @param _amount is the amount
    */
   function redeemRBN(uint256 _amount) external onlyOwner {
-    require(votingEscrowContract != address(0), "votingEscrowContract is 0x0");
+    require(
+      address(votingEscrowContract) != address(0),
+      "votingEscrowContract is 0x0"
+    );
 
     uint256 amountToRedeem =
-      seizerImplementation == address(0)
+      address(seizerImplementation) == address(0)
         ? _amount
-        : seizerImplementation.amountToRedeem(votingEscrowContract);
+        : seizerImplementation.amountToRedeem(address(votingEscrowContract));
     require(
       amountToRedeem <=
         votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2)
@@ -104,7 +111,10 @@ contract Redeemer is Ownable {
    * @dev Sells RBN for vault assets and disperses accordingly
    */
   function sellAndDisperseFunds() external onlyOwner {
-    require(seizerImplementation != address(0), "seizerImplementation is 0x0");
+    require(
+      address(seizerImplementation) != address(0),
+      "seizerImplementation is 0x0"
+    );
     seizerImplementation.sellAndDisperseFunds();
   }
 }
