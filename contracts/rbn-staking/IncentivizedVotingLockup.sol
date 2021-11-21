@@ -68,9 +68,9 @@ contract IncentivisedVotingLockup is
   mapping(address => LockedBalance) public locked;
 
   // Voting token - Checkpointed view only ERC20
-  string public immutable name;
-  string public immutable symbol;
-  uint256 public immutable decimals;
+  string public name;
+  string public symbol;
+  uint256 public decimals;
 
   /** Structs */
   struct Point {
