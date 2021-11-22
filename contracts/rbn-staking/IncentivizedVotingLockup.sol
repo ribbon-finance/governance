@@ -57,6 +57,7 @@ contract IncentivisedVotingLockup is
   IERC20 public stakingToken;
   uint256 private constant WEEK = 7 days;
   uint256 public constant MAXTIME = 4 * 365 days; // 4 years
+  uint256 public END;
 
   /** Lockup */
   uint256 public globalEpoch;
@@ -113,6 +114,8 @@ contract IncentivisedVotingLockup is
     name = _name;
     symbol = _symbol;
     decimals = 18;
+
+    END = block.timestamp + MAXTIME;
   }
 
   /**
