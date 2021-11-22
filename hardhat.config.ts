@@ -60,6 +60,9 @@ module.exports = {
   mocha: {
     timeout: 200000,
   },
+  vyper: {
+    version: "0.2.7",
+  },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
