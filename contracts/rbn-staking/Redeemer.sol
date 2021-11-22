@@ -27,14 +27,14 @@ contract Redeemer is Ownable {
    * @param _newOwner new owner
    * @param _maxRedeemPCT max redeem pct
    */
-  constructor(address _newOwner, uint8 _maxRedeemPCT) {
+  constructor(address _owner, uint8 _maxRedeemPCT) {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
     );
 
-    if (_newOwner != address(0)) {
-      transferOwnership(_newOwner);
+    if (_owner != address(0)) {
+      transferOwnership(_owner);
     }
     maxRedeemPCT = _maxRedeemPCT;
   }

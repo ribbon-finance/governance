@@ -4,42 +4,65 @@
 const moduleAlias = require('module-alias')
 moduleAlias.addAlias('@utils', '../../test-utils')
 
+import { Contract, ContractFactory } from "@ethersproject/contracts";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { network, ethers } from "hardhat"
 import { expect } from "chai"
 import { assertBNClose, assertBNClosePercent } from "@utils/assertions"
-import { MassetMachine, StandardAccounts } from "@utils/machines"
 import { advanceBlock, getTimestamp, increaseTime, increaseTimeTo, latestBlock } from "@utils/time"
 import { BN, simpleToExactAmount, maximum, sqrt } from "@utils/math"
 import { ONE_WEEK, ONE_HOUR, ONE_DAY, ONE_YEAR, DEFAULT_DECIMALS } from "@utils/constants"
-import {
-    IncentivisedVotingLockup,
-    IncentivisedVotingLockup__factory,
-    MintableToken,
-    MintableToken__factory,
-    Nexus,
-    Nexus__factory,
-} from "types/generated"
 import { Account } from "types"
 
-let sa: StandardAccounts
-let mAssetMachine: MassetMachine
-let votingLockup: IncentivisedVotingLockup
-let mta: MintableToken
-let nexus: Nexus
-
 describe("IncentivisedVotingLockup", () => {
+    let RibbonStakingToken: ContractFactory;
+    let IncentivizedVotingLockup: ContractFactory;
+    let Redeemer: ContractFactory;
+
+    let mta: Contract,
+      redeemer: Contract,
+      votingLockup: Contract,
+      sa: StandardAccounts;
+
+
     before("Init contract", async () => {
         const accounts = await ethers.getSigners()
-        mAssetMachine = await new MassetMachine().initAccounts(accounts)
-        sa = mAssetMachine.sa
+        sa = await new StandardAccounts().initAccounts(accounts)
+
+        // Get staking RBN token
+        RibbonStakingToken = await ethers.getContractFactory("StakedRibbon");
+        mta = await RibbonStakingToken.deploy(
+          sa.fundManager.address,
+          sa.fundManager.address,
+          false
+        );
+
+        await mta.deployed();
+
+        // Get redeemer contract
+        Redeemer = await ethers.getContractFactory("Redeemer");
+        redeemer = await Redeemer.deploy(
+          sa.fundManager.address,
+          9000
+        );
+
+        await redeemer.deployed();
+
+        IncentivizedVotingLockup = await ethers.getContractFactory("IncentivizedVotingLockup");
+        votingLockup = await IncentivizedVotingLockup.deploy(
+          mta.address,
+          redeemer.address,
+          await mta.name(),
+          await mta.symbol()
+        );
+
+        await votingLockup.deployed();
+
+        await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
+        await redeemer.connect(sa.fundManager.address).setVotingEscrowContract(votingLockup.address);
     })
 
     const isCoverage = network.name === "coverage"
-
-    const fundVotingLockup = async (funding = simpleToExactAmount(100, DEFAULT_DECIMALS)) => {
-        await mta.connect(sa.fundManager.signer).transfer(votingLockup.address, funding)
-        await votingLockup.connect(sa.fundManager.signer).notifyRewardAmount(funding)
-    }
 
     const calculateStaticBalance = async (lockupLength: BN, amount: BN): Promise<BN> => {
         const slope = amount.div(await votingLockup.MAXTIME())
@@ -54,23 +77,23 @@ describe("IncentivisedVotingLockup", () => {
     }
 
     const deployFresh = async (initialRewardFunding = BN.from(0)) => {
-        nexus = await new Nexus__factory(sa.default.signer).deploy(sa.governor.address)
-        mta = await new MintableToken__factory(sa.default.signer).deploy(nexus.address, sa.fundManager.address)
+        // nexus = await new Nexus__factory(sa.default.signer).deploy(sa.governor.address)
+        // mta = await new MintableToken__factory(sa.default.signer).deploy(nexus.address, sa.fundManager.address)
         await mta.connect(sa.fundManager.signer).transfer(sa.default.address, simpleToExactAmount(1000, DEFAULT_DECIMALS))
         await mta.connect(sa.fundManager.signer).transfer(sa.other.address, simpleToExactAmount(1000, DEFAULT_DECIMALS))
-        votingLockup = await new IncentivisedVotingLockup__factory(sa.default.signer).deploy(
-            mta.address,
-            "Voting MTA",
-            "vMTA",
-            nexus.address,
-            sa.fundManager.address,
-        )
-        await mta.approve(votingLockup.address, simpleToExactAmount(100, DEFAULT_DECIMALS))
-        await mta.connect(sa.other.signer).approve(votingLockup.address, simpleToExactAmount(100, DEFAULT_DECIMALS))
-        await mta.connect(sa.fundManager.signer).approve(votingLockup.address, simpleToExactAmount(10000, DEFAULT_DECIMALS))
-        if (initialRewardFunding.gt(0)) {
-            fundVotingLockup(initialRewardFunding)
-        }
+        // votingLockup = await new IncentivisedVotingLockup__factory(sa.default.signer).deploy(
+        //     mta.address,
+        //     "Voting MTA",
+        //     "vMTA",
+        //     nexus.address,
+        //     sa.fundManager.address,
+        // )
+        // await mta.approve(votingLockup.address, simpleToExactAmount(100, DEFAULT_DECIMALS))
+        // await mta.connect(sa.other.signer).approve(votingLockup.address, simpleToExactAmount(100, DEFAULT_DECIMALS))
+        // await mta.connect(sa.fundManager.signer).approve(votingLockup.address, simpleToExactAmount(10000, DEFAULT_DECIMALS))
+        // if (initialRewardFunding.gt(0)) {
+        //     fundVotingLockup(initialRewardFunding)
+        // }
     }
 
     describe("checking balances & total supply", () => {
