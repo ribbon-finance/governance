@@ -4,9 +4,7 @@ pragma solidity ^0.8.0;
 import {ISeizer} from "../interfaces/ISeizer.sol";
 import {IVotingEscrow} from "../interfaces/IVotingEscrow.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-  SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -24,7 +22,7 @@ contract Redeemer is Ownable {
   event RBNRedeemed(uint256 amountRedeemed);
 
   /**
-   * @param _newOwner new owner
+   * @param _owner new owner
    * @param _maxRedeemPCT max redeem pct
    */
   constructor(address _owner, uint8 _maxRedeemPCT) {
@@ -84,10 +82,9 @@ contract Redeemer is Ownable {
       "votingEscrowContract is 0x0"
     );
 
-    uint256 amountToRedeem =
-      address(seizerImplementation) == address(0)
-        ? _amount
-        : seizerImplementation.amountToRedeem(address(votingEscrowContract));
+    uint256 amountToRedeem = address(seizerImplementation) == address(0)
+      ? _amount
+      : seizerImplementation.amountToRedeem(address(votingEscrowContract));
     require(
       amountToRedeem <=
         votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2)

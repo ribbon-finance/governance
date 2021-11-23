@@ -4,6 +4,7 @@ require("dotenv").config();
 require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-web3");
 require("@nomiclabs/hardhat-vyper");
+import "@nomiclabs/hardhat-ethers";
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
