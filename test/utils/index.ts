@@ -4,7 +4,7 @@ import { BigNumber, BigNumberish, ethers } from "ethers";
 import BN from "bn.js";
 
 import { toBN, toWei, fromWei, hexToAscii } from "web3-utils";
-const UNIT = toWei(new BN("1"), "ether");
+const UNIT = toWei(new BN("1", 10), "ether");
 
 const { parseEther } = ethers.utils;
 
