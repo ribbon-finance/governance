@@ -13,7 +13,7 @@ contract Redeemer is Ownable {
   using SafeMath for uint256;
 
   // Maximum % of rbn staked redeemable. 2 decimals i.e 100 * 10 ** 2 = 100% possible to redeem
-  uint8 public maxRedeemPCT;
+  uint16 public maxRedeemPCT;
   // Seizer implementation
   ISeizer public seizerImplementation;
   // veCRV escrow contract
@@ -25,7 +25,7 @@ contract Redeemer is Ownable {
    * @param _owner new owner
    * @param _maxRedeemPCT max redeem pct
    */
-  constructor(address _owner, uint8 _maxRedeemPCT) {
+  constructor(address _owner, uint16 _maxRedeemPCT) {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
@@ -64,7 +64,7 @@ contract Redeemer is Ownable {
    * @dev Set new max redeemeable pct
    * @param _maxRedeemPCT new max redeem pct
    */
-  function setMaxRedeemPCT(uint8 _maxRedeemPCT) external onlyOwner {
+  function setMaxRedeemPCT(uint16 _maxRedeemPCT) external onlyOwner {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
@@ -85,9 +85,11 @@ contract Redeemer is Ownable {
     uint256 amountToRedeem = address(seizerImplementation) == address(0)
       ? _amount
       : seizerImplementation.amountToRedeem(address(votingEscrowContract));
+
     require(
       amountToRedeem <=
-        votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2)
+        votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2),
+      "Amount to redeem must be less than max redeem pct!"
     );
 
     votingEscrowContract.redeemRBN(amountToRedeem);
