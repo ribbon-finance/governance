@@ -4,8 +4,9 @@
 
 import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { expect } from "chai";
+import chai, { expect } from "chai";
 import { ethers } from "hardhat";
+import { solidity } from "ethereum-waffle";
 import {
   assertBNClose,
   assertBNClosePercent,
@@ -28,9 +29,11 @@ import {
 } from "../../test-utils/constants";
 import { Account } from "../../types";
 
+chai.use(solidity);
+
 describe("IncentivisedVotingLockup", () => {
   let RibbonToken: ContractFactory;
-  let IncentivizedVotingLockup: ContractFactory;
+  let IncentivisedVotingLockup: ContractFactory;
   let Redeemer: ContractFactory;
 
   let mta: Contract,
@@ -45,23 +48,26 @@ describe("IncentivisedVotingLockup", () => {
     // Get RBN token
     RibbonToken = await ethers.getContractFactory("RibbonToken");
     mta = await RibbonToken.deploy(
-      sa.fundManager.address,
-      sa.fundManager.address,
-      false
+      "Ribbon",
+      "RBN",
+      simpleToExactAmount(1000000000, DEFAULT_DECIMALS),
+      sa.fundManager.address
     );
 
     await mta.deployed();
 
+    await mta.connect(sa.fundManager.signer).setTransfersAllowed(true);
+
     // Get redeemer contract
     Redeemer = await ethers.getContractFactory("Redeemer");
-    redeemer = await Redeemer.deploy(sa.fundManager.address, 9000);
+    redeemer = await Redeemer.deploy(sa.fundManager.address, "9000");
 
     await redeemer.deployed();
 
-    IncentivizedVotingLockup = await ethers.getContractFactory(
-      "IncentivizedVotingLockup"
+    IncentivisedVotingLockup = await ethers.getContractFactory(
+      "IncentivisedVotingLockup"
     );
-    votingLockup = await IncentivizedVotingLockup.deploy(
+    votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
       redeemer.address,
       await mta.name(),
@@ -70,9 +76,9 @@ describe("IncentivisedVotingLockup", () => {
 
     await votingLockup.deployed();
 
-    await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
+    //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
     await redeemer
-      .connect(sa.fundManager.address)
+      .connect(sa.fundManager.signer)
       .setVotingEscrowContract(votingLockup.address);
   });
 
@@ -95,7 +101,7 @@ describe("IncentivisedVotingLockup", () => {
     return amount.div(await votingLockup.MAXTIME()).mul(len);
   };
 
-  const deployFresh = async (initialRewardFunding = BN.from(0)) => {
+  const deployFresh = async () => {
     await mta
       .connect(sa.fundManager.signer)
       .transfer(
@@ -105,12 +111,18 @@ describe("IncentivisedVotingLockup", () => {
     await mta
       .connect(sa.fundManager.signer)
       .transfer(sa.other.address, simpleToExactAmount(1000, DEFAULT_DECIMALS));
-    votingLockup = await IncentivizedVotingLockup.deploy(
+    votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
       redeemer.address,
       await mta.name(),
       await mta.symbol()
     );
+
+    //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
+
+    await redeemer
+      .connect(sa.fundManager.signer)
+      .setVotingEscrowContract(votingLockup.address);
 
     await votingLockup.deployed();
     await mta.approve(
@@ -235,7 +247,7 @@ describe("IncentivisedVotingLockup", () => {
         ts: lastPoint[2],
         blk: lastPoint[3],
       },
-      totalLocked: await votingLockup.totalLocked,
+      totalLocked: await votingLockup.totalLocked(),
       senderStakingTokenBalance: await mta.balanceOf(sender.address),
       contractStakingTokenBalance: await mta.balanceOf(votingLockup.address),
     };
@@ -270,7 +282,7 @@ describe("IncentivisedVotingLockup", () => {
 
       await goToNextUnixWeekStart();
       start = await getTimestamp();
-      await deployFresh(simpleToExactAmount(100, DEFAULT_DECIMALS));
+      await deployFresh();
       maxTime = await votingLockup.MAXTIME();
       await mta
         .connect(sa.fundManager.signer)
@@ -383,9 +395,7 @@ describe("IncentivisedVotingLockup", () => {
         );
 
         // Total locked
-        expect(votingLockup.totalLocked).eq(
-          BN.from(stakeAmt1.mul(2).add(stakeAmt2).mul(2))
-        );
+        expect(eveData.totalLocked).eq(stakeAmt1.mul(3).add(stakeAmt2));
       });
       it("rejects if the params are wrong", async () => {
         await expect(
@@ -409,7 +419,7 @@ describe("IncentivisedVotingLockup", () => {
           votingLockup
             .connect(sa.other.signer)
             .createLock(BN.from(1), start.add(ONE_YEAR.mul(4).add(ONE_WEEK)))
-        ).to.be.revertedWith("Voting lock can be 1 year max (until recol)");
+        ).to.be.revertedWith("Voting lock can be 4 years max");
       });
     });
 
@@ -448,6 +458,7 @@ describe("IncentivisedVotingLockup", () => {
             ),
             "0.4"
           );
+
           // Total locked
           expect(charlieSnapAfter.totalLocked).eq(
             charlieSnapBefore.totalLocked.add(stakeAmt2)
@@ -475,17 +486,18 @@ describe("IncentivisedVotingLockup", () => {
           await expect(
             votingLockup
               .connect(bob.signer)
-              .increaseLockLength((await getTimestamp()).add(ONE_WEEK.mul(42)))
-          ).to.be.revertedWith("Voting lock can be 1 year max (until recol)");
-
+              .increaseLockLength(
+                (await getTimestamp()).add(ONE_WEEK.mul(53).mul(4))
+              )
+          ).to.be.revertedWith("Voting lock can be 4 years max");
           await expect(
             votingLockup
               .connect(david.signer)
               .createLock(
                 stakeAmt1,
-                (await getTimestamp()).add(ONE_WEEK.mul(42))
+                (await getTimestamp()).add(ONE_WEEK.mul(53).mul(4))
               )
-          ).to.be.revertedWith("Voting lock can be 1 year max (until recol)");
+          ).to.be.revertedWith("Voting lock can be 4 years max");
         });
         it("allows user to extend lock", async () => {
           await goToNextUnixWeekStart();
@@ -493,7 +505,7 @@ describe("IncentivisedVotingLockup", () => {
           const len = bobSnapBefore.endTime.sub(await getTimestamp());
           await votingLockup
             .connect(bob.signer)
-            .increaseLockLength(start.add(ONE_YEAR));
+            .increaseLockLength(start.add(ONE_YEAR.mul(4)));
 
           const bobSnapAfter = await snapshotData(bob);
 
@@ -527,8 +539,9 @@ describe("IncentivisedVotingLockup", () => {
         const after = await snapshotData(alice);
 
         expect(after.epoch).eq(before.epoch.add(1));
-        expect(after.lastPoint.bias.toNumber()).lt(
-          before.lastPoint.bias.toNumber()
+
+        expect(parseInt(after.lastPoint.bias.toString())).lt(
+          parseInt(before.lastPoint.bias.toString())
         );
         expect(after.lastPoint.slope).eq(before.lastPoint.slope);
         expect(after.lastPoint.blk).eq(BN.from((await latestBlock()).number));
@@ -579,7 +592,7 @@ describe("IncentivisedVotingLockup", () => {
       it("withdraw user stake", async () => {
         // charlie is ejected
         const charlieBefore = await snapshotData(charlie);
-        await votingLockup.connect(david.signer).withdraw(charlie.address);
+        await votingLockup.connect(charlie.signer).withdraw();
         const charlieAfter = await snapshotData(charlie);
 
         expect(charlieAfter.senderStakingTokenBalance).eq(
@@ -642,8 +655,8 @@ describe("IncentivisedVotingLockup", () => {
 
   describe("allow multisig rbn redeem", () => {
     it("reverts on non-redeemer role", async () => {
-      (
-        await votingLockup.connect(sa.fundManager.address).redeemRBN(1)
+      await expect(
+        votingLockup.connect(sa.fundManager.signer).redeemRBN(1)
       ).to.be.revertedWith("Must be rbn redeemer contract");
     });
 
@@ -651,23 +664,20 @@ describe("IncentivisedVotingLockup", () => {
       let alice = sa.default;
       let bob = sa.dummy1;
 
-      await mta
-        .connect(sa.fundManager.signer)
-        .transfer(alice.address, simpleToExactAmount(1, 22));
-      await mta
-        .connect(sa.fundManager.signer)
-        .transfer(bob.address, simpleToExactAmount(1, 22));
-
       const stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
       const stakeAmt2 = simpleToExactAmount(1000, DEFAULT_DECIMALS);
       const amountToSeize = simpleToExactAmount(500, DEFAULT_DECIMALS);
 
-      await votingLockup
-        .connect(alice.signer)
-        .createLock(stakeAmt1, (await getTimestamp()).add(ONE_YEAR));
-      await votingLockup
-        .connect(bob.signer)
-        .createLock(stakeAmt2, (await getTimestamp()).add(ONE_WEEK.mul(26)));
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(alice.address, stakeAmt1);
+      await mta.connect(sa.fundManager.signer).transfer(bob.address, stakeAmt2);
+
+      await mta.connect(alice.signer).approve(votingLockup.address, stakeAmt1);
+      await mta.connect(bob.signer).approve(votingLockup.address, stakeAmt2);
+
+      await votingLockup.connect(alice.signer).increaseLockAmount(stakeAmt1);
+      await votingLockup.connect(bob.signer).increaseLockAmount(stakeAmt2);
 
       const aliceDataBefore = await snapshotData(alice);
       const bobDataBefore = await snapshotData(bob);
@@ -676,30 +686,7 @@ describe("IncentivisedVotingLockup", () => {
       );
       const redeemerRBNBalanceBefore = await mta.balanceOf(redeemer.address);
 
-      // Bias
-      assertBNClosePercent(
-        aliceDataBefore.userLastPoint.bias,
-        await calcBias(stakeAmt1, ONE_YEAR),
-        "0.4"
-      );
-      assertBNClosePercent(
-        bobDataBefore.userLastPoint.bias,
-        await calcBias(stakeAmt2, ONE_WEEK.mul(26)),
-        "0.4"
-      );
-      // Static Balance
-      assertBNClosePercent(
-        aliceDataBefore.userStaticWeight,
-        await calculateStaticBalance(ONE_YEAR, stakeAmt1),
-        "0.4"
-      );
-      assertBNClosePercent(
-        bobDataBefore.userStaticWeight,
-        await calculateStaticBalance(ONE_WEEK.mul(26), stakeAmt2),
-        "0.4"
-      );
-
-      await redeemer.connect(sa.fundManager.address).redeemRBN(amountToSeize);
+      await redeemer.connect(sa.fundManager.signer).redeemRBN(amountToSeize);
 
       const aliceDataAfter = await snapshotData(alice);
       const bobDataAfter = await snapshotData(bob);
@@ -727,7 +714,7 @@ describe("IncentivisedVotingLockup", () => {
       );
       assertBNClosePercent(
         bobDataAfter.userStaticWeight,
-        aliceDataBefore.userStaticWeight,
+        bobDataBefore.userStaticWeight,
         "0"
       );
 
@@ -897,7 +884,7 @@ describe("IncentivisedVotingLockup", () => {
         await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
         "0.1"
       );
-      await votingLockup.connect(alice.signer).exit();
+      await votingLockup.connect(alice.signer).withdraw();
 
       stages["alice_withdraw"] = [
         BN.from((await latestBlock()).number),
