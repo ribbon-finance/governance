@@ -654,19 +654,18 @@ describe("IncentivisedVotingLockup", () => {
   });
 
   describe("allow multisig rbn redeem", () => {
-    it("reverts on non-redeemer role", async () => {
-      await expect(
-        votingLockup.connect(sa.fundManager.signer).redeemRBN(1)
-      ).to.be.revertedWith("Must be rbn redeemer contract");
-    });
+    let alice: Account;
+    let bob: Account;
+    let stakeAmt1: BN;
+    let stakeAmt2: BN;
+    let amountToSeize: BN;
 
-    it("seizes rbn", async () => {
-      let alice = sa.default;
-      let bob = sa.dummy1;
+    before(async () => {
+      alice = sa.default;
+      bob = sa.dummy1;
 
-      const stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
-      const stakeAmt2 = simpleToExactAmount(1000, DEFAULT_DECIMALS);
-      const amountToSeize = simpleToExactAmount(500, DEFAULT_DECIMALS);
+      stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
+      stakeAmt2 = simpleToExactAmount(1000, DEFAULT_DECIMALS);
 
       await mta
         .connect(sa.fundManager.signer)
@@ -678,6 +677,25 @@ describe("IncentivisedVotingLockup", () => {
 
       await votingLockup.connect(alice.signer).increaseLockAmount(stakeAmt1);
       await votingLockup.connect(bob.signer).increaseLockAmount(stakeAmt2);
+    });
+
+    it("reverts on non-redeemer role", async () => {
+      await expect(
+        votingLockup.connect(sa.fundManager.signer).redeemRBN(1)
+      ).to.be.revertedWith("Must be rbn redeemer contract");
+    });
+
+    it("reverts on too high seize amount", async () => {
+      amountToSeize = simpleToExactAmount(3000, DEFAULT_DECIMALS);
+      await expect(
+        redeemer.connect(sa.fundManager.signer).redeemRBN(amountToSeize)
+      ).to.be.revertedWith(
+        "Amount to redeem must be less than max redeem pct!"
+      );
+    });
+
+    it("seizes rbn", async () => {
+      amountToSeize = simpleToExactAmount(500, DEFAULT_DECIMALS);
 
       const aliceDataBefore = await snapshotData(alice);
       const bobDataBefore = await snapshotData(bob);
