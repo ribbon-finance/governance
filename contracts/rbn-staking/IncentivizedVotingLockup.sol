@@ -117,20 +117,6 @@ contract IncentivisedVotingLockup is
     END = block.timestamp + MAXTIME;
   }
 
-  /**
-   * @dev Validates that the user has an expired lock && they still have capacity to earn
-   * @param _addr User address to check
-   */
-  modifier lockupIsOver(address _addr) {
-    LockedBalance memory userLock = locked[_addr];
-    require(
-      userLock.amount > 0 && block.timestamp >= userLock.end,
-      "Users lock didn't expire"
-    );
-    require(staticBalanceOf(_addr) > 0, "User must have existing bias");
-    _;
-  }
-
   /***************************************
                 LOCKUP - GETTERS
     ****************************************/
@@ -761,47 +747,5 @@ contract IncentivisedVotingLockup is
     // Now dTime contains info on how far are we beyond point
 
     return _supplyAt(point, point.ts + dTime);
-  }
-
-  /***************************************
-                REWARDS - GETTERS
-    ****************************************/
-
-  /**
-   * @dev Gets the most recent Static Balance (bias) for a user
-   * @param _addr User for which to retrieve static balance
-   * @return uint256 balance
-   */
-  function staticBalanceOf(address _addr) public view returns (uint256) {
-    uint256 uepoch = userPointEpoch[_addr];
-    if (uepoch == 0 || userPointHistory[_addr][uepoch].bias == 0) {
-      return 0;
-    }
-    return
-      _staticBalance(
-        userPointHistory[_addr][uepoch].slope,
-        userPointHistory[_addr][uepoch].ts,
-        locked[_addr].end
-      );
-  }
-
-  function _staticBalance(
-    int128 _slope,
-    uint256 _startTime,
-    uint256 _endTime
-  ) internal pure returns (uint256) {
-    if (_startTime > _endTime) return 0;
-    // get lockup length (end - point.ts)
-    uint256 lockupLength = _endTime - _startTime;
-    // s = amount * sqrt(length)
-    uint256 s = SafeCast.toUint256(_slope * 10000) * Root.sqrt(lockupLength);
-    return s;
-  }
-
-  /**
-   * @dev Gets the RewardsToken
-   */
-  function getRewardToken() external view returns (IERC20) {
-    return stakingToken;
   }
 }

@@ -79,15 +79,6 @@ describe("IncentivisedVotingLockup", () => {
       .setVotingEscrowContract(votingLockup.address);
   });
 
-  const calculateStaticBalance = async (
-    lockupLength: BN,
-    amount: BN
-  ): Promise<BN> => {
-    const slope = amount.div(await votingLockup.MAXTIME());
-    const s = slope.mul(10000).mul(sqrt(lockupLength));
-    return s;
-  };
-
   const goToNextUnixWeekStart = async () => {
     const unixWeekCount = (await getTimestamp()).div(ONE_WEEK);
     const nextUnixWeek = unixWeekCount.add(1).mul(ONE_WEEK);
@@ -146,9 +137,6 @@ describe("IncentivisedVotingLockup", () => {
     });
     describe("before any stakes are made", () => {
       it("returns balances", async () => {
-        expect(await votingLockup.staticBalanceOf(sa.default.address)).eq(
-          BN.from(0)
-        );
         expect(await votingLockup.balanceOf(sa.default.address)).eq(BN.from(0));
         expect(await votingLockup.balanceOfAt(sa.default.address, 1)).eq(
           BN.from(0)
@@ -209,7 +197,6 @@ describe("IncentivisedVotingLockup", () => {
     epoch: BN;
     userEpoch: BN;
     endTime: BN;
-    userStaticWeight: BN;
     userLocked: LockedBalance;
     userLastPoint: Point;
     lastPoint: Point;
@@ -228,7 +215,6 @@ describe("IncentivisedVotingLockup", () => {
       epoch,
       userEpoch,
       endTime: await votingLockup.END(),
-      userStaticWeight: await votingLockup.staticBalanceOf(sender.address),
       userLocked: {
         amount: locked[0],
         end: locked[1],
@@ -374,23 +360,6 @@ describe("IncentivisedVotingLockup", () => {
           "0.4"
         );
 
-        // Static Balance
-        assertBNClosePercent(
-          aliceData.userStaticWeight,
-          await calculateStaticBalance(ONE_YEAR, stakeAmt1),
-          "0.4"
-        );
-        assertBNClosePercent(
-          bobData.userStaticWeight,
-          await calculateStaticBalance(ONE_WEEK.mul(26), stakeAmt2),
-          "0.4"
-        );
-        assertBNClosePercent(
-          charlieData.userStaticWeight,
-          await calculateStaticBalance(ONE_WEEK.mul(26), stakeAmt1),
-          "0.4"
-        );
-
         // Total locked
         expect(eveData.totalLocked).eq(stakeAmt1.mul(3).add(stakeAmt2));
       });
@@ -447,15 +416,6 @@ describe("IncentivisedVotingLockup", () => {
 
           const charlieSnapAfter = await snapshotData(charlie);
 
-          assertBNClosePercent(
-            charlieSnapAfter.userStaticWeight,
-            await calculateStaticBalance(
-              ONE_WEEK.mul(14),
-              stakeAmt2.add(stakeAmt1)
-            ),
-            "0.4"
-          );
-
           // Total locked
           expect(charlieSnapAfter.totalLocked).eq(
             charlieSnapBefore.totalLocked.add(stakeAmt2)
@@ -506,11 +466,6 @@ describe("IncentivisedVotingLockup", () => {
 
           const bobSnapAfter = await snapshotData(bob);
 
-          assertBNClosePercent(
-            bobSnapAfter.userStaticWeight,
-            await calculateStaticBalance(len, stakeAmt2),
-            "0.4"
-          );
           // Total locked
           expect(bobSnapAfter.totalLocked).eq(bobSnapBefore.totalLocked);
         });
@@ -721,17 +676,6 @@ describe("IncentivisedVotingLockup", () => {
         bobDataBefore.userLastPoint.bias,
         "0"
       );
-      // Static Balance
-      assertBNClosePercent(
-        aliceDataAfter.userStaticWeight,
-        aliceDataBefore.userStaticWeight,
-        "0"
-      );
-      assertBNClosePercent(
-        bobDataAfter.userStaticWeight,
-        bobDataBefore.userStaticWeight,
-        "0"
-      );
 
       expect(votingLockupRBNBalanceAfter).eq(
         votingLockupRBNBalanceBefore.sub(amountToSeize)
@@ -810,7 +754,6 @@ describe("IncentivisedVotingLockup", () => {
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
-      expect(await votingLockup.staticBalanceOf(bob.address)).eq(BN.from(0));
 
       /**
        * BEGIN PERIOD 1
@@ -834,11 +777,6 @@ describe("IncentivisedVotingLockup", () => {
         await getTimestamp(),
       ];
 
-      assertBNClosePercent(
-        await votingLockup.staticBalanceOf(alice.address),
-        await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
-        "0.1"
-      );
       await increaseTime(ONE_HOUR);
       await advanceBlock();
       assertBNClosePercent(
@@ -894,11 +832,6 @@ describe("IncentivisedVotingLockup", () => {
       await increaseTime(ONE_HOUR);
 
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
-      assertBNClosePercent(
-        await votingLockup.staticBalanceOf(alice.address),
-        await calculateStaticBalance(ONE_WEEK.sub(ONE_HOUR), amount),
-        "0.1"
-      );
       await votingLockup.connect(alice.signer).withdraw();
 
       stages["alice_withdraw"] = [
@@ -908,7 +841,6 @@ describe("IncentivisedVotingLockup", () => {
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
       expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
-      expect(await votingLockup.staticBalanceOf(alice.address)).eq(BN.from(0));
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
@@ -961,19 +893,6 @@ describe("IncentivisedVotingLockup", () => {
         await votingLockup.balanceOf(bob.address),
         amount.div(MAXTIME).mul(ONE_WEEK),
         tolerance
-      );
-      let aliceStatic = await votingLockup.staticBalanceOf(alice.address);
-      let bobStatic = await votingLockup.staticBalanceOf(bob.address);
-
-      assertBNClosePercent(
-        aliceStatic,
-        await calculateStaticBalance(ONE_WEEK.mul(2), amount),
-        "0.1"
-      );
-      assertBNClosePercent(
-        bobStatic,
-        await calculateStaticBalance(ONE_WEEK, amount),
-        "0.1"
       );
 
       t0 = await getTimestamp();
@@ -1034,16 +953,6 @@ describe("IncentivisedVotingLockup", () => {
       );
       expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
-      aliceStatic = await votingLockup.staticBalanceOf(alice.address);
-      bobStatic = await votingLockup.staticBalanceOf(bob.address);
-
-      assertBNClosePercent(
-        aliceStatic,
-        await calculateStaticBalance(ONE_WEEK.mul(2), amount),
-        "0.1"
-      );
-      expect(bobStatic).eq(BN.from(0));
-
       await increaseTime(ONE_HOUR);
       await advanceBlock();
 
@@ -1081,12 +990,6 @@ describe("IncentivisedVotingLockup", () => {
         BN.from((await latestBlock()).number),
         await getTimestamp(),
       ];
-
-      aliceStatic = await votingLockup.staticBalanceOf(alice.address);
-      bobStatic = await votingLockup.staticBalanceOf(bob.address);
-
-      expect(aliceStatic).eq(BN.from(0));
-      expect(bobStatic).eq(BN.from(0));
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
