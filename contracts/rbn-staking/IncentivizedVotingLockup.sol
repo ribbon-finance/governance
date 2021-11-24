@@ -101,8 +101,8 @@ contract IncentivisedVotingLockup is
       Point({
         bias: int128(0),
         slope: int128(0),
-        ts: block.timestamp,
-        blk: block.number
+        ts: uint128(block.timestamp),
+        blk: uint128(block.number)
       });
     pointHistory.push(init);
 
@@ -221,8 +221,8 @@ contract IncentivisedVotingLockup is
       }
 
       userPointEpoch[_addr] = uEpoch + 1;
-      userNewPoint.ts = block.timestamp;
-      userNewPoint.blk = block.number;
+      userNewPoint.ts = uint128(block.timestamp);
+      userNewPoint.blk = uint128(block.number);
       userPointHistory[_addr].push(userNewPoint);
 
       // } end
@@ -241,7 +241,12 @@ contract IncentivisedVotingLockup is
     }
 
     Point memory lastPoint =
-      Point({bias: 0, slope: 0, ts: block.timestamp, blk: block.number});
+      Point({
+        bias: 0,
+        slope: 0,
+        ts: uint128(block.timestamp),
+        blk: uint128(block.number)
+      });
     if (epoch > 0) {
       lastPoint = pointHistory[epoch];
     }
@@ -287,15 +292,16 @@ contract IncentivisedVotingLockup is
         lastPoint.slope = 0;
       }
       lastCheckpoint = iterativeTime;
-      lastPoint.ts = iterativeTime;
-      lastPoint.blk =
+      lastPoint.ts = uint128(iterativeTime);
+      lastPoint.blk = uint128(
         initialLastPoint.blk +
-        blockSlope.mulTruncate(iterativeTime - initialLastPoint.ts);
+          blockSlope.mulTruncate(iterativeTime - initialLastPoint.ts)
+      );
 
       // when epoch is incremented, we either push here or after slopes updated below
       epoch = epoch + 1;
       if (iterativeTime == block.timestamp) {
-        lastPoint.blk = block.number;
+        lastPoint.blk = uint128(block.number);
         break;
       } else {
         // pointHistory[epoch] = lastPoint;
@@ -370,7 +376,7 @@ contract IncentivisedVotingLockup is
     newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
     totalLocked += _value;
     if (_unlockTime != 0) {
-      newLocked.end = _unlockTime;
+      newLocked.end = uint128(_unlockTime);
     }
     locked[_addr] = newLocked;
 
@@ -697,7 +703,7 @@ contract IncentivisedVotingLockup is
         break;
       }
       lastPoint.slope = lastPoint.slope + dSlope;
-      lastPoint.ts = iterativeTime;
+      lastPoint.ts = uint128(iterativeTime);
     }
 
     if (lastPoint.bias < 0) {
