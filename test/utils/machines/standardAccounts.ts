@@ -1,5 +1,5 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Account } from "../../types";
+import { Account } from "../../../types";
 
 /**
  * @dev Standard accounts
