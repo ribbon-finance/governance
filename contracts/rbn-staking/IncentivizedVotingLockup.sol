@@ -51,6 +51,7 @@ contract IncentivisedVotingLockup is
     uint256 ts
   );
   event Withdraw(address indexed provider, uint256 value, uint256 ts);
+  event ContractStopped(bool contractStopped);
 
   // RBN Redeemer contract
   address public rbnRedeemer;
@@ -74,6 +75,7 @@ contract IncentivisedVotingLockup is
   mapping(address => uint256) public userPointEpoch;
   mapping(uint256 => int128) public slopeChanges;
   mapping(address => LockedBalance) public locked;
+  uint256 public contractStopped = false;
 
   // Voting token - Checkpointed view only ERC20
   string public name;
@@ -155,13 +157,19 @@ contract IncentivisedVotingLockup is
    * @dev Check if the call is from a whitelisted smart contract, revert if not
    * @param _addr address to be checked
    */
-  modifier onlyWhitelist(address _addr) {
+  modifier isWhitelisted(address _addr) {
     require(
       _addr == tx.origin ||
         (smartWalletChecker != address(0) &&
           ISmartWalletChecker(smartWalletChecker).check(_addr)),
       "Smart contract depositors not allowed"
     );
+    _;
+  }
+
+  /** @dev Modifier to ensure contract has not stopped */
+  modifier contractNotStopped() {
+    require(!contractStopped, "Contract is expired");
     _;
   }
 
@@ -450,7 +458,8 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    onlyWhitelist(msg.sender)
+    contractNotStopped
+    isWhitelisted(msg.sender)
   {
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
     LockedBalance memory locked_ =
@@ -488,7 +497,8 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    onlyWhitelist(msg.sender)
+    contractNotStopped
+    isWhitelisted(msg.sender)
   {
     LockedBalance memory locked_ =
       LockedBalance({
@@ -520,7 +530,8 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    onlyWhitelist(msg.sender)
+    contractNotStopped
+    isWhitelisted(msg.sender)
   {
     LockedBalance memory locked_ =
       LockedBalance({
@@ -577,6 +588,17 @@ contract IncentivisedVotingLockup is
     stakingToken.safeTransfer(_addr, value);
 
     emit Withdraw(_addr, value, block.timestamp);
+  }
+
+  /**
+   * @dev Stops the contract.
+   * No more staking can happen. Only withdraw.
+   * @param _contractStopped whether contract is stopped
+   */
+  function setContractStopped(bool _contractStopped) external onlyOwner {
+    contractStopped = _contractStopped;
+
+    emit ContractStopped(_contractStopped);
   }
 
   /***************************************
