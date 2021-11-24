@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import {IIncentivisedVotingLockup} from "../interfaces/IIncentivisedVotingLockup.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {
+  IIncentivisedVotingLockup
+} from "../interfaces/IIncentivisedVotingLockup.sol";
+import {
+  ReentrancyGuard
+} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+  SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
@@ -70,20 +76,16 @@ contract IncentivisedVotingLockup is
   struct Point {
     int128 bias;
     int128 slope;
-    uint256 ts;
-    uint256 blk;
+    uint128 ts;
+    uint128 blk;
   }
 
   struct LockedBalance {
     int128 amount;
-    uint256 end;
+    uint128 end;
   }
 
-  enum LockAction {
-    CREATE_LOCK,
-    INCREASE_LOCK_AMOUNT,
-    INCREASE_LOCK_TIME
-  }
+  enum LockAction {CREATE_LOCK, INCREASE_LOCK_AMOUNT, INCREASE_LOCK_TIME}
 
   constructor(
     address _stakingToken,
@@ -95,12 +97,13 @@ contract IncentivisedVotingLockup is
     require(_rbnRedeemer != address(0), "!_rbnRedeemer");
 
     stakingToken = IERC20(_stakingToken);
-    Point memory init = Point({
-      bias: int128(0),
-      slope: int128(0),
-      ts: block.timestamp,
-      blk: block.number
-    });
+    Point memory init =
+      Point({
+        bias: int128(0),
+        slope: int128(0),
+        ts: block.timestamp,
+        blk: block.number
+      });
     pointHistory.push(init);
 
     decimals = IERC20Detailed(_stakingToken).decimals();
@@ -128,14 +131,6 @@ contract IncentivisedVotingLockup is
     _;
   }
 
-  /**
-   * @dev Validates that the tx sender is rbnRedeemer contract
-   */
-  modifier onlyRBNRedeemer() {
-    require(msg.sender == rbnRedeemer, "Must be rbn redeemer contract");
-    _;
-  }
-
   /***************************************
                 LOCKUP - GETTERS
     ****************************************/
@@ -144,8 +139,10 @@ contract IncentivisedVotingLockup is
    * @dev Redeems rbn to redeemer contract in case criterium met (i.e smart contract hack, vaults get rekt)
    * @param _amount amount to withdraw to redeemer contract
    */
-  function redeemRBN(uint256 _amount) external onlyRBNRedeemer {
-    stakingToken.safeTransfer(rbnRedeemer, _amount);
+  function redeemRBN(uint256 _amount) external {
+    address redeemer = rbnRedeemer;
+    require(msg.sender == redeemer, "Must be rbn redeemer contract");
+    stakingToken.safeTransfer(redeemer, _amount);
     totalLocked -= _amount;
   }
 
@@ -243,12 +240,8 @@ contract IncentivisedVotingLockup is
       }
     }
 
-    Point memory lastPoint = Point({
-      bias: 0,
-      slope: 0,
-      ts: block.timestamp,
-      blk: block.number
-    });
+    Point memory lastPoint =
+      Point({bias: 0, slope: 0, ts: block.timestamp, blk: block.number});
     if (epoch > 0) {
       lastPoint = pointHistory[epoch];
     }
@@ -257,12 +250,8 @@ contract IncentivisedVotingLockup is
     // initialLastPoint is used for extrapolation to calculate block number
     // (approximately, for *At methods) and save them
     // as we cannot figure that out exactly from inside the contract
-    Point memory initialLastPoint = Point({
-      bias: 0,
-      slope: 0,
-      ts: lastPoint.ts,
-      blk: lastPoint.blk
-    });
+    Point memory initialLastPoint =
+      Point({bias: 0, slope: 0, ts: lastPoint.ts, blk: lastPoint.blk});
     uint256 blockSlope = 0; // dblock/dt
     if (block.timestamp > lastPoint.ts) {
       blockSlope =
@@ -284,8 +273,9 @@ contract IncentivisedVotingLockup is
       } else {
         dSlope = slopeChanges[iterativeTime];
       }
-      int128 biasDelta = lastPoint.slope *
-        SafeCast.toInt128(int256((iterativeTime - lastCheckpoint)));
+      int128 biasDelta =
+        lastPoint.slope *
+          SafeCast.toInt128(int256((iterativeTime - lastCheckpoint)));
       lastPoint.bias = lastPoint.bias - biasDelta;
       lastPoint.slope = lastPoint.slope + dSlope;
       // This can happen
@@ -373,10 +363,8 @@ contract IncentivisedVotingLockup is
     LockedBalance memory _oldLocked,
     LockAction _action
   ) internal {
-    LockedBalance memory newLocked = LockedBalance({
-      amount: _oldLocked.amount,
-      end: _oldLocked.end
-    });
+    LockedBalance memory newLocked =
+      LockedBalance({amount: _oldLocked.amount, end: _oldLocked.end});
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
@@ -417,10 +405,11 @@ contract IncentivisedVotingLockup is
     nonReentrant
   {
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
-    LockedBalance memory locked_ = LockedBalance({
-      amount: locked[msg.sender].amount,
-      end: locked[msg.sender].end
-    });
+    LockedBalance memory locked_ =
+      LockedBalance({
+        amount: locked[msg.sender].amount,
+        end: locked[msg.sender].end
+      });
 
     require(_value > 0, "Must stake non zero amount");
     require(locked_.amount == 0, "Withdraw old tokens first");
@@ -448,10 +437,11 @@ contract IncentivisedVotingLockup is
    * @param _value Additional units of StakingToken to add to exiting stake
    */
   function increaseLockAmount(uint256 _value) external override nonReentrant {
-    LockedBalance memory locked_ = LockedBalance({
-      amount: locked[msg.sender].amount,
-      end: locked[msg.sender].end
-    });
+    LockedBalance memory locked_ =
+      LockedBalance({
+        amount: locked[msg.sender].amount,
+        end: locked[msg.sender].end
+      });
 
     require(_value > 0, "Must stake non zero amount");
     require(locked_.amount > 0, "No existing lock found");
@@ -478,10 +468,11 @@ contract IncentivisedVotingLockup is
     override
     nonReentrant
   {
-    LockedBalance memory locked_ = LockedBalance({
-      amount: locked[msg.sender].amount,
-      end: locked[msg.sender].end
-    });
+    LockedBalance memory locked_ =
+      LockedBalance({
+        amount: locked[msg.sender].amount,
+        end: locked[msg.sender].end
+      });
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
 
     require(locked_.amount > 0, "Nothing is locked");
@@ -513,10 +504,8 @@ contract IncentivisedVotingLockup is
    * @param _addr User for which to withdraw
    */
   function _withdraw(address _addr) internal nonReentrant {
-    LockedBalance memory oldLock = LockedBalance({
-      end: locked[_addr].end,
-      amount: locked[_addr].amount
-    });
+    LockedBalance memory oldLock =
+      LockedBalance({end: locked[_addr].end, amount: locked[_addr].amount});
     require(block.timestamp >= oldLock.end, "The lock didn't expire");
     require(oldLock.amount > 0, "Must have something to withdraw");
 
