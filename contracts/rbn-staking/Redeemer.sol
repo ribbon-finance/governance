@@ -4,7 +4,9 @@ pragma solidity ^0.8.0;
 import {ISeizer} from "../interfaces/ISeizer.sol";
 import {IVotingEscrow} from "../interfaces/IVotingEscrow.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+  SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -13,7 +15,7 @@ contract Redeemer is Ownable {
   using SafeMath for uint256;
 
   // Maximum % of rbn staked redeemable. 2 decimals i.e 100 * 10 ** 2 = 100% possible to redeem
-  uint16 public maxRedeemPCT;
+  uint256 public maxRedeemPCT;
   // Seizer implementation
   ISeizer public seizerImplementation;
   // veCRV escrow contract
@@ -25,15 +27,15 @@ contract Redeemer is Ownable {
    * @param _owner new owner
    * @param _maxRedeemPCT max redeem pct
    */
-  constructor(address _owner, uint16 _maxRedeemPCT) {
+  constructor(address _owner, uint256 _maxRedeemPCT) {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
     );
+    require(_owner != address(0), "_owner is 0x0");
 
-    if (_owner != address(0)) {
-      transferOwnership(_owner);
-    }
+    transferOwnership(_owner);
+
     maxRedeemPCT = _maxRedeemPCT;
   }
 
@@ -64,7 +66,7 @@ contract Redeemer is Ownable {
    * @dev Set new max redeemeable pct
    * @param _maxRedeemPCT new max redeem pct
    */
-  function setMaxRedeemPCT(uint16 _maxRedeemPCT) external onlyOwner {
+  function setMaxRedeemPCT(uint256 _maxRedeemPCT) external onlyOwner {
     require(
       _maxRedeemPCT > 0 && _maxRedeemPCT < 10000,
       "maxRedeemPCT is not between 0% - 100%"
@@ -82,9 +84,10 @@ contract Redeemer is Ownable {
       "votingEscrowContract is 0x0"
     );
 
-    uint256 amountToRedeem = address(seizerImplementation) == address(0)
-      ? _amount
-      : seizerImplementation.amountToRedeem(address(votingEscrowContract));
+    uint256 amountToRedeem =
+      address(seizerImplementation) == address(0)
+        ? _amount
+        : seizerImplementation.amountToRedeem(address(votingEscrowContract));
 
     require(
       amountToRedeem <=

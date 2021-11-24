@@ -7,26 +7,23 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
-import {
-  assertBNClose,
-  assertBNClosePercent,
-} from "../../test-utils/assertions";
+import { assertBNClose, assertBNClosePercent } from "../utils/assertions";
 import {
   advanceBlock,
   getTimestamp,
   increaseTime,
   increaseTimeTo,
   latestBlock,
-} from "../../test-utils/time";
-import { BN, simpleToExactAmount, maximum, sqrt } from "../../test-utils/math";
-import { StandardAccounts } from "../../test-utils/machines";
+} from "../utils/time";
+import { BN, simpleToExactAmount, maximum, sqrt } from "../utils/math";
+import { StandardAccounts } from "../utils/machines";
 import {
   ONE_WEEK,
   ONE_HOUR,
   ONE_DAY,
   ONE_YEAR,
   DEFAULT_DECIMALS,
-} from "../../test-utils/constants";
+} from "../utils/constants";
 import { Account } from "../../types";
 
 chai.use(solidity);

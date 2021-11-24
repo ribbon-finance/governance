@@ -7,16 +7,12 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
-import {
-  getTimestamp,
-  takeSnapshot,
-  revertToSnapShot,
-} from "../../test-utils/time";
-import { BN, simpleToExactAmount } from "../../test-utils/math";
-import { StandardAccounts } from "../../test-utils/machines";
+import { getTimestamp, takeSnapshot, revertToSnapShot } from "../utils/time";
+import { BN, simpleToExactAmount } from "../utils/math";
+import { StandardAccounts } from "../utils/machines";
 import { Account } from "../../types";
-import { ZERO_ADDRESS } from "../../test-utils/constants";
-import { ONE_WEEK, DEFAULT_DECIMALS } from "../../test-utils/constants";
+import { ZERO_ADDRESS } from "../utils/constants";
+import { ONE_WEEK, DEFAULT_DECIMALS } from "../utils/constants";
 chai.use(solidity);
 
 describe("Fee Distributor", () => {

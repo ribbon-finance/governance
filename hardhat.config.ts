@@ -1,10 +1,11 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-truffle5");
-require("dotenv").config();
-require("@nomiclabs/hardhat-etherscan");
-require("@nomiclabs/hardhat-web3");
-require("@nomiclabs/hardhat-vyper");
+import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-truffle5";
+import "@nomiclabs/hardhat-etherscan";
+import "@nomiclabs/hardhat-web3";
+import "@nomiclabs/hardhat-vyper";
 import "@nomiclabs/hardhat-ethers";
+
+require("dotenv").config();
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
