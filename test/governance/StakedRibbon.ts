@@ -10,7 +10,6 @@ import { governanceFixture } from "./fixtures";
 import { expandTo18Decimals } from "./utils";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Provider } from "@ethersproject/abstract-provider";
 import { parseEther } from "@ethersproject/units";
 
 chai.use(solidity);
@@ -32,7 +31,6 @@ describe("StakedRibbon", () => {
   let minter: SignerWithAddress;
   let admin: SignerWithAddress;
   let wallet: Wallet, other0: SignerWithAddress, other1: SignerWithAddress;
-  let provider: Provider;
 
   beforeEach(async () => {
     wallet = await ethers.Wallet.fromMnemonic(
@@ -41,7 +39,6 @@ describe("StakedRibbon", () => {
     [, other0, other1] = await ethers.getSigners();
     const fixture = await governanceFixture();
     sRBN = fixture.sRBN;
-    provider = ethers.provider;
     minter = fixture.minter;
     admin = fixture.admin;
 

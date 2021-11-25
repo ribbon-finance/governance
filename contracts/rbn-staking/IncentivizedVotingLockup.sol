@@ -86,20 +86,19 @@ contract IncentivisedVotingLockup is
   struct Point {
     int128 bias;
     int128 slope;
-    uint256 ts;
-    uint256 blk;
+    uint128 ts;
+    uint128 blk;
   }
 
   struct LockedBalance {
     int128 amount;
-    uint256 end;
+    uint128 end;
   }
 
   enum LockAction {CREATE_LOCK, INCREASE_LOCK_AMOUNT, INCREASE_LOCK_TIME}
 
   constructor(
     address _stakingToken,
-    address _owner,
     address _rbnRedeemer,
     string memory _name,
     string memory _symbol
@@ -113,8 +112,8 @@ contract IncentivisedVotingLockup is
       Point({
         bias: int128(0),
         slope: int128(0),
-        ts: block.timestamp,
-        blk: block.number
+        ts: uint128(block.timestamp),
+        blk: uint128(block.number)
       });
     pointHistory.push(init);
 
@@ -146,14 +145,6 @@ contract IncentivisedVotingLockup is
   }
 
   /**
-   * @dev Validates that the tx sender is rbnRedeemer contract
-   */
-  modifier onlyRBNRedeemer() {
-    require(msg.sender == rbnRedeemer, "Must be rbn redeemer contract");
-    _;
-  }
-
-  /**
    * @dev Check if the call is from a whitelisted smart contract, revert if not
    * @param _addr address to be checked
    */
@@ -181,8 +172,10 @@ contract IncentivisedVotingLockup is
    * @dev Redeems rbn to redeemer contract in case criterium met (i.e smart contract hack, vaults get rekt)
    * @param _amount amount to withdraw to redeemer contract
    */
-  function redeemRBN(uint256 _amount) external onlyRBNRedeemer {
-    stakingToken.safeTransfer(rbnRedeemer, _amount);
+  function redeemRBN(uint256 _amount) external {
+    address redeemer = rbnRedeemer;
+    require(msg.sender == redeemer, "Must be rbn redeemer contract");
+    stakingToken.safeTransfer(redeemer, _amount);
     totalLocked -= _amount;
   }
 
@@ -276,8 +269,8 @@ contract IncentivisedVotingLockup is
       }
 
       userPointEpoch[_addr] = uEpoch + 1;
-      userNewPoint.ts = block.timestamp;
-      userNewPoint.blk = block.number;
+      userNewPoint.ts = uint128(block.timestamp);
+      userNewPoint.blk = uint128(block.number);
       userPointHistory[_addr].push(userNewPoint);
 
       // } end
@@ -296,7 +289,12 @@ contract IncentivisedVotingLockup is
     }
 
     Point memory lastPoint =
-      Point({bias: 0, slope: 0, ts: block.timestamp, blk: block.number});
+      Point({
+        bias: 0,
+        slope: 0,
+        ts: uint128(block.timestamp),
+        blk: uint128(block.number)
+      });
     if (epoch > 0) {
       lastPoint = pointHistory[epoch];
     }
@@ -342,15 +340,16 @@ contract IncentivisedVotingLockup is
         lastPoint.slope = 0;
       }
       lastCheckpoint = iterativeTime;
-      lastPoint.ts = iterativeTime;
-      lastPoint.blk =
+      lastPoint.ts = uint128(iterativeTime);
+      lastPoint.blk = uint128(
         initialLastPoint.blk +
-        blockSlope.mulTruncate(iterativeTime - initialLastPoint.ts);
+          blockSlope.mulTruncate(iterativeTime - initialLastPoint.ts)
+      );
 
       // when epoch is incremented, we either push here or after slopes updated below
       epoch = epoch + 1;
       if (iterativeTime == block.timestamp) {
-        lastPoint.blk = block.number;
+        lastPoint.blk = uint128(block.number);
         break;
       } else {
         // pointHistory[epoch] = lastPoint;
@@ -425,7 +424,7 @@ contract IncentivisedVotingLockup is
     newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
     totalLocked += _value;
     if (_unlockTime != 0) {
-      newLocked.end = _unlockTime;
+      newLocked.end = uint128(_unlockTime);
     }
     locked[_addr] = newLocked;
 
@@ -773,7 +772,7 @@ contract IncentivisedVotingLockup is
         break;
       }
       lastPoint.slope = lastPoint.slope + dSlope;
-      lastPoint.ts = iterativeTime;
+      lastPoint.ts = uint128(iterativeTime);
     }
 
     if (lastPoint.bias < 0) {
@@ -831,47 +830,5 @@ contract IncentivisedVotingLockup is
     // Now dTime contains info on how far are we beyond point
 
     return _supplyAt(point, point.ts + dTime);
-  }
-
-  /***************************************
-                REWARDS - GETTERS
-    ****************************************/
-
-  /**
-   * @dev Gets the most recent Static Balance (bias) for a user
-   * @param _addr User for which to retrieve static balance
-   * @return uint256 balance
-   */
-  function staticBalanceOf(address _addr) public view returns (uint256) {
-    uint256 uepoch = userPointEpoch[_addr];
-    if (uepoch == 0 || userPointHistory[_addr][uepoch].bias == 0) {
-      return 0;
-    }
-    return
-      _staticBalance(
-        userPointHistory[_addr][uepoch].slope,
-        userPointHistory[_addr][uepoch].ts,
-        locked[_addr].end
-      );
-  }
-
-  function _staticBalance(
-    int128 _slope,
-    uint256 _startTime,
-    uint256 _endTime
-  ) internal pure returns (uint256) {
-    if (_startTime > _endTime) return 0;
-    // get lockup length (end - point.ts)
-    uint256 lockupLength = _endTime - _startTime;
-    // s = amount * sqrt(length)
-    uint256 s = SafeCast.toUint256(_slope * 10000) * Root.sqrt(lockupLength);
-    return s;
-  }
-
-  /**
-   * @dev Gets the RewardsToken
-   */
-  function getRewardToken() external view returns (IERC20) {
-    return stakingToken;
   }
 }
