@@ -1,8 +1,11 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-truffle5");
+import "@nomiclabs/hardhat-waffle";
+import "@nomiclabs/hardhat-truffle5";
+import "@nomiclabs/hardhat-etherscan";
+import "@nomiclabs/hardhat-web3";
+import "@nomiclabs/hardhat-vyper";
+import "@nomiclabs/hardhat-ethers";
+
 require("dotenv").config();
-require("@nomiclabs/hardhat-etherscan");
-require("@nomiclabs/hardhat-web3");
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
@@ -58,6 +61,9 @@ module.exports = {
   },
   mocha: {
     timeout: 200000,
+  },
+  vyper: {
+    version: "0.2.7",
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
