@@ -19,25 +19,29 @@ contract SmartWalletWhitelist {
     emit ApproveWallet(_voter);
   }
 
-  function commitSetChecker(address _checker) external {
+  /**
+   * @dev Validates that the tx sender is dao contract
+   */
+  modifier onlyDAO() {
     require(msg.sender == dao, "!dao");
+    _;
+  }
+
+  function commitSetChecker(address _checker) external onlyDAO {
     future_checker = _checker;
   }
 
-  function applySetChecker() external {
-    require(msg.sender == dao, "!dao");
+  function applySetChecker() external onlyDAO {
     checker = future_checker;
   }
 
-  function approveWallet(address _wallet) public {
-    require(msg.sender == dao, "!dao");
+  function approveWallet(address _wallet) public onlyDAO {
     wallets[_wallet] = true;
 
     emit ApproveWallet(_wallet);
   }
 
-  function revokeWallet(address _wallet) external {
-    require(msg.sender == dao, "!dao");
+  function revokeWallet(address _wallet) external onlyDAO {
     wallets[_wallet] = false;
 
     emit RevokeWallet(_wallet);

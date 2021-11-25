@@ -169,7 +169,7 @@ contract IncentivisedVotingLockup is
 
   /** @dev Modifier to ensure contract has not stopped */
   modifier contractNotStopped() {
-    require(!contractStopped, "Contract is expired");
+    require(!contractStopped, "Contract is stopped");
     _;
   }
 
