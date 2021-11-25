@@ -2,9 +2,14 @@
   "compilerOptions": {
     "target": "es5",
     "module": "commonjs",
-    "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
     "allowJs": true
-  }
+  },
+  "include": ["./types/**/*.ts", "./test/**/*.ts", "./test-utils/**/*.ts"],
+  "files": [
+      "./hardhat.config.ts"
+  ]
 }

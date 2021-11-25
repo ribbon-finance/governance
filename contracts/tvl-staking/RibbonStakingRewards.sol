@@ -8,11 +8,11 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Inheritance
 import "../interfaces/IStakingRewards.sol";
-import "../tvl-staking/RewardsDistributionRecipient.sol";
+import "./RewardsDistributionRecipient.sol";
 import "../common/Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
-contract KovanStakingRewards is
+contract StakingRewards is
   IStakingRewards,
   RewardsDistributionRecipient,
   ReentrancyGuard,
@@ -27,15 +27,13 @@ contract KovanStakingRewards is
   IERC20 public stakingToken;
   uint256 public periodFinish = 0;
   uint256 public rewardRate = 0;
-  uint256 public rewardsDuration = 7 days;
+  uint256 public rewardsDuration = 28 days;
   uint256 public lastUpdateTime;
   uint256 public rewardPerTokenStored;
 
   // timestamp dictating at what time of week to release rewards
   // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
   uint256 public startEmission;
-
-  uint256 private constant WEEK = 100 seconds;
 
   mapping(address => uint256) public userRewardPerTokenPaid;
   mapping(address => uint256) public rewards;
@@ -90,7 +88,7 @@ contract KovanStakingRewards is
   function lastTimeRewardApplicable() public view override returns (uint256) {
     return
       Math.min(
-        _numWeeksPassed(block.timestamp).mul(WEEK).add(startEmission),
+        _numWeeksPassed(block.timestamp).mul(1 weeks).add(startEmission),
         periodFinish
       );
   }
@@ -147,15 +145,22 @@ contract KovanStakingRewards is
     require(amount > 0, "Cannot withdraw 0");
     _totalSupply = _totalSupply.sub(amount);
     _balances[msg.sender] = _balances[msg.sender].sub(amount);
+    if (block.timestamp < periodFinish.add(1 days)) {
+      rewards[msg.sender] = 0;
+    }
     stakingToken.safeTransfer(msg.sender, amount);
     emit Withdrawn(msg.sender, amount);
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    uint256 reward = rewards[msg.sender];
+    uint256 reward =
+      block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
     if (reward > 0) {
       rewards[msg.sender] = 0;
-      rewardsToken.safeTransfer(msg.sender, reward);
+      rewardsToken.safeTransfer(
+        msg.sender,
+        Math.min(reward, rewardsToken.balanceOf(address(this)))
+      );
       emit RewardPaid(msg.sender, reward);
     }
   }
@@ -169,7 +174,7 @@ contract KovanStakingRewards is
     if (time < startEmission) {
       return 0;
     }
-    return time.sub(startEmission).div(WEEK);
+    return time.sub(startEmission).div(1 weeks).add(1);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -198,18 +203,9 @@ contract KovanStakingRewards is
       "Provided reward too high"
     );
 
-    periodFinish = block.timestamp.add(rewardsDuration);
+    periodFinish = startEmission.add(rewardsDuration);
     lastUpdateTime = lastTimeRewardApplicable();
     emit RewardAdded(reward);
-  }
-
-  // End rewards emission earlier
-  function updatePeriodFinish(uint256 timestamp)
-    external
-    onlyOwner
-    updateReward(address(0))
-  {
-    periodFinish = timestamp;
   }
 
   // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
@@ -234,6 +230,15 @@ contract KovanStakingRewards is
     emit RewardsDurationUpdated(rewardsDuration);
   }
 
+  function setStartEmission(uint256 _startEmission) external onlyOwner {
+    require(
+      block.timestamp < _startEmission,
+      "Start emission must be in the future"
+    );
+    startEmission = _startEmission;
+    emit StartEmissionUpdated(startEmission);
+  }
+
   /* ========== MODIFIERS ========== */
 
   modifier updateReward(address account) {
@@ -253,5 +258,6 @@ contract KovanStakingRewards is
   event Withdrawn(address indexed user, uint256 amount);
   event RewardPaid(address indexed user, uint256 reward);
   event RewardsDurationUpdated(uint256 newDuration);
+  event StartEmissionUpdated(uint256 StartEmissionUpdated);
   event Recovered(address token, uint256 amount);
 }

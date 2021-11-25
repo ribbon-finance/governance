@@ -2,7 +2,6 @@ pragma solidity ^0.5.16;
 pragma experimental ABIEncoderV2;
 
 import "./SafeMath.sol";
-import "hardhat/console.sol";
 
 contract StakedRibbon {
     /// @notice EIP-20 token name for this token
