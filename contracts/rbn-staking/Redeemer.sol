@@ -75,19 +75,20 @@ contract Redeemer is Ownable {
   }
 
   /**
-   * @dev Redeems the rbn
-   * @param _amount is the amount
+   * @dev Redeems the rbn using seizer implementation logic
    */
-  function redeemRBN(uint256 _amount) external onlyOwner {
+  function redeemRBN() external onlyOwner {
     require(
       address(votingEscrowContract) != address(0),
       "votingEscrowContract is 0x0"
     );
+    require(
+      address(seizerImplementation) != address(0),
+      "seizerImplementation is 0x0"
+    );
 
     uint256 amountToRedeem =
-      address(seizerImplementation) == address(0)
-        ? _amount
-        : seizerImplementation.amountToRedeem(address(votingEscrowContract));
+      seizerImplementation.amountToRedeem(address(votingEscrowContract));
 
     require(
       amountToRedeem <=
@@ -98,6 +99,27 @@ contract Redeemer is Ownable {
     votingEscrowContract.redeemRBN(amountToRedeem);
 
     emit RBNRedeemed(amountToRedeem);
+  }
+
+  /**
+   * @dev Redeems the rbn using manual amount
+   * @param _amount is the amount
+   */
+  function redeemRBN(uint256 _amount) external onlyOwner {
+    require(
+      address(votingEscrowContract) != address(0),
+      "votingEscrowContract is 0x0"
+    );
+
+    require(
+      _amount <=
+        votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2),
+      "Amount to redeem must be less than max redeem pct!"
+    );
+
+    votingEscrowContract.redeemRBN(_amount);
+
+    emit RBNRedeemed(_amount);
   }
 
   /**

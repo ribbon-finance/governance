@@ -764,7 +764,9 @@ describe("IncentivisedVotingLockup", () => {
     it("reverts on too high seize amount", async () => {
       amountToSeize = simpleToExactAmount(3000, DEFAULT_DECIMALS);
       await expect(
-        redeemer.connect(sa.fundManager.signer).redeemRBN(amountToSeize)
+        redeemer
+          .connect(sa.fundManager.signer)
+          ["redeemRBN(uint256)"](amountToSeize)
       ).to.be.revertedWith(
         "Amount to redeem must be less than max redeem pct!"
       );
@@ -780,7 +782,9 @@ describe("IncentivisedVotingLockup", () => {
       );
       const redeemerRBNBalanceBefore = await mta.balanceOf(redeemer.address);
 
-      await redeemer.connect(sa.fundManager.signer).redeemRBN(amountToSeize);
+      redeemer
+        .connect(sa.fundManager.signer)
+        ["redeemRBN(uint256)"](amountToSeize);
 
       const aliceDataAfter = await snapshotData(alice);
       const bobDataAfter = await snapshotData(bob);

@@ -17,24 +17,24 @@ contract TestWrapperSC {
     votingLockupEscrow = _votingLockupEscrow;
   }
 
-  function createLock() external returns (address) {
+  function createLock() external {
     IIncentivisedVotingLockup(votingLockupEscrow).createLock(
       3,
       (block.timestamp).add(365 days)
     );
   }
 
-  function increaseLockAmount() external returns (address) {
+  function increaseLockAmount() external {
     IIncentivisedVotingLockup(votingLockupEscrow).increaseLockAmount(3);
   }
 
-  function increaseLockLength() external returns (address) {
+  function increaseLockLength() external {
     IIncentivisedVotingLockup(votingLockupEscrow).increaseLockLength(
       block.timestamp.add(730 days)
     );
   }
 
-  function approve(address _stakingToken) external returns (address) {
+  function approve(address _stakingToken) external {
     IERC20 stakingToken = IERC20(_stakingToken);
     stakingToken.safeApprove(
       votingLockupEscrow,

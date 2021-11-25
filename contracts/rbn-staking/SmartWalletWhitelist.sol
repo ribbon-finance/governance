@@ -13,7 +13,7 @@ contract SmartWalletWhitelist {
   event RevokeWallet(address);
 
   //voter for crv: https://etherscan.io/address/0xF147b8125d2ef93FB6965Db97D6746952a133934#code
-  constructor(address _dao, address _voter) public {
+  constructor(address _dao, address _voter) {
     dao = _dao;
     wallets[_voter] = true;
     emit ApproveWallet(_voter);
