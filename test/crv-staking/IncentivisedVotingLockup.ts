@@ -32,11 +32,15 @@ describe("IncentivisedVotingLockup", () => {
   let RibbonToken: ContractFactory;
   let IncentivisedVotingLockup: ContractFactory;
   let Redeemer: ContractFactory;
+  let TestWrapperSC: ContractFactory;
+  let SmartWalletWhitelist: ContractFactory;
 
   let mta: Contract,
     redeemer: Contract,
     votingLockup: Contract,
-    sa: StandardAccounts;
+    testWrapperSC: Contract,
+    smartWalletWhitelist: Contract;
+  sa: StandardAccounts;
 
   before("Init contract", async () => {
     const accounts = await ethers.getSigners();
@@ -61,6 +65,16 @@ describe("IncentivisedVotingLockup", () => {
 
     await redeemer.deployed();
 
+    SmartWalletWhitelist = await ethers.getContractFactory(
+      "SmartWalletWhitelist"
+    );
+    smartWalletWhitelist = await SmartWalletWhitelist.deploy(
+      sa.fundManager.address,
+      sa.dummy1.address
+    );
+
+    await smartWalletWhitelist.deployed();
+
     IncentivisedVotingLockup = await ethers.getContractFactory(
       "IncentivisedVotingLockup"
     );
@@ -77,6 +91,9 @@ describe("IncentivisedVotingLockup", () => {
     await redeemer
       .connect(sa.fundManager.signer)
       .setVotingEscrowContract(votingLockup.address);
+
+    TestWrapperSC = await ethers.getContractFactory("TestWrapperSC");
+    testWrapperSC = await TestWrapperSC.deploy(votingLockup.address);
   });
 
   const goToNextUnixWeekStart = async () => {
@@ -367,6 +384,61 @@ describe("IncentivisedVotingLockup", () => {
         await votingLockup
           .connect(alice.signer)
           .createLock(stakeAmt1, start.add(ONE_YEAR));
+      });
+    });
+
+    describe("checking whitelist", () => {
+      it("fails when trying to commit smart wallet checker as non-owner", async () => {
+        await expect(
+          votingLockup
+            .connect(alice.signer)
+            .commitSmartWalletChecker(smartWalletWhitelist)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+      it("fails when trying to approve smart wallet checker as non-owner", async () => {
+        await expect(
+          votingLockup.connect(alice.signer).applySmartWalletChecker()
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+      it("sets smart wallet whitelist and applies it", async () => {
+        votingLockup
+          .connect(sa.fundManager.signer)
+          .commitSmartWalletChecker(smartWalletWhitelist);
+        votingLockup.connect(sa.fundManager.signer).applySmartWalletChecker();
+        expect(await smartWalletWhitelist.futureSmartWalletChecker()).eq(
+          smartWalletWhitelist
+        );
+        expect(await smartWalletWhitelist.smartWalletChecker()).eq(
+          smartWalletWhitelist
+        );
+      });
+      it("fails when trying to lock when not on whitelist", async () => {
+        await expect(
+          testWrapperSC.connect(alice.signer).createLock()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+        await expect(
+          testWrapperSC.connect(alice.signer).increaseLockAmount()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+        await expect(
+          testWrapperSC.connect(alice.signer).increaseLockLength()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+      });
+      it("locks when on whitelist", async () => {
+        await votingLockup
+          .connect(sa.fundManager.signer)
+          .commitSmartWalletChecker(smartWalletWhitelist);
+        await votingLockup
+          .connect(sa.fundManager.signer)
+          .applySmartWalletChecker();
+        await expect(
+          testWrapperSC.connect(alice.signer).createLock()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+        await smartWalletWhitelist
+          .connect(sa.fundManager.signer)
+          .approveWallet(testWrapperSC.address);
+        testWrapperSC.connect(alice.signer).createLock();
+        testWrapperSC.connect(bob.signer).increaseLockAmount();
+        testWrapperSC.connect(charlie.signer).increaseLockLength();
       });
     });
 

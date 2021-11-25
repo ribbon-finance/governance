@@ -31,7 +31,6 @@ describe("SmartWalletWhitelist", () => {
 
     await checker.deployed();
 
-    // Get redeemer contract
     SmartWalletWhitelist = await ethers.getContractFactory(
       "SmartWalletWhitelist"
     );
