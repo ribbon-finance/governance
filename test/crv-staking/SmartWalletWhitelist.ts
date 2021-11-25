@@ -19,7 +19,7 @@ describe("SmartWalletWhitelist", () => {
   let SmartWalletWhitelist: ContractFactory;
   let TestChecker: ContractFactory;
 
-  let smartWalletWhitelist: Contract, checker: Contract;
+  let smartWalletWhitelist: Contract, checker: Contract, sa: StandardAccounts;
 
   before("Init contract", async () => {
     const accounts = await ethers.getSigners();
@@ -46,8 +46,8 @@ describe("SmartWalletWhitelist", () => {
     it("returns dao", async () => {
       expect(await smartWalletWhitelist.dao()).eq(sa.fundManager.address);
     });
-    it("returns voter", async () => {
-      expect(await smartWalletWhitelist.voter()).eq(sa.dummy1.address);
+    it("returns voter as whitelisted", async () => {
+      expect(await smartWalletWhitelist.wallets(sa.dummy1.address)).eq(true);
     });
   });
 
@@ -68,21 +68,21 @@ describe("SmartWalletWhitelist", () => {
     });
     it("approves wallet", async () => {
       expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(false);
-      smartWalletWhitelist
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
         .approveWallet(sa.dummy2.address);
       expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(true);
     });
     it("revokes wallet", async () => {
-      expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(false);
-      smartWalletWhitelist
+      expect(await smartWalletWhitelist.check(sa.dummy3.address)).eq(false);
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .approveWallet(sa.dummy2.address);
-      expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(true);
-      smartWalletWhitelist
+        .approveWallet(sa.dummy3.address);
+      expect(await smartWalletWhitelist.check(sa.dummy3.address)).eq(true);
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .revokeWallet(sa.dummy2.address);
-      expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(false);
+        .revokeWallet(sa.dummy3.address);
+      expect(await smartWalletWhitelist.check(sa.dummy3.address)).eq(false);
     });
   });
 
@@ -101,44 +101,47 @@ describe("SmartWalletWhitelist", () => {
     });
     it("commits checker", async () => {
       expect(await smartWalletWhitelist.future_checker()).eq(ZERO_ADDRESS);
-      smartWalletWhitelist
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
         .commitSetChecker(sa.dummy2.address);
       expect(await smartWalletWhitelist.future_checker()).eq(sa.dummy2.address);
     });
     it("applies checker", async () => {
-      expect(await smartWalletWhitelist.future_checker()).eq(ZERO_ADDRESS);
-      smartWalletWhitelist
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .commitSetChecker(sa.dummy2.address);
-      expect(await smartWalletWhitelist.future_checker()).eq(sa.dummy2.address);
+        .commitSetChecker(sa.default.address);
+      expect(await smartWalletWhitelist.future_checker()).eq(
+        sa.default.address
+      );
       expect(await smartWalletWhitelist.checker()).eq(ZERO_ADDRESS);
-      smartWalletWhitelist.connect(sa.fundManager.signer).applySetChecker();
-      expect(await smartWalletWhitelist.checker()).eq(sa.dummy2.address);
+      await smartWalletWhitelist
+        .connect(sa.fundManager.signer)
+        .applySetChecker();
+      expect(await smartWalletWhitelist.checker()).eq(sa.default.address);
     });
     it("changes whitelist from checker", async () => {
-      smartWalletWhitelist
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .approveWallet(sa.questMaster.address);
-      expect(await smartWalletWhitelist.check(sa.questMaster.address)).eq(true);
-      smartWalletWhitelist
+        .approveWallet(sa.governor.address);
+      expect(await smartWalletWhitelist.check(sa.governor.address)).eq(true);
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .commitSetChecker(checker);
-      smartWalletWhitelist.connect(sa.fundManager.signer).applySetChecker();
-      expect(await smartWalletWhitelist.check(sa.questMaster.address)).eq(true);
-      checker
+        .commitSetChecker(checker.address);
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .setWallet(sa.questMaster.address, true);
-      smartWalletWhitelist
+        .applySetChecker();
+      expect(await smartWalletWhitelist.check(sa.governor.address)).eq(true);
+      await checker
         .connect(sa.fundManager.signer)
-        .revokeWallet(sa.questMaster.address);
-      expect(await smartWalletWhitelist.check(sa.questMaster.address)).eq(true);
-      checker
+        .setWallet(sa.governor.address, true);
+      await smartWalletWhitelist
         .connect(sa.fundManager.signer)
-        .setWallet(sa.questMaster.address, false);
-      expect(await smartWalletWhitelist.check(sa.questMaster.address)).eq(
-        false
-      );
+        .revokeWallet(sa.governor.address);
+      expect(await smartWalletWhitelist.check(sa.governor.address)).eq(true);
+      await checker
+        .connect(sa.fundManager.signer)
+        .setWallet(sa.governor.address, false);
+      expect(await smartWalletWhitelist.check(sa.governor.address)).eq(false);
     });
   });
 });

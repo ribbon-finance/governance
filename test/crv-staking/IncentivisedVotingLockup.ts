@@ -8,6 +8,7 @@ import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import { assertBNClose, assertBNClosePercent } from "../utils/assertions";
+import { takeSnapshot, revertToSnapShot } from "../utils/time";
 import {
   advanceBlock,
   getTimestamp,
@@ -39,8 +40,8 @@ describe("IncentivisedVotingLockup", () => {
     redeemer: Contract,
     votingLockup: Contract,
     testWrapperSC: Contract,
-    smartWalletWhitelist: Contract;
-  sa: StandardAccounts;
+    smartWalletWhitelist: Contract,
+    sa: StandardAccounts;
 
   before("Init contract", async () => {
     const accounts = await ethers.getSigners();
@@ -80,6 +81,7 @@ describe("IncentivisedVotingLockup", () => {
     );
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
+      sa.fundManager.address,
       redeemer.address,
       await mta.name(),
       await mta.symbol()
@@ -118,10 +120,13 @@ describe("IncentivisedVotingLockup", () => {
       .transfer(sa.other.address, simpleToExactAmount(1000, DEFAULT_DECIMALS));
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
+      sa.fundManager.address,
       redeemer.address,
       await mta.name(),
       await mta.symbol()
     );
+
+    testWrapperSC = await TestWrapperSC.deploy(votingLockup.address);
 
     //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
 
@@ -381,64 +386,17 @@ describe("IncentivisedVotingLockup", () => {
         await votingLockup
           .connect(sa.fundManager.signer)
           .setContractStopped(false);
+        await mta
+          .connect(sa.fundManager.signer)
+          .transfer(sa.questMaster.address, simpleToExactAmount(1, 22));
+        await mta
+          .connect(sa.questMaster.signer)
+          .approve(votingLockup.address, simpleToExactAmount(100, 21));
+        let snapshotId = await takeSnapshot();
         await votingLockup
-          .connect(alice.signer)
+          .connect(sa.questMaster.signer)
           .createLock(stakeAmt1, start.add(ONE_YEAR));
-      });
-    });
-
-    describe("checking whitelist", () => {
-      it("fails when trying to commit smart wallet checker as non-owner", async () => {
-        await expect(
-          votingLockup
-            .connect(alice.signer)
-            .commitSmartWalletChecker(smartWalletWhitelist)
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-      it("fails when trying to approve smart wallet checker as non-owner", async () => {
-        await expect(
-          votingLockup.connect(alice.signer).applySmartWalletChecker()
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-      it("sets smart wallet whitelist and applies it", async () => {
-        votingLockup
-          .connect(sa.fundManager.signer)
-          .commitSmartWalletChecker(smartWalletWhitelist);
-        votingLockup.connect(sa.fundManager.signer).applySmartWalletChecker();
-        expect(await smartWalletWhitelist.futureSmartWalletChecker()).eq(
-          smartWalletWhitelist
-        );
-        expect(await smartWalletWhitelist.smartWalletChecker()).eq(
-          smartWalletWhitelist
-        );
-      });
-      it("fails when trying to lock when not on whitelist", async () => {
-        await expect(
-          testWrapperSC.connect(alice.signer).createLock()
-        ).to.be.revertedWith("Smart contract depositors not allowed");
-        await expect(
-          testWrapperSC.connect(alice.signer).increaseLockAmount()
-        ).to.be.revertedWith("Smart contract depositors not allowed");
-        await expect(
-          testWrapperSC.connect(alice.signer).increaseLockLength()
-        ).to.be.revertedWith("Smart contract depositors not allowed");
-      });
-      it("locks when on whitelist", async () => {
-        await votingLockup
-          .connect(sa.fundManager.signer)
-          .commitSmartWalletChecker(smartWalletWhitelist);
-        await votingLockup
-          .connect(sa.fundManager.signer)
-          .applySmartWalletChecker();
-        await expect(
-          testWrapperSC.connect(alice.signer).createLock()
-        ).to.be.revertedWith("Smart contract depositors not allowed");
-        await smartWalletWhitelist
-          .connect(sa.fundManager.signer)
-          .approveWallet(testWrapperSC.address);
-        testWrapperSC.connect(alice.signer).createLock();
-        testWrapperSC.connect(bob.signer).increaseLockAmount();
-        testWrapperSC.connect(charlie.signer).increaseLockLength();
+        await revertToSnapShot(snapshotId);
       });
     });
 
@@ -658,30 +616,77 @@ describe("IncentivisedVotingLockup", () => {
         expect(davidAfter.totalLocked).eq(
           davidBefore.totalLocked.sub(davidBefore.userLocked.amount)
         );
-      });
-      // cant eject a user if they haven't finished lockup yet
-      it("withdraw user stake", async () => {
-        // charlie is ejected
-        const charlieBefore = await snapshotData(charlie);
-        await votingLockup.connect(charlie.signer).withdraw();
-        const charlieAfter = await snapshotData(charlie);
-
-        expect(charlieAfter.senderStakingTokenBalance).eq(
-          charlieBefore.senderStakingTokenBalance.add(
-            charlieBefore.userLocked.amount
-          )
-        );
-        expect(charlieAfter.userLastPoint.bias).eq(BN.from(0));
-        expect(charlieAfter.userLastPoint.slope).eq(BN.from(0));
-        expect(charlieAfter.userLocked.amount).eq(BN.from(0));
-        expect(charlieAfter.userLocked.end).eq(BN.from(0));
-        expect(charlieAfter.totalLocked).eq(
-          charlieBefore.totalLocked.sub(charlieBefore.userLocked.amount)
-        );
 
         await expect(
           votingLockup.connect(alice.signer).withdraw()
         ).to.be.revertedWith("The lock didn't expire");
+      });
+    });
+
+    describe("checking whitelist", () => {
+      it("fails when trying to commit smart wallet checker as non-owner", async () => {
+        await expect(
+          votingLockup
+            .connect(alice.signer)
+            .commitSmartWalletChecker(smartWalletWhitelist.address)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+      it("fails when trying to approve smart wallet checker as non-owner", async () => {
+        await expect(
+          votingLockup.connect(alice.signer).applySmartWalletChecker()
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+      it("sets smart wallet whitelist and applies it", async () => {
+        await votingLockup
+          .connect(sa.fundManager.signer)
+          .commitSmartWalletChecker(smartWalletWhitelist.address);
+        await votingLockup
+          .connect(sa.fundManager.signer)
+          .applySmartWalletChecker();
+        expect(await votingLockup.futureSmartWalletChecker()).eq(
+          smartWalletWhitelist.address
+        );
+        expect(await votingLockup.smartWalletChecker()).eq(
+          smartWalletWhitelist.address
+        );
+      });
+      it("fails when trying to lock when not on whitelist", async () => {
+        await expect(
+          testWrapperSC.connect(alice.signer).createLock()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+        await expect(
+          testWrapperSC.connect(alice.signer).increaseLockAmount()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+        await expect(
+          testWrapperSC.connect(alice.signer).increaseLockLength()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+      });
+      it("locks when on whitelist", async () => {
+        await votingLockup
+          .connect(sa.fundManager.signer)
+          .commitSmartWalletChecker(smartWalletWhitelist.address);
+        await votingLockup
+          .connect(sa.fundManager.signer)
+          .applySmartWalletChecker();
+        await expect(
+          testWrapperSC.connect(alice.signer).createLock()
+        ).to.be.revertedWith("Smart contract depositors not allowed");
+        await smartWalletWhitelist
+          .connect(sa.fundManager.signer)
+          .approveWallet(testWrapperSC.address);
+        expect(await smartWalletWhitelist.check(testWrapperSC.address)).eq(
+          true
+        );
+        await mta
+          .connect(sa.fundManager.signer)
+          .transfer(testWrapperSC.address, simpleToExactAmount(1, 22));
+        await testWrapperSC.connect(sa.fundManager.signer).approve(mta.address);
+
+        await testWrapperSC.connect(sa.questMaster.signer).createLock();
+        let snapshotId = await takeSnapshot();
+        await testWrapperSC.connect(sa.dummy6.signer).increaseLockLength();
+        await revertToSnapShot(snapshotId);
+        await testWrapperSC.connect(sa.questSigner.signer).increaseLockAmount();
       });
     });
 

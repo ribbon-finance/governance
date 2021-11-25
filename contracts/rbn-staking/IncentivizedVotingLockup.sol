@@ -75,7 +75,7 @@ contract IncentivisedVotingLockup is
   mapping(address => uint256) public userPointEpoch;
   mapping(uint256 => int128) public slopeChanges;
   mapping(address => LockedBalance) public locked;
-  uint256 public contractStopped = false;
+  bool public contractStopped = false;
 
   // Voting token - Checkpointed view only ERC20
   string public name;
@@ -99,6 +99,7 @@ contract IncentivisedVotingLockup is
 
   constructor(
     address _stakingToken,
+    address _owner,
     address _rbnRedeemer,
     string memory _name,
     string memory _symbol
@@ -128,20 +129,6 @@ contract IncentivisedVotingLockup is
     decimals = 18;
 
     END = block.timestamp + MAXTIME;
-  }
-
-  /**
-   * @dev Validates that the user has an expired lock && they still have capacity to earn
-   * @param _addr User address to check
-   */
-  modifier lockupIsOver(address _addr) {
-    LockedBalance memory userLock = locked[_addr];
-    require(
-      userLock.amount > 0 && block.timestamp >= userLock.end,
-      "Users lock didn't expire"
-    );
-    require(staticBalanceOf(_addr) > 0, "User must have existing bias");
-    _;
   }
 
   /**
