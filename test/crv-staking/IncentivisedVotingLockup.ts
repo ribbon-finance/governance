@@ -357,9 +357,12 @@ describe("IncentivisedVotingLockup", () => {
       });
 
       it("fails when trying to lock when contract is stopped", async () => {
-        await votingLockup
+        const tx = await votingLockup
           .connect(sa.fundManager.signer)
           .setContractStopped(true);
+        await expect(tx)
+          .to.emit(votingLockup, "ContractStopped")
+          .withArgs(true);
         await expect(
           votingLockup
             .connect(alice.signer)
@@ -374,6 +377,7 @@ describe("IncentivisedVotingLockup", () => {
             .increaseLockLength(start.add(ONE_YEAR))
         ).to.be.revertedWith("Contract is stopped");
       });
+
       it("locks when contract is not stopped", async () => {
         await votingLockup
           .connect(sa.fundManager.signer)
@@ -440,6 +444,7 @@ describe("IncentivisedVotingLockup", () => {
         // Total locked
         expect(eveData.totalLocked).eq(stakeAmt1.mul(3).add(stakeAmt2));
       });
+
       it("rejects if the params are wrong", async () => {
         await expect(
           votingLockup
@@ -457,6 +462,7 @@ describe("IncentivisedVotingLockup", () => {
             .createLock(BN.from(1), start.sub(ONE_WEEK))
         ).to.be.revertedWith("Can only lock until time in the future");
       });
+
       it("only allows creation up until END date", async () => {
         await expect(
           votingLockup
@@ -484,6 +490,7 @@ describe("IncentivisedVotingLockup", () => {
             votingLockup.connect(eve.signer).increaseLockAmount(BN.from(1))
           ).to.be.revertedWith("Cannot add to expired lock. Withdraw");
         });
+
         it("allows someone to increase lock amount", async () => {
           const charlieSnapBefore = await snapshotData(charlie);
 
@@ -533,6 +540,7 @@ describe("IncentivisedVotingLockup", () => {
               )
           ).to.be.revertedWith("Voting lock can be 4 years max");
         });
+
         it("allows user to extend lock", async () => {
           await goToNextUnixWeekStart();
           const bobSnapBefore = await snapshotData(bob);
@@ -631,11 +639,13 @@ describe("IncentivisedVotingLockup", () => {
             .commitSmartWalletChecker(smartWalletWhitelist.address)
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
+
       it("fails when trying to approve smart wallet checker as non-owner", async () => {
         await expect(
           votingLockup.connect(alice.signer).applySmartWalletChecker()
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
+
       it("sets smart wallet whitelist and applies it", async () => {
         await votingLockup
           .connect(sa.fundManager.signer)
@@ -650,6 +660,7 @@ describe("IncentivisedVotingLockup", () => {
           smartWalletWhitelist.address
         );
       });
+
       it("fails when trying to lock when not on whitelist", async () => {
         await expect(
           testWrapperSC.connect(alice.signer).createLock()
@@ -661,6 +672,7 @@ describe("IncentivisedVotingLockup", () => {
           testWrapperSC.connect(alice.signer).increaseLockLength()
         ).to.be.revertedWith("Smart contract depositors not allowed");
       });
+
       it("locks when on whitelist", async () => {
         await votingLockup
           .connect(sa.fundManager.signer)

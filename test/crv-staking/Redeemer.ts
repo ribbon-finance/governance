@@ -123,10 +123,12 @@ describe("Redeemer", () => {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("it does not revert when setting zero address to seizer implementation", async () => {
-      await redeemer
-        .connect(sa.fundManager.signer)
-        .setSeizerImplementation(ZERO_ADDRESS);
+    it("it reverts when setting zero address to seizer implementation", async () => {
+      await expect(
+        redeemer
+          .connect(sa.fundManager.signer)
+          .setSeizerImplementation(ZERO_ADDRESS)
+      ).to.be.revertedWith("seizerImplementation is 0x0");
     });
 
     it("it sets seizer implementation", async () => {
@@ -159,12 +161,6 @@ describe("Redeemer", () => {
   });
 
   describe("seizing and administrative", () => {
-    before(async () => {
-      await redeemer
-        .connect(sa.fundManager.signer)
-        .setSeizerImplementation(ZERO_ADDRESS);
-    });
-
     it("it reverts when non-admin redeeming rbn", async () => {
       await expect(
         redeemer
@@ -180,18 +176,16 @@ describe("Redeemer", () => {
         redeemer
           .connect(sa.fundManager.signer)
           ["redeemRBN(uint256)"](maxRedeemPCT.div(2))
-      ).to.be.revertedWith("votingEscrowContract is 0x0");
-      await expect(
-        redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()
-      ).to.be.revertedWith("votingEscrowContract is 0x0");
+      ).to.be.reverted;
+      await expect(redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()).to
+        .be.reverted;
     });
     it("it reverts when seizer implementation contract is zero address in redeemRBN()", async () => {
       await redeemer
         .connect(sa.fundManager.signer)
         .setVotingEscrowContract(votingLockup.address);
-      await expect(
-        redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()
-      ).to.be.revertedWith("seizerImplementation is 0x0");
+      await expect(redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()).to
+        .be.reverted;
     });
     it("it reverts when trying to redeem less than available", async () => {
       await redeemer

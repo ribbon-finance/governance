@@ -136,10 +136,10 @@ contract IncentivisedVotingLockup is
    * @param _addr address to be checked
    */
   modifier isWhitelisted(address _addr) {
+    address checker = smartWalletChecker;
     require(
       _addr == tx.origin ||
-        (smartWalletChecker != address(0) &&
-          ISmartWalletChecker(smartWalletChecker).check(_addr)),
+        (checker != address(0) && ISmartWalletChecker(checker).check(_addr)),
       "Smart contract depositors not allowed"
     );
     _;

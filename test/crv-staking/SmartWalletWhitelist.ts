@@ -46,6 +46,7 @@ describe("SmartWalletWhitelist", () => {
     it("returns dao", async () => {
       expect(await smartWalletWhitelist.dao()).eq(sa.fundManager.address);
     });
+
     it("returns voter as whitelisted", async () => {
       expect(await smartWalletWhitelist.wallets(sa.dummy1.address)).eq(true);
     });
@@ -59,6 +60,7 @@ describe("SmartWalletWhitelist", () => {
           .approveWallet(sa.dummy2.address)
       ).to.be.revertedWith("!dao");
     });
+
     it("fails when trying to revoke wallet as non-dao", async () => {
       await expect(
         smartWalletWhitelist
@@ -66,6 +68,7 @@ describe("SmartWalletWhitelist", () => {
           .revokeWallet(sa.dummy2.address)
       ).to.be.revertedWith("!dao");
     });
+
     it("approves wallet", async () => {
       expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(false);
       await smartWalletWhitelist
@@ -73,6 +76,7 @@ describe("SmartWalletWhitelist", () => {
         .approveWallet(sa.dummy2.address);
       expect(await smartWalletWhitelist.check(sa.dummy2.address)).eq(true);
     });
+
     it("revokes wallet", async () => {
       expect(await smartWalletWhitelist.check(sa.dummy3.address)).eq(false);
       await smartWalletWhitelist
@@ -94,11 +98,13 @@ describe("SmartWalletWhitelist", () => {
           .commitSetChecker(sa.dummy2.address)
       ).to.be.revertedWith("!dao");
     });
+
     it("fails when trying to apply checker as non-dao", async () => {
       await expect(
         smartWalletWhitelist.connect(sa.other.signer).applySetChecker()
       ).to.be.revertedWith("!dao");
     });
+
     it("commits checker", async () => {
       expect(await smartWalletWhitelist.future_checker()).eq(ZERO_ADDRESS);
       await smartWalletWhitelist
@@ -106,6 +112,7 @@ describe("SmartWalletWhitelist", () => {
         .commitSetChecker(sa.dummy2.address);
       expect(await smartWalletWhitelist.future_checker()).eq(sa.dummy2.address);
     });
+
     it("applies checker", async () => {
       await smartWalletWhitelist
         .connect(sa.fundManager.signer)
@@ -119,6 +126,7 @@ describe("SmartWalletWhitelist", () => {
         .applySetChecker();
       expect(await smartWalletWhitelist.checker()).eq(sa.default.address);
     });
+
     it("changes whitelist from checker", async () => {
       await smartWalletWhitelist
         .connect(sa.fundManager.signer)
