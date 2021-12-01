@@ -205,6 +205,7 @@ describe("IncentivisedVotingLockup", () => {
 
   interface LockedBalance {
     amount: BN;
+    shares: BN;
     end: BN;
   }
 
@@ -238,7 +239,8 @@ describe("IncentivisedVotingLockup", () => {
       endTime: await votingLockup.END(),
       userLocked: {
         amount: locked[0],
-        end: locked[1],
+        shares: locked[1],
+        end: locked[2],
       },
       userLastPoint: {
         bias: userLastPoint[0],
@@ -439,8 +441,18 @@ describe("IncentivisedVotingLockup", () => {
           "0.4"
         );
 
+        // Shares
+        expect(aliceData.userLocked.shares).eq(stakeAmt1);
+        expect(bobData.userLocked.shares).eq(stakeAmt2);
+        expect(charlieData.userLocked.shares).eq(stakeAmt1);
+        expect(eveData.userLocked.shares).eq(stakeAmt1);
+
         // Total locked
         expect(eveData.totalLocked).eq(stakeAmt1.mul(3).add(stakeAmt2));
+        // Total shares
+        expect(await votingLockup.totalShares()).eq(
+          stakeAmt1.mul(3).add(stakeAmt2)
+        );
       });
 
       it("rejects if the params are wrong", async () => {
@@ -502,6 +514,11 @@ describe("IncentivisedVotingLockup", () => {
           expect(charlieSnapAfter.totalLocked).eq(
             charlieSnapBefore.totalLocked.add(stakeAmt2)
           );
+
+          // Shares
+          expect(charlieSnapAfter.userLocked.shares).eq(
+            charlieSnapBefore.userLocked.shares.add(stakeAmt2)
+          );
         });
       });
 
@@ -551,6 +568,10 @@ describe("IncentivisedVotingLockup", () => {
 
           // Total locked
           expect(bobSnapAfter.totalLocked).eq(bobSnapBefore.totalLocked);
+          // Shares
+          expect(bobSnapAfter.userLocked.shares).eq(
+            bobSnapBefore.userLocked.shares
+          );
         });
       });
     });
@@ -615,9 +636,11 @@ describe("IncentivisedVotingLockup", () => {
             davidBefore.userLocked.amount
           )
         );
+
         expect(davidAfter.userLastPoint.bias).eq(BN.from(0));
         expect(davidAfter.userLastPoint.slope).eq(BN.from(0));
         expect(davidAfter.userLocked.amount).eq(BN.from(0));
+        expect(davidAfter.userLocked.shares).eq(BN.from(0));
         expect(davidAfter.userLocked.end).eq(BN.from(0));
         expect(davidAfter.totalLocked).eq(
           davidBefore.totalLocked.sub(davidBefore.userLocked.amount)
@@ -699,70 +722,53 @@ describe("IncentivisedVotingLockup", () => {
         await testWrapperSC.connect(sa.questSigner.signer).increaseLockAmount();
       });
     });
-
-    describe.skip("expiring the contract", () => {
-      before(async () => {});
-      // cant stake after expiry
-      // cant notify after expiry
-      it("must be done after final period finishes", async () => {
-        await expect(
-          votingLockup.connect(sa.governor.signer).expireContract()
-        ).to.be.revertedWith("Period must be over");
-        await increaseTime(ONE_WEEK.mul(2));
-
-        await expect(
-          votingLockup.connect(alice.signer).withdraw()
-        ).to.be.revertedWith("The lock didn't expire");
-
-        await votingLockup.connect(sa.governor.signer).expireContract();
-        expect(await votingLockup.expired()).eq(true);
-      });
-      it("expires the contract and unlocks all stakes", async () => {
-        await expect(
-          votingLockup
-            .connect(sa.other.signer)
-            .createLock(BN.from(1), (await getTimestamp()).add(ONE_WEEK))
-        ).to.be.revertedWith("Contract is expired");
-        await votingLockup.connect(alice.signer).exit();
-        await votingLockup.connect(bob.signer).exit();
-        await votingLockup.connect(charlie.signer).claimReward();
-        await votingLockup.connect(david.signer).claimReward();
-
-        const aliceAfter = await snapshotData(alice);
-        const bobAfter = await snapshotData(bob);
-        const charlieAfter = await snapshotData(charlie);
-        const davidAfter = await snapshotData(david);
-        const eveAfter = await snapshotData(eve);
-        expect(aliceAfter.userLocked.amount).eq(BN.from(0));
-        expect(aliceAfter.userLocked.end).eq(BN.from(0));
-      });
-    });
   });
 
   describe("allow multisig rbn redeem", () => {
     let alice: Account;
     let bob: Account;
+    let david: Account;
+    let charlie: Account;
+
     let stakeAmt1: BN;
     let stakeAmt2: BN;
     let amountToSeize: BN;
 
     before(async () => {
-      alice = sa.default;
-      bob = sa.dummy1;
+      alice = sa.mockMasset;
+      bob = sa.mockRewardsDistributor;
+      david = sa.mockInterestValidator;
+      charlie = sa.mockRecollateraliser;
 
       stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
       stakeAmt2 = simpleToExactAmount(1000, DEFAULT_DECIMALS);
+
+      await deployFresh();
 
       await mta
         .connect(sa.fundManager.signer)
         .transfer(alice.address, stakeAmt1);
       await mta.connect(sa.fundManager.signer).transfer(bob.address, stakeAmt2);
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(david.address, stakeAmt1);
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(charlie.address, stakeAmt2);
 
       await mta.connect(alice.signer).approve(votingLockup.address, stakeAmt1);
       await mta.connect(bob.signer).approve(votingLockup.address, stakeAmt2);
+      await mta.connect(david.signer).approve(votingLockup.address, stakeAmt1);
+      await mta
+        .connect(charlie.signer)
+        .approve(votingLockup.address, stakeAmt2);
 
-      await votingLockup.connect(alice.signer).increaseLockAmount(stakeAmt1);
-      await votingLockup.connect(bob.signer).increaseLockAmount(stakeAmt2);
+      await votingLockup
+        .connect(alice.signer)
+        .createLock(stakeAmt1, (await getTimestamp()).add(ONE_WEEK.add(1)));
+      await votingLockup
+        .connect(bob.signer)
+        .createLock(stakeAmt2, (await getTimestamp()).add(ONE_WEEK.add(1)));
     });
 
     it("reverts on non-redeemer role", async () => {
@@ -820,6 +826,79 @@ describe("IncentivisedVotingLockup", () => {
       );
       expect(redeemerRBNBalanceAfter).eq(
         redeemerRBNBalanceBefore.add(amountToSeize)
+      );
+
+      await votingLockup
+        .connect(david.signer)
+        .createLock(stakeAmt1, (await getTimestamp()).add(ONE_WEEK.add(1)));
+      const davidData = await snapshotData(david);
+      // amount.mul(totalShares).div(totalRBN);
+      let newDavidShares = stakeAmt1
+        .mul(stakeAmt1.add(stakeAmt2))
+        .div(stakeAmt1.add(stakeAmt2).sub(amountToSeize));
+
+      expect(davidData.userLocked.shares).eq(newDavidShares);
+      expect(davidData.userLocked.amount).eq(stakeAmt1);
+
+      await votingLockup
+        .connect(charlie.signer)
+        .createLock(stakeAmt2, (await getTimestamp()).add(ONE_WEEK.add(1)));
+      const charlieData = await snapshotData(charlie);
+      // amount.mul(totalShares).div(totalRBN);
+      let newCharlieShares = stakeAmt2
+        .mul(stakeAmt1.add(stakeAmt2).add(newDavidShares))
+        .div(stakeAmt1.mul(2).add(stakeAmt2).sub(amountToSeize));
+
+      expect(charlieData.userLocked.shares).eq(newCharlieShares);
+      expect(charlieData.userLocked.amount).eq(stakeAmt2);
+
+      await increaseTime(ONE_WEEK.mul(2));
+
+      // alice withdraws
+      const aliceBefore = await snapshotData(alice);
+      let aliceToWithdraw = aliceBefore.userLocked.shares
+        .mul(aliceBefore.totalLocked)
+        .div(await votingLockup.totalShares());
+
+      await votingLockup.connect(alice.signer).withdraw();
+      const aliceAfter = await snapshotData(alice);
+
+      // depositAmount / 2 < alice withdraw Amount < depositAmount * 2 / 3
+      // she deposited 10 rbn into total of 1010 rbn, and we withdrew 500 => 10 * (1010 - 500) / 1010
+
+      expect(aliceToWithdraw).lt(aliceBefore.userLocked.amount.mul(2).div(3));
+
+      expect(aliceToWithdraw).gt(aliceBefore.userLocked.amount.div(2));
+
+      expect(aliceToWithdraw).eq(
+        stakeAmt1
+          .mul(stakeAmt1.add(stakeAmt2).sub(amountToSeize))
+          .div(stakeAmt1.add(stakeAmt2))
+      );
+
+      expect(aliceAfter.senderStakingTokenBalance).eq(
+        aliceBefore.senderStakingTokenBalance.add(aliceToWithdraw)
+      );
+
+      // david withdraws
+      const davidBefore = await snapshotData(david);
+      let davidToWithdraw = davidBefore.userLocked.shares
+        .mul(davidBefore.totalLocked)
+        .div(await votingLockup.totalShares());
+
+      await votingLockup.connect(david.signer).withdraw();
+      const davidAfter = await snapshotData(david);
+
+      // depositAmount = bob withdraw amount
+      // he deposited rbn after seize and so he received more shares
+      // which equals same deposit amount
+
+      // there is rounding error
+
+      expect(davidBefore.userLocked.amount).eq(davidToWithdraw.add(1));
+
+      expect(davidAfter.senderStakingTokenBalance).eq(
+        davidBefore.senderStakingTokenBalance.add(davidToWithdraw)
       );
     });
   });
