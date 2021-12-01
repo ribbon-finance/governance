@@ -17,6 +17,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title  IncentivisedVotingLockup
@@ -40,6 +41,7 @@ contract IncentivisedVotingLockup is
   ReentrancyGuard
 {
   using StableMath for uint256;
+  using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
   /** Shared Events */
@@ -69,7 +71,7 @@ contract IncentivisedVotingLockup is
 
   /** Lockup */
   uint256 public globalEpoch;
-  uint256 public totalLocked;
+  uint256 public totalShares;
   Point[] public pointHistory;
   mapping(address => Point[]) public userPointHistory;
   mapping(address => uint256) public userPointEpoch;
@@ -92,6 +94,7 @@ contract IncentivisedVotingLockup is
 
   struct LockedBalance {
     int128 amount;
+    int128 shares;
     uint128 end;
   }
 
@@ -163,7 +166,6 @@ contract IncentivisedVotingLockup is
     address redeemer = rbnRedeemer;
     require(msg.sender == redeemer, "Must be rbn redeemer contract");
     stakingToken.safeTransfer(redeemer, _amount);
-    totalLocked -= _amount;
   }
 
   /**
@@ -405,11 +407,27 @@ contract IncentivisedVotingLockup is
     LockAction _action
   ) internal {
     LockedBalance memory newLocked =
-      LockedBalance({amount: _oldLocked.amount, end: _oldLocked.end});
+      LockedBalance({
+        amount: _oldLocked.amount,
+        shares: _oldLocked.shares,
+        end: _oldLocked.end
+      });
+
+    uint256 _newShares;
+    uint256 _totalRBN = stakingToken.balanceOf(address(this));
+    if (totalShares == 0 || _totalRBN == 0) {
+      _newShares = _value;
+    } else {
+      uint256 what = _value.mul(totalShares).div(_totalRBN);
+      _newShares = what;
+    }
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
-    totalLocked += _value;
+    newLocked.shares = newLocked.shares + SafeCast.toInt128(int256(_newShares));
+
+    totalShares += _newShares;
+
     if (_unlockTime != 0) {
       newLocked.end = uint128(_unlockTime);
     }
@@ -451,6 +469,7 @@ contract IncentivisedVotingLockup is
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
+        shares: locked[msg.sender].shares,
         end: locked[msg.sender].end
       });
 
@@ -489,6 +508,7 @@ contract IncentivisedVotingLockup is
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
+        shares: locked[msg.sender].shares,
         end: locked[msg.sender].end
       });
 
@@ -522,6 +542,7 @@ contract IncentivisedVotingLockup is
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
+        shares: locked[msg.sender].shares,
         end: locked[msg.sender].end
       });
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
@@ -556,20 +577,28 @@ contract IncentivisedVotingLockup is
    */
   function _withdraw(address _addr) internal nonReentrant {
     LockedBalance memory oldLock =
-      LockedBalance({end: locked[_addr].end, amount: locked[_addr].amount});
+      LockedBalance({
+        end: locked[_addr].end,
+        shares: locked[_addr].shares,
+        amount: locked[_addr].amount
+      });
     require(block.timestamp >= oldLock.end, "The lock didn't expire");
     require(oldLock.amount > 0, "Must have something to withdraw");
 
-    uint256 value = SafeCast.toUint256(oldLock.amount);
+    uint256 shares = SafeCast.toUint256(oldLock.shares);
 
-    LockedBalance memory currentLock = LockedBalance({end: 0, amount: 0});
-    totalLocked -= value;
+    LockedBalance memory currentLock =
+      LockedBalance({end: 0, shares: 0, amount: 0});
     locked[_addr] = currentLock;
 
     // oldLocked can have either expired <= timestamp or zero end
     // currentLock has only 0 end
     // Both can have >= 0 amount
     _checkpoint(_addr, oldLock, currentLock);
+
+    uint256 value =
+      shares.mul(stakingToken.balanceOf(address(this))).div(totalShares);
+    totalShares -= shares;
 
     stakingToken.safeTransfer(_addr, value);
 

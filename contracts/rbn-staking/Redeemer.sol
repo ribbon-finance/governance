@@ -102,7 +102,10 @@ contract Redeemer is Ownable {
   function _redeemRBN(uint256 _amount) internal {
     require(
       _amount <=
-        votingEscrowContract.totalLocked().mul(maxRedeemPCT).div(100 * 10**2),
+        IERC20(votingEscrowContract.stakingToken())
+          .balanceOf(address(votingEscrowContract))
+          .mul(maxRedeemPCT)
+          .div(100 * 10**2),
       "Amount to redeem must be less than max redeem pct!"
     );
     votingEscrowContract.redeemRBN(_amount);

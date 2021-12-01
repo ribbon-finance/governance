@@ -224,7 +224,6 @@ describe("IncentivisedVotingLockup", () => {
     lastPoint: Point;
     totalLocked: BN;
     senderStakingTokenBalance: BN;
-    contractStakingTokenBalance: BN;
   }
 
   const snapshotData = async (sender = sa.default): Promise<ContractData> => {
@@ -252,9 +251,8 @@ describe("IncentivisedVotingLockup", () => {
         ts: lastPoint[2],
         blk: lastPoint[3],
       },
-      totalLocked: await votingLockup.totalLocked(),
+      totalLocked: await mta.balanceOf(votingLockup.address),
       senderStakingTokenBalance: await mta.balanceOf(sender.address),
-      contractStakingTokenBalance: await mta.balanceOf(votingLockup.address),
     };
   };
 
