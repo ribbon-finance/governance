@@ -77,7 +77,7 @@ contract IncentivisedVotingLockup is
   mapping(address => uint256) public userPointEpoch;
   mapping(uint256 => int128) public slopeChanges;
   mapping(address => LockedBalance) public locked;
-  bool public contractStopped = false;
+  bool public contractStopped;
 
   // Voting token - Checkpointed view only ERC20
   string public name;
@@ -93,9 +93,9 @@ contract IncentivisedVotingLockup is
   }
 
   struct LockedBalance {
-    int128 amount;
-    int128 shares;
-    uint128 end;
+    int112 amount;
+    int112 shares;
+    uint32 end;
   }
 
   enum LockAction {CREATE_LOCK, INCREASE_LOCK_AMOUNT, INCREASE_LOCK_TIME}
@@ -235,7 +235,7 @@ contract IncentivisedVotingLockup is
       if (_oldLocked.end > block.timestamp && _oldLocked.amount > 0) {
         userOldPoint.slope =
           _oldLocked.amount /
-          SafeCast.toInt128(int256(MAXTIME));
+          int112(SafeCast.toInt128(int256(MAXTIME)));
         userOldPoint.bias =
           userOldPoint.slope *
           SafeCast.toInt128(int256(_oldLocked.end - block.timestamp));
@@ -243,7 +243,7 @@ contract IncentivisedVotingLockup is
       if (_newLocked.end > block.timestamp && _newLocked.amount > 0) {
         userNewPoint.slope =
           _newLocked.amount /
-          SafeCast.toInt128(int256(MAXTIME));
+          int112(SafeCast.toInt128(int256(MAXTIME)));
         userNewPoint.bias =
           userNewPoint.slope *
           SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
@@ -261,8 +261,6 @@ contract IncentivisedVotingLockup is
       userNewPoint.ts = uint128(block.timestamp);
       userNewPoint.blk = uint128(block.number);
       userPointHistory[_addr].push(userNewPoint);
-
-      // } end
 
       // Read values of scheduled changes in the slope
       // oldLocked.end can be in the past and in the future
@@ -423,13 +421,17 @@ contract IncentivisedVotingLockup is
     }
 
     // Adding to existing lock, or if a lock is expired - creating a new one
-    newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
-    newLocked.shares = newLocked.shares + SafeCast.toInt128(int256(_newShares));
+    newLocked.amount =
+      newLocked.amount +
+      int112(SafeCast.toInt128(int256(_value)));
+    newLocked.shares =
+      newLocked.shares +
+      int112(SafeCast.toInt128(int256(_newShares)));
 
     totalShares += _newShares;
 
     if (_unlockTime != 0) {
-      newLocked.end = uint128(_unlockTime);
+      newLocked.end = uint32(_unlockTime);
     }
     locked[_addr] = newLocked;
 
