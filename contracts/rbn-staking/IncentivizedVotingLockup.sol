@@ -416,8 +416,7 @@ contract IncentivisedVotingLockup is
     if (totalShares == 0 || _totalRBN == 0) {
       _newShares = _value;
     } else {
-      uint256 what = _value.mul(totalShares).div(_totalRBN);
-      _newShares = what;
+      _newShares = _value.mul(totalShares).div(_totalRBN);
     }
 
     // Adding to existing lock, or if a lock is expired - creating a new one
