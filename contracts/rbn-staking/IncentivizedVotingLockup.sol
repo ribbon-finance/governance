@@ -235,7 +235,7 @@ contract IncentivisedVotingLockup is
       if (_oldLocked.end > block.timestamp && _oldLocked.amount > 0) {
         userOldPoint.slope =
           _oldLocked.amount /
-          int112(SafeCast.toInt128(int256(MAXTIME)));
+          StableMath.toInt112(int256(MAXTIME));
         userOldPoint.bias =
           userOldPoint.slope *
           SafeCast.toInt128(int256(_oldLocked.end - block.timestamp));
@@ -243,7 +243,7 @@ contract IncentivisedVotingLockup is
       if (_newLocked.end > block.timestamp && _newLocked.amount > 0) {
         userNewPoint.slope =
           _newLocked.amount /
-          int112(SafeCast.toInt128(int256(MAXTIME)));
+          StableMath.toInt112(int256(MAXTIME));
         userNewPoint.bias =
           userNewPoint.slope *
           SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
@@ -420,12 +420,10 @@ contract IncentivisedVotingLockup is
     }
 
     // Adding to existing lock, or if a lock is expired - creating a new one
-    newLocked.amount =
-      newLocked.amount +
-      int112(SafeCast.toInt128(int256(_value)));
+    newLocked.amount = newLocked.amount + StableMath.toInt112(int256(_value));
     newLocked.shares =
       newLocked.shares +
-      int112(SafeCast.toInt128(int256(_newShares)));
+      StableMath.toInt112(int256(_newShares));
 
     totalShares += _newShares;
 
