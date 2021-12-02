@@ -57,6 +57,7 @@ describe("Fee Distributor", () => {
     );
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
+      sa.fundManager.address,
       redeemer.address,
       await mta.name(),
       await mta.symbol()
@@ -81,17 +82,21 @@ describe("Fee Distributor", () => {
     it("returns voting escrow contract", async () => {
       expect(await feeDistributor.voting_escrow()).eq(votingLockup.address);
     });
+
     it("returns start time for distribution", async () => {
       expect(await feeDistributor.start_time()).eq(
         start.div(ONE_WEEK).mul(ONE_WEEK)
       );
     });
+
     it("returns fee token", async () => {
       expect(await feeDistributor.token()).eq(mta.address);
     });
+
     it("returns admin", async () => {
       expect(await feeDistributor.admin()).eq(sa.fundManager.address);
     });
+
     it("returns emergency return address", async () => {
       expect(await feeDistributor.emergency_return()).eq(
         sa.fundManager.address
