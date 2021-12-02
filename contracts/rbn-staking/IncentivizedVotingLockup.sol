@@ -9,12 +9,15 @@ import {
 } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {ISmartWalletChecker} from "../interfaces/ISmartWalletChecker.sol";
 import {
   SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title  IncentivisedVotingLockup
@@ -34,9 +37,11 @@ import {Root} from "../libraries/Root.sol";
  */
 contract IncentivisedVotingLockup is
   IIncentivisedVotingLockup,
+  Ownable,
   ReentrancyGuard
 {
   using StableMath for uint256;
+  using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
   /** Shared Events */
@@ -48,9 +53,15 @@ contract IncentivisedVotingLockup is
     uint256 ts
   );
   event Withdraw(address indexed provider, uint256 value, uint256 ts);
+  event ContractStopped(bool contractStopped);
 
   // RBN Redeemer contract
   address public rbnRedeemer;
+
+  // Checker for whitelisted (smart contract) wallets which are allowed to deposit
+  // The goal is to prevent tokenizing the escrow
+  address public futureSmartWalletChecker;
+  address public smartWalletChecker;
 
   /** Shared Globals */
   IERC20 public stakingToken;
@@ -60,12 +71,13 @@ contract IncentivisedVotingLockup is
 
   /** Lockup */
   uint256 public globalEpoch;
-  uint256 public totalLocked;
+  uint256 public totalShares;
   Point[] public pointHistory;
   mapping(address => Point[]) public userPointHistory;
   mapping(address => uint256) public userPointEpoch;
   mapping(uint256 => int128) public slopeChanges;
   mapping(address => LockedBalance) public locked;
+  bool public contractStopped;
 
   // Voting token - Checkpointed view only ERC20
   string public name;
@@ -81,19 +93,22 @@ contract IncentivisedVotingLockup is
   }
 
   struct LockedBalance {
-    int128 amount;
-    uint128 end;
+    int112 amount;
+    int112 shares;
+    uint32 end;
   }
 
   enum LockAction {CREATE_LOCK, INCREASE_LOCK_AMOUNT, INCREASE_LOCK_TIME}
 
   constructor(
     address _stakingToken,
+    address _owner,
     address _rbnRedeemer,
     string memory _name,
     string memory _symbol
   ) {
     require(_stakingToken != address(0), "!_stakingToken");
+    require(_owner != address(0), "!_owner");
     require(_rbnRedeemer != address(0), "!_rbnRedeemer");
 
     stakingToken = IERC20(_stakingToken);
@@ -106,6 +121,8 @@ contract IncentivisedVotingLockup is
       });
     pointHistory.push(init);
 
+    transferOwnership(_owner);
+
     decimals = IERC20Detailed(_stakingToken).decimals();
     require(decimals <= 18, "Cannot have more than 18 decimals");
 
@@ -115,6 +132,26 @@ contract IncentivisedVotingLockup is
     decimals = 18;
 
     END = block.timestamp + MAXTIME;
+  }
+
+  /**
+   * @dev Check if the call is from a whitelisted smart contract, revert if not
+   * @param _addr address to be checked
+   */
+  modifier isWhitelisted(address _addr) {
+    address checker = smartWalletChecker;
+    require(
+      _addr == tx.origin ||
+        (checker != address(0) && ISmartWalletChecker(checker).check(_addr)),
+      "Smart contract depositors not allowed"
+    );
+    _;
+  }
+
+  /** @dev Modifier to ensure contract has not stopped */
+  modifier contractNotStopped() {
+    require(!contractStopped, "Contract is stopped");
+    _;
   }
 
   /***************************************
@@ -129,7 +166,21 @@ contract IncentivisedVotingLockup is
     address redeemer = rbnRedeemer;
     require(msg.sender == redeemer, "Must be rbn redeemer contract");
     stakingToken.safeTransfer(redeemer, _amount);
-    totalLocked -= _amount;
+  }
+
+  /**
+   * @dev Set an external contract to check for approved smart contract wallets
+   * @param _addr amount to withdraw to redeemer contract
+   */
+  function commitSmartWalletChecker(address _addr) external onlyOwner {
+    futureSmartWalletChecker = _addr;
+  }
+
+  /**
+   * @dev Apply setting external contract to check approved smart contract wallets
+   */
+  function applySmartWalletChecker() external onlyOwner {
+    smartWalletChecker = futureSmartWalletChecker;
   }
 
   /**
@@ -184,7 +235,7 @@ contract IncentivisedVotingLockup is
       if (_oldLocked.end > block.timestamp && _oldLocked.amount > 0) {
         userOldPoint.slope =
           _oldLocked.amount /
-          SafeCast.toInt128(int256(MAXTIME));
+          StableMath.toInt112(int256(MAXTIME));
         userOldPoint.bias =
           userOldPoint.slope *
           SafeCast.toInt128(int256(_oldLocked.end - block.timestamp));
@@ -192,7 +243,7 @@ contract IncentivisedVotingLockup is
       if (_newLocked.end > block.timestamp && _newLocked.amount > 0) {
         userNewPoint.slope =
           _newLocked.amount /
-          SafeCast.toInt128(int256(MAXTIME));
+          StableMath.toInt112(int256(MAXTIME));
         userNewPoint.bias =
           userNewPoint.slope *
           SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
@@ -210,8 +261,6 @@ contract IncentivisedVotingLockup is
       userNewPoint.ts = uint128(block.timestamp);
       userNewPoint.blk = uint128(block.number);
       userPointHistory[_addr].push(userNewPoint);
-
-      // } end
 
       // Read values of scheduled changes in the slope
       // oldLocked.end can be in the past and in the future
@@ -356,13 +405,30 @@ contract IncentivisedVotingLockup is
     LockAction _action
   ) internal {
     LockedBalance memory newLocked =
-      LockedBalance({amount: _oldLocked.amount, end: _oldLocked.end});
+      LockedBalance({
+        amount: _oldLocked.amount,
+        shares: _oldLocked.shares,
+        end: _oldLocked.end
+      });
+
+    uint256 _newShares;
+    uint256 _totalRBN = stakingToken.balanceOf(address(this));
+    if (totalShares == 0 || _totalRBN == 0) {
+      _newShares = _value;
+    } else {
+      _newShares = _value.mul(totalShares).div(_totalRBN);
+    }
 
     // Adding to existing lock, or if a lock is expired - creating a new one
-    newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
-    totalLocked += _value;
+    newLocked.amount = newLocked.amount + StableMath.toInt112(int256(_value));
+    newLocked.shares =
+      newLocked.shares +
+      StableMath.toInt112(int256(_newShares));
+
+    totalShares += _newShares;
+
     if (_unlockTime != 0) {
-      newLocked.end = uint128(_unlockTime);
+      newLocked.end = SafeCast.toUint32(_unlockTime);
     }
     locked[_addr] = newLocked;
 
@@ -395,11 +461,14 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
+    contractNotStopped
+    isWhitelisted(msg.sender)
   {
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
+        shares: locked[msg.sender].shares,
         end: locked[msg.sender].end
       });
 
@@ -428,10 +497,17 @@ contract IncentivisedVotingLockup is
    * @dev Increases amount of stake thats locked up & resets decay
    * @param _value Additional units of StakingToken to add to exiting stake
    */
-  function increaseLockAmount(uint256 _value) external override nonReentrant {
+  function increaseLockAmount(uint256 _value)
+    external
+    override
+    nonReentrant
+    contractNotStopped
+    isWhitelisted(msg.sender)
+  {
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
+        shares: locked[msg.sender].shares,
         end: locked[msg.sender].end
       });
 
@@ -459,10 +535,13 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
+    contractNotStopped
+    isWhitelisted(msg.sender)
   {
     LockedBalance memory locked_ =
       LockedBalance({
         amount: locked[msg.sender].amount,
+        shares: locked[msg.sender].shares,
         end: locked[msg.sender].end
       });
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
@@ -497,14 +576,18 @@ contract IncentivisedVotingLockup is
    */
   function _withdraw(address _addr) internal nonReentrant {
     LockedBalance memory oldLock =
-      LockedBalance({end: locked[_addr].end, amount: locked[_addr].amount});
+      LockedBalance({
+        end: locked[_addr].end,
+        shares: locked[_addr].shares,
+        amount: locked[_addr].amount
+      });
     require(block.timestamp >= oldLock.end, "The lock didn't expire");
     require(oldLock.amount > 0, "Must have something to withdraw");
 
-    uint256 value = SafeCast.toUint256(oldLock.amount);
+    uint256 shares = SafeCast.toUint256(oldLock.shares);
 
-    LockedBalance memory currentLock = LockedBalance({end: 0, amount: 0});
-    totalLocked -= value;
+    LockedBalance memory currentLock =
+      LockedBalance({end: 0, shares: 0, amount: 0});
     locked[_addr] = currentLock;
 
     // oldLocked can have either expired <= timestamp or zero end
@@ -512,9 +595,24 @@ contract IncentivisedVotingLockup is
     // Both can have >= 0 amount
     _checkpoint(_addr, oldLock, currentLock);
 
+    uint256 value =
+      shares.mul(stakingToken.balanceOf(address(this))).div(totalShares);
+    totalShares -= shares;
+
     stakingToken.safeTransfer(_addr, value);
 
     emit Withdraw(_addr, value, block.timestamp);
+  }
+
+  /**
+   * @dev Stops the contract.
+   * No more staking can happen. Only withdraw.
+   * @param _contractStopped whether contract is stopped
+   */
+  function setContractStopped(bool _contractStopped) external onlyOwner {
+    contractStopped = _contractStopped;
+
+    emit ContractStopped(_contractStopped);
   }
 
   /***************************************

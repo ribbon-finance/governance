@@ -214,4 +214,25 @@ library StableMath {
   {
     return x > upperBound ? upperBound : x;
   }
+
+  /**
+   * @dev Returns the downcasted int112 from int256, reverting on
+   * overflow (when the input is less than smallest int112 or
+   * greater than largest int112).
+   *
+   * Counterpart to Solidity's `int112` operator.
+   *
+   * Requirements:
+   *
+   * - input must fit into 112 bits
+   *
+   * _Available since v3.1._
+   */
+  function toInt112(int256 value) internal pure returns (int112) {
+    require(
+      value >= type(int112).min && value <= type(int112).max,
+      "SafeCast: value doesn't fit in 112 bits"
+    );
+    return int112(value);
+  }
 }

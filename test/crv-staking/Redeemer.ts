@@ -19,10 +19,12 @@ describe("Redeemer", () => {
   let RibbonToken: ContractFactory;
   let IncentivisedVotingLockup: ContractFactory;
   let Redeemer: ContractFactory;
+  let TestSeizerImplementation: ContractFactory;
 
   let mta: Contract,
     redeemer: Contract,
     votingLockup: Contract,
+    testSeizer: Contract,
     sa: StandardAccounts,
     maxRedeemPCT: BN;
 
@@ -51,11 +53,19 @@ describe("Redeemer", () => {
 
     await redeemer.deployed();
 
+    TestSeizerImplementation = await ethers.getContractFactory(
+      "TestSeizerImplementation"
+    );
+    testSeizer = await TestSeizerImplementation.deploy();
+
+    await testSeizer.deployed();
+
     IncentivisedVotingLockup = await ethers.getContractFactory(
       "IncentivisedVotingLockup"
     );
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
+      sa.fundManager.address,
       redeemer.address,
       await mta.name(),
       await mta.symbol()
@@ -113,10 +123,12 @@ describe("Redeemer", () => {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("it does not revert when setting zero address to seizer implementation", async () => {
-      await redeemer
-        .connect(sa.fundManager.signer)
-        .setSeizerImplementation(ZERO_ADDRESS);
+    it("it reverts when setting zero address to seizer implementation", async () => {
+      await expect(
+        redeemer
+          .connect(sa.fundManager.signer)
+          .setSeizerImplementation(ZERO_ADDRESS)
+      ).to.be.revertedWith("seizerImplementation is 0x0");
     });
 
     it("it sets seizer implementation", async () => {
@@ -149,21 +161,31 @@ describe("Redeemer", () => {
   });
 
   describe("seizing and administrative", () => {
-    before(async () => {
-      await redeemer
-        .connect(sa.fundManager.signer)
-        .setSeizerImplementation(ZERO_ADDRESS);
-    });
-
     it("it reverts when non-admin redeeming rbn", async () => {
       await expect(
-        redeemer.connect(sa.default.signer).redeemRBN(maxRedeemPCT.div(2))
+        redeemer
+          .connect(sa.default.signer)
+          ["redeemRBN(uint256)"](maxRedeemPCT.div(2))
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(
+        redeemer.connect(sa.default.signer)["redeemRBN()"]()
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
     it("it reverts when voting escrow contract is zero address", async () => {
       await expect(
-        redeemer.connect(sa.fundManager.signer).redeemRBN(maxRedeemPCT.div(2))
-      ).to.be.revertedWith("votingEscrowContract is 0x0");
+        redeemer
+          .connect(sa.fundManager.signer)
+          ["redeemRBN(uint256)"](maxRedeemPCT.div(2))
+      ).to.be.reverted;
+      await expect(redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()).to
+        .be.reverted;
+    });
+    it("it reverts when seizer implementation contract is zero address in redeemRBN()", async () => {
+      await redeemer
+        .connect(sa.fundManager.signer)
+        .setVotingEscrowContract(votingLockup.address);
+      await expect(redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()).to
+        .be.reverted;
     });
     it("it reverts when trying to redeem less than available", async () => {
       await redeemer
@@ -179,16 +201,26 @@ describe("Redeemer", () => {
         .createLock(stakeAmt1, (await getTimestamp()).add(ONE_WEEK.add(1)));
 
       await expect(
-        redeemer.connect(sa.fundManager.signer).redeemRBN(stakeAmt1)
+        redeemer.connect(sa.fundManager.signer)["redeemRBN(uint256)"](stakeAmt1)
+      ).to.be.revertedWith(
+        "Amount to redeem must be less than max redeem pct!"
+      );
+
+      await redeemer
+        .connect(sa.fundManager.signer)
+        .setSeizerImplementation(testSeizer.address);
+      await testSeizer
+        .connect(sa.fundManager.signer)
+        .setAmountToRedeem(stakeAmt1);
+
+      await expect(
+        redeemer.connect(sa.fundManager.signer)["redeemRBN()"]()
       ).to.be.revertedWith(
         "Amount to redeem must be less than max redeem pct!"
       );
     });
 
-    it("it seizes rbn", async () => {
-      await redeemer
-        .connect(sa.fundManager.signer)
-        .setVotingEscrowContract(votingLockup.address);
+    it("it seizes rbn with manual method", async () => {
       await redeemer
         .connect(sa.fundManager.signer)
         .setVotingEscrowContract(votingLockup.address);
@@ -205,7 +237,41 @@ describe("Redeemer", () => {
         .increaseLockAmount(stakeAmt1);
 
       const redeemerRBNBalanceBefore = await mta.balanceOf(redeemer.address);
-      await redeemer.connect(sa.fundManager.signer).redeemRBN(amountToSeize);
+      await redeemer
+        .connect(sa.fundManager.signer)
+        ["redeemRBN(uint256)"](amountToSeize);
+      const redeemerRBNBalanceAfter = await mta.balanceOf(redeemer.address);
+
+      expect(redeemerRBNBalanceAfter).eq(
+        redeemerRBNBalanceBefore.add(amountToSeize)
+      );
+    });
+
+    it("it seizes rbn with seizer implementation method", async () => {
+      await redeemer
+        .connect(sa.fundManager.signer)
+        .setVotingEscrowContract(votingLockup.address);
+      await redeemer
+        .connect(sa.fundManager.signer)
+        .setSeizerImplementation(testSeizer.address);
+
+      let stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
+      let amountToSeize = stakeAmt1
+        .mul(await redeemer.maxRedeemPCT())
+        .div(simpleToExactAmount(100, 2));
+
+      await mta
+        .connect(sa.fundManager.signer)
+        .approve(votingLockup.address, stakeAmt1);
+      await votingLockup
+        .connect(sa.fundManager.signer)
+        .increaseLockAmount(stakeAmt1);
+
+      const redeemerRBNBalanceBefore = await mta.balanceOf(redeemer.address);
+      await testSeizer
+        .connect(sa.fundManager.signer)
+        .setAmountToRedeem(amountToSeize);
+      await redeemer.connect(sa.fundManager.signer)["redeemRBN()"]();
       const redeemerRBNBalanceAfter = await mta.balanceOf(redeemer.address);
 
       expect(redeemerRBNBalanceAfter).eq(
