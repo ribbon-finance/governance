@@ -428,7 +428,7 @@ contract IncentivisedVotingLockup is
     totalShares += _newShares;
 
     if (_unlockTime != 0) {
-      newLocked.end = uint32(_unlockTime);
+      newLocked.end = SafeCast.toUint32(_unlockTime);
     }
     locked[_addr] = newLocked;
 
