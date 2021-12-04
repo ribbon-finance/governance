@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import {IERC20WithCheckpointing} from "./IERC20WithCheckpointing.sol";
-
-abstract contract IIncentivisedVotingLockup is IERC20WithCheckpointing {
+abstract contract IIncentivisedVotingLockup {
   function getLastUserPoint(address _addr)
     external
     view
@@ -21,4 +19,11 @@ abstract contract IIncentivisedVotingLockup is IERC20WithCheckpointing {
   function increaseLockAmount(uint256 _value) external virtual;
 
   function increaseLockLength(uint256 _unlockTime) external virtual;
+
+  // Governor bravo methods
+  function getPriorVotes(address account, uint256 blockNumber)
+    external
+    view
+    virtual
+    returns (uint96);
 }

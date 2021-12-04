@@ -82,9 +82,7 @@ describe("IncentivisedVotingLockup", () => {
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
       sa.fundManager.address,
-      redeemer.address,
-      await mta.name(),
-      await mta.symbol()
+      redeemer.address
     );
 
     await votingLockup.deployed();
@@ -121,9 +119,7 @@ describe("IncentivisedVotingLockup", () => {
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
       sa.fundManager.address,
-      redeemer.address,
-      await mta.name(),
-      await mta.symbol()
+      redeemer.address
     );
 
     testWrapperSC = await TestWrapperSC.deploy(votingLockup.address);
@@ -159,14 +155,16 @@ describe("IncentivisedVotingLockup", () => {
     });
     describe("before any stakes are made", () => {
       it("returns balances", async () => {
-        expect(await votingLockup.balanceOf(sa.default.address)).eq(BN.from(0));
-        expect(await votingLockup.balanceOfAt(sa.default.address, 1)).eq(
+        expect(await votingLockup.getCurrentVotes(sa.default.address)).eq(
+          BN.from(0)
+        );
+        expect(await votingLockup.getPriorVotes(sa.default.address, 1)).eq(
           BN.from(0)
         );
       });
       it("returns balance at latest block", async () => {
         expect(
-          await votingLockup.balanceOfAt(
+          await votingLockup.getPriorVotes(
             sa.default.address,
             BN.from((await latestBlock()).number)
           )
@@ -187,7 +185,7 @@ describe("IncentivisedVotingLockup", () => {
     describe("fetching for current block", () => {
       it("fails for balanceOfAt", async () => {
         await expect(
-          votingLockup.balanceOfAt(
+          votingLockup.getPriorVotes(
             sa.default.address,
             BN.from((await latestBlock()).number).add(1)
           )
@@ -334,9 +332,9 @@ describe("IncentivisedVotingLockup", () => {
         const symbol = await votingLockup.symbol();
         const decimals = await votingLockup.decimals();
         const supply = await votingLockup.totalSupply();
-        expect(name).eq(await mta.name());
-        expect(symbol).eq(await mta.symbol());
-        expect(decimals).eq(await mta.decimals());
+        expect(name).eq("Staked Ribbon");
+        expect(symbol).eq("sRBN");
+        expect(decimals).eq(18);
         expect(supply).eq(BN.from(0));
       });
       it("sets redeemer details", async () => {
@@ -969,8 +967,8 @@ describe("IncentivisedVotingLockup", () => {
         .approve(votingLockup.address, amount.mul(5));
 
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
-      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
-      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
 
       /**
        * BEGIN PERIOD 1
@@ -997,7 +995,7 @@ describe("IncentivisedVotingLockup", () => {
       await increaseTime(ONE_HOUR);
       await advanceBlock();
       assertBNClosePercent(
-        await votingLockup.balanceOf(alice.address),
+        await votingLockup.getCurrentVotes(alice.address),
         amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.mul(2))),
         tolerance
       );
@@ -1006,7 +1004,7 @@ describe("IncentivisedVotingLockup", () => {
         amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.mul(2))),
         tolerance
       );
-      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
       let t0 = await getTimestamp();
       let dt = BN.from(0);
 
@@ -1033,13 +1031,13 @@ describe("IncentivisedVotingLockup", () => {
           tolerance
         );
         assertBNClosePercent(
-          await votingLockup.balanceOf(alice.address),
+          await votingLockup.getCurrentVotes(alice.address),
           amount
             .div(MAXTIME)
             .mul(maximum(ONE_WEEK.sub(ONE_HOUR.mul(2)).sub(dt), BN.from(0))),
           tolerance
         );
-        expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+        expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
         stages["alice_in_0"].push([
           BN.from((await latestBlock()).number),
           await getTimestamp(),
@@ -1048,7 +1046,7 @@ describe("IncentivisedVotingLockup", () => {
 
       await increaseTime(ONE_HOUR);
 
-      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
       await votingLockup.connect(alice.signer).withdraw();
 
       stages["alice_withdraw"] = [
@@ -1056,8 +1054,8 @@ describe("IncentivisedVotingLockup", () => {
         await getTimestamp(),
       ];
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
-      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
-      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
@@ -1082,11 +1080,11 @@ describe("IncentivisedVotingLockup", () => {
         tolerance
       );
       assertBNClosePercent(
-        await votingLockup.balanceOf(alice.address),
+        await votingLockup.getCurrentVotes(alice.address),
         amount.div(MAXTIME).mul(2).mul(ONE_WEEK),
         tolerance
       );
-      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
 
       await votingLockup
         .connect(bob.signer)
@@ -1102,12 +1100,12 @@ describe("IncentivisedVotingLockup", () => {
         tolerance
       );
       assertBNClosePercent(
-        await votingLockup.balanceOf(alice.address),
+        await votingLockup.getCurrentVotes(alice.address),
         amount.div(MAXTIME).mul(2).mul(ONE_WEEK),
         tolerance
       );
       assertBNClosePercent(
-        await votingLockup.balanceOf(bob.address),
+        await votingLockup.getCurrentVotes(bob.address),
         amount.div(MAXTIME).mul(ONE_WEEK),
         tolerance
       );
@@ -1131,8 +1129,8 @@ describe("IncentivisedVotingLockup", () => {
         dt = (await getTimestamp()).sub(t0);
         const b = BN.from((await latestBlock()).number);
         w_total = await votingLockup.totalSupplyAt(b);
-        w_alice = await votingLockup.balanceOfAt(alice.address, b);
-        w_bob = await votingLockup.balanceOfAt(bob.address, b);
+        w_alice = await votingLockup.getPriorVotes(alice.address, b);
+        w_bob = await votingLockup.getPriorVotes(bob.address, b);
         expect(w_total).eq(w_alice.add(w_bob));
         assertBNClosePercent(
           w_alice,
@@ -1160,7 +1158,7 @@ describe("IncentivisedVotingLockup", () => {
         await getTimestamp(),
       ];
       w_total = await votingLockup.totalSupply();
-      w_alice = await votingLockup.balanceOf(alice.address);
+      w_alice = await votingLockup.getCurrentVotes(alice.address);
       expect(w_alice).eq(w_total);
 
       assertBNClosePercent(
@@ -1168,7 +1166,7 @@ describe("IncentivisedVotingLockup", () => {
         amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.mul(2))),
         tolerance
       );
-      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
@@ -1181,7 +1179,7 @@ describe("IncentivisedVotingLockup", () => {
         }
         dt = (await getTimestamp()).sub(t0);
         w_total = await votingLockup.totalSupply();
-        w_alice = await votingLockup.balanceOf(alice.address);
+        w_alice = await votingLockup.getCurrentVotes(alice.address);
         expect(w_total).eq(w_alice);
         assertBNClosePercent(
           w_total,
@@ -1195,7 +1193,7 @@ describe("IncentivisedVotingLockup", () => {
             ),
           "0.04"
         );
-        expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+        expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
         stages["alice_in_2"].push([
           BN.from((await latestBlock()).number),
           await getTimestamp(),
@@ -1218,21 +1216,21 @@ describe("IncentivisedVotingLockup", () => {
       ];
 
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
-      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
-      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
 
       /**
        * END OF INTERACTION
        * BEGIN HISTORICAL ANALYSIS USING BALANCEOFAT
        */
       expect(
-        await votingLockup.balanceOfAt(
+        await votingLockup.getPriorVotes(
           alice.address,
           stages["before_deposits"][0]
         )
       ).eq(BN.from(0));
       expect(
-        await votingLockup.balanceOfAt(
+        await votingLockup.getPriorVotes(
           bob.address,
           stages["before_deposits"][0]
         )
@@ -1241,7 +1239,7 @@ describe("IncentivisedVotingLockup", () => {
         BN.from(0)
       );
 
-      w_alice = await votingLockup.balanceOfAt(
+      w_alice = await votingLockup.getPriorVotes(
         alice.address,
         stages["alice_deposit"][0]
       );
@@ -1251,15 +1249,18 @@ describe("IncentivisedVotingLockup", () => {
         tolerance
       );
       expect(
-        await votingLockup.balanceOfAt(bob.address, stages["alice_deposit"][0])
+        await votingLockup.getPriorVotes(
+          bob.address,
+          stages["alice_deposit"][0]
+        )
       ).eq(BN.from(0));
       w_total = await votingLockup.totalSupplyAt(stages["alice_deposit"][0]);
       expect(w_alice).eq(w_total);
 
       for (let i = 0; i < stages["alice_in_0"].length; i += 1) {
         const [block] = stages["alice_in_0"][i];
-        w_alice = await votingLockup.balanceOfAt(alice.address, block);
-        w_bob = await votingLockup.balanceOfAt(bob.address, block);
+        w_alice = await votingLockup.getPriorVotes(alice.address, block);
+        w_bob = await votingLockup.getPriorVotes(bob.address, block);
         w_total = await votingLockup.totalSupplyAt(block);
         expect(w_bob).eq(BN.from(0));
         expect(w_alice).eq(w_total);
@@ -1275,11 +1276,11 @@ describe("IncentivisedVotingLockup", () => {
       }
 
       w_total = await votingLockup.totalSupplyAt(stages["alice_withdraw"][0]);
-      w_alice = await votingLockup.balanceOfAt(
+      w_alice = await votingLockup.getPriorVotes(
         alice.address,
         stages["alice_withdraw"][0]
       );
-      w_bob = await votingLockup.balanceOfAt(
+      w_bob = await votingLockup.getPriorVotes(
         bob.address,
         stages["alice_withdraw"][0]
       );
@@ -1288,11 +1289,11 @@ describe("IncentivisedVotingLockup", () => {
       expect(w_bob).eq(BN.from(0));
 
       w_total = await votingLockup.totalSupplyAt(stages["alice_deposit_2"][0]);
-      w_alice = await votingLockup.balanceOfAt(
+      w_alice = await votingLockup.getPriorVotes(
         alice.address,
         stages["alice_deposit_2"][0]
       );
-      w_bob = await votingLockup.balanceOfAt(
+      w_bob = await votingLockup.getPriorVotes(
         bob.address,
         stages["alice_deposit_2"][0]
       );
@@ -1305,11 +1306,11 @@ describe("IncentivisedVotingLockup", () => {
       expect(w_bob).eq(BN.from(0));
 
       w_total = await votingLockup.totalSupplyAt(stages["bob_deposit_2"][0]);
-      w_alice = await votingLockup.balanceOfAt(
+      w_alice = await votingLockup.getPriorVotes(
         alice.address,
         stages["bob_deposit_2"][0]
       );
-      w_bob = await votingLockup.balanceOfAt(
+      w_bob = await votingLockup.getPriorVotes(
         bob.address,
         stages["bob_deposit_2"][0]
       );
@@ -1329,8 +1330,8 @@ describe("IncentivisedVotingLockup", () => {
       [, t0] = stages["bob_deposit_2"];
       for (let i = 0; i < stages["alice_bob_in_2"].length; i += 1) {
         const [block, ts] = stages["alice_bob_in_2"][i];
-        w_alice = await votingLockup.balanceOfAt(alice.address, block);
-        w_bob = await votingLockup.balanceOfAt(bob.address, block);
+        w_alice = await votingLockup.getPriorVotes(alice.address, block);
+        w_bob = await votingLockup.getPriorVotes(bob.address, block);
         w_total = await votingLockup.totalSupplyAt(block);
         expect(w_total).eq(w_alice.add(w_bob));
         dt = ts.sub(t0);
@@ -1349,11 +1350,11 @@ describe("IncentivisedVotingLockup", () => {
         );
       }
       w_total = await votingLockup.totalSupplyAt(stages["bob_withdraw_1"][0]);
-      w_alice = await votingLockup.balanceOfAt(
+      w_alice = await votingLockup.getPriorVotes(
         alice.address,
         stages["bob_withdraw_1"][0]
       );
-      w_bob = await votingLockup.balanceOfAt(
+      w_bob = await votingLockup.getPriorVotes(
         bob.address,
         stages["bob_withdraw_1"][0]
       );
@@ -1367,8 +1368,8 @@ describe("IncentivisedVotingLockup", () => {
       [, t0] = stages["bob_withdraw_1"];
       for (let i = 0; i < stages["alice_in_2"].length; i += 1) {
         const [block, ts] = stages["alice_in_2"][i];
-        w_alice = await votingLockup.balanceOfAt(alice.address, block);
-        w_bob = await votingLockup.balanceOfAt(bob.address, block);
+        w_alice = await votingLockup.getPriorVotes(alice.address, block);
+        w_bob = await votingLockup.getPriorVotes(bob.address, block);
         w_total = await votingLockup.totalSupplyAt(block);
         expect(w_total).eq(w_alice);
         expect(w_bob).eq(BN.from(0));
@@ -1385,11 +1386,11 @@ describe("IncentivisedVotingLockup", () => {
         );
       }
       w_total = await votingLockup.totalSupplyAt(stages["bob_withdraw_2"][0]);
-      w_alice = await votingLockup.balanceOfAt(
+      w_alice = await votingLockup.getPriorVotes(
         alice.address,
         stages["bob_withdraw_2"][0]
       );
-      w_bob = await votingLockup.balanceOfAt(
+      w_bob = await votingLockup.getPriorVotes(
         bob.address,
         stages["bob_withdraw_2"][0]
       );

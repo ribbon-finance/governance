@@ -72,6 +72,7 @@ contract IncentivisedVotingLockup is
   /** Lockup */
   uint256 public globalEpoch;
   uint256 public totalShares;
+  uint256 public totalLocked;
   Point[] public pointHistory;
   mapping(address => Point[]) public userPointHistory;
   mapping(address => uint256) public userPointEpoch;
@@ -80,9 +81,12 @@ contract IncentivisedVotingLockup is
   bool public contractStopped;
 
   // Voting token - Checkpointed view only ERC20
-  string public name;
-  string public symbol;
-  uint256 public decimals;
+  /// @notice EIP-20 token name for this token
+  string public constant name = "Staked Ribbon";
+  /// @notice EIP-20 token symbol for this token
+  string public constant symbol = "sRBN";
+  /// @notice EIP-20 token decimals for this token
+  uint8 public constant decimals = 18;
 
   /** Structs */
   struct Point {
@@ -103,9 +107,7 @@ contract IncentivisedVotingLockup is
   constructor(
     address _stakingToken,
     address _owner,
-    address _rbnRedeemer,
-    string memory _name,
-    string memory _symbol
+    address _rbnRedeemer
   ) {
     require(_stakingToken != address(0), "!_stakingToken");
     require(_owner != address(0), "!_owner");
@@ -123,13 +125,7 @@ contract IncentivisedVotingLockup is
 
     transferOwnership(_owner);
 
-    decimals = IERC20Detailed(_stakingToken).decimals();
-    require(decimals <= 18, "Cannot have more than 18 decimals");
-
     rbnRedeemer = _rbnRedeemer;
-    name = _name;
-    symbol = _symbol;
-    decimals = 18;
 
     END = block.timestamp + MAXTIME;
   }
@@ -166,6 +162,7 @@ contract IncentivisedVotingLockup is
     address redeemer = rbnRedeemer;
     require(msg.sender == redeemer, "Must be rbn redeemer contract");
     stakingToken.safeTransfer(redeemer, _amount);
+    totalLocked -= _amount;
   }
 
   /**
@@ -426,6 +423,7 @@ contract IncentivisedVotingLockup is
       StableMath.toInt112(int256(_newShares));
 
     totalShares += _newShares;
+    totalLocked += _value;
 
     if (_unlockTime != 0) {
       newLocked.end = SafeCast.toUint32(_unlockTime);
@@ -598,6 +596,7 @@ contract IncentivisedVotingLockup is
     uint256 value =
       shares.mul(stakingToken.balanceOf(address(this))).div(totalShares);
     totalShares -= shares;
+    totalLocked -= value;
 
     stakingToken.safeTransfer(_addr, value);
 
@@ -679,9 +678,9 @@ contract IncentivisedVotingLockup is
   /**
    * @dev Gets curent user voting weight (aka effectiveStake)
    * @param _owner User for which to return the balance
-   * @return uint256 Balance of user
+   * @return uint96 Balance of user
    */
-  function balanceOf(address _owner) public view override returns (uint256) {
+  function getCurrentVotes(address _owner) public view returns (uint96) {
     uint256 epoch = userPointEpoch[_owner];
     if (epoch == 0) {
       return 0;
@@ -694,20 +693,22 @@ contract IncentivisedVotingLockup is
     if (lastPoint.bias < 0) {
       lastPoint.bias = 0;
     }
-    return SafeCast.toUint256(lastPoint.bias);
+
+    return StableMath.toUint96(SafeCast.toUint256(lastPoint.bias));
   }
 
   /**
    * @dev Gets a users votingWeight at a given blockNumber
+   * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
    * @param _owner User for which to return the balance
    * @param _blockNumber Block at which to calculate balance
-   * @return uint256 Balance of user
+   * @return uint96 Balance of user
    */
-  function balanceOfAt(address _owner, uint256 _blockNumber)
+  function getPriorVotes(address _owner, uint256 _blockNumber)
     public
     view
     override
-    returns (uint256)
+    returns (uint96)
   {
     require(_blockNumber <= block.number, "Must pass block number in the past");
 
@@ -746,7 +747,8 @@ contract IncentivisedVotingLockup is
       upoint.bias -
       (upoint.slope * SafeCast.toInt128(int256(blockTime - upoint.ts)));
     if (upoint.bias >= 0) {
-      return SafeCast.toUint256(upoint.bias);
+      // We do < 0 check earlier
+      return StableMath.toUint96(SafeCast.toUint256(upoint.bias));
     } else {
       return 0;
     }
@@ -800,7 +802,7 @@ contract IncentivisedVotingLockup is
    * @dev Calculates current total supply of votingWeight
    * @return totalSupply of voting token weight
    */
-  function totalSupply() public view override returns (uint256) {
+  function totalSupply() public view returns (uint256) {
     uint256 epoch_ = globalEpoch;
     Point memory lastPoint = pointHistory[epoch_];
     return _supplyAt(lastPoint, block.timestamp);
@@ -811,12 +813,7 @@ contract IncentivisedVotingLockup is
    * @param _blockNumber Block number at which to calculate total supply
    * @return totalSupply of voting token weight at the given blockNumber
    */
-  function totalSupplyAt(uint256 _blockNumber)
-    public
-    view
-    override
-    returns (uint256)
-  {
+  function totalSupplyAt(uint256 _blockNumber) public view returns (uint256) {
     require(_blockNumber <= block.number, "Must pass block number in the past");
 
     uint256 epoch = globalEpoch;
@@ -845,5 +842,13 @@ contract IncentivisedVotingLockup is
     // Now dTime contains info on how far are we beyond point
 
     return _supplyAt(point, point.ts + dTime);
+  }
+
+  function getChainId() internal view returns (uint256) {
+    uint256 chainId;
+    assembly {
+      chainId := chainid()
+    }
+    return chainId;
   }
 }

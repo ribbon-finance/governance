@@ -32,7 +32,7 @@ describe("GovernorBravo", () => {
   });
 
   it("sRBN", async () => {
-    const balance = await sRBN.balanceOf(wallet.address);
+    const balance = await sRBN.getCurrentVotes(wallet.address);
     const totalSupply = await sRBN.totalSupply();
     expect(balance).to.be.eq(totalSupply);
   });
