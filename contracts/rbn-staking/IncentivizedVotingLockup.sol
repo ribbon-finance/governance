@@ -154,10 +154,6 @@ contract IncentivisedVotingLockup is
     _;
   }
 
-  /***************************************
-                LOCKUP - GETTERS
-    ****************************************/
-
   /**
    * @dev Redeems rbn to redeemer contract in case criterium met (i.e smart contract hack, vaults get rekt)
    * @param _amount amount to withdraw to redeemer contract
@@ -183,6 +179,10 @@ contract IncentivisedVotingLockup is
     smartWalletChecker = futureSmartWalletChecker;
   }
 
+  /***************************************
+                LOCKUP - GETTERS
+    ****************************************/
+
   /**
    * @dev Gets the last available user point
    * @param _addr User address
@@ -206,6 +206,15 @@ contract IncentivisedVotingLockup is
     }
     Point memory point = userPointHistory[_addr][uepoch];
     return (point.bias, point.slope, point.ts);
+  }
+
+  /**
+   * @dev Gets the end of the lock of the user
+   * @param _addr User address
+   * @return lock expiry timestamp
+   */
+  function lockedEnd(address _addr) external view returns (uint256) {
+    return uint256(locked[_addr].end);
   }
 
   /***************************************

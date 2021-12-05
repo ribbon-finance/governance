@@ -28,11 +28,17 @@ interface VotingEscrow:
     def getLastUserPoint(addr: address) -> (int128, int128, uint256): view
     def lockedEnd(addr: address) -> uint256: view
 
+interface VaultStaking:
+    def fund(amount: uint256, duration: uint256): view
+
 event CommitOwnership:
     admin: address
 
 event ApplyOwnership:
     admin: address
+
+event DisperseFunds:
+    total_funds: uint256
 
 event AddType:
     name: String[64]
@@ -145,7 +151,6 @@ def apply_transfer_ownership():
     assert _admin != ZERO_ADDRESS  # dev: admin not set
     self.admin = _admin
     log ApplyOwnership(_admin)
-
 
 @external
 @view
@@ -551,6 +556,23 @@ def vote_for_gauge_weights(_gauge_addr: address, _user_weight: uint256):
 
     log VoteForGauge(block.timestamp, msg.sender, _gauge_addr, _user_weight)
 
+@external
+def disperse_funds(_total_funds: uint256):
+    """
+    @notice Fund all vault deposit staking contracts based on weights
+    @param _total_funds Total Funds to distribute
+    """
+    assert msg.sender == self.admin  # dev: admin only
+
+    # For all the gauges, fund each one based on respective weight
+    for gauge in self.gauges:
+      # 1e18 = 1.0 = 100%
+      gauge_fund_weight: uint256 = self._gauge_relative_weight(gauge, block.timestamp)
+      if(gauge_fund_weight == 0):
+        continue
+      VaultStaking(gauge).fund(gauge_fund_weight * _total_funds / MULTIPLIER, WEEK)
+
+    log DisperseFunds(_total_funds)
 
 @external
 @view
