@@ -7,12 +7,13 @@
 @notice Controls liquidity gauges and the issuance of coins through the gauges
 """
 
+from vyper.interfaces import ERC20
+
 # 7 * 86400 seconds - all future times are rounded by week
 WEEK: constant(uint256) = 604800
 
 # Cannot change weight votes more often than once in 10 days
 WEIGHT_VOTE_DELAY: constant(uint256) = 10 * 86400
-
 
 struct Point:
     bias: uint256
@@ -38,7 +39,7 @@ event ApplyOwnership:
     admin: address
 
 event DisperseFunds:
-    total_funds: uint256
+    total_funding: uint256
 
 event AddType:
     name: String[64]
@@ -557,12 +558,14 @@ def vote_for_gauge_weights(_gauge_addr: address, _user_weight: uint256):
     log VoteForGauge(block.timestamp, msg.sender, _gauge_addr, _user_weight)
 
 @external
-def disperse_funds(_total_funds: uint256):
+def disperse_funds(_total_funding: uint256):
     """
     @notice Fund all vault deposit staking contracts based on weights
-    @param _total_funds Total Funds to distribute
+    @param _total_funding Total Funds to distribute
     """
     assert msg.sender == self.admin  # dev: admin only
+
+    ERC20(self.token).transferFrom(msg.sender, self, _total_funding)
 
     # For all the gauges, fund each one based on respective weight
     for gauge in self.gauges:
@@ -570,9 +573,9 @@ def disperse_funds(_total_funds: uint256):
       gauge_fund_weight: uint256 = self._gauge_relative_weight(gauge, block.timestamp)
       if(gauge_fund_weight == 0):
         continue
-      VaultStaking(gauge).fund(gauge_fund_weight * _total_funds / MULTIPLIER, WEEK)
+      VaultStaking(gauge).fund(gauge_fund_weight * _total_funding / MULTIPLIER, WEEK)
 
-    log DisperseFunds(_total_funds)
+    log DisperseFunds(_total_funding)
 
 @external
 @view
