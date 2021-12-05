@@ -565,15 +565,19 @@ def disperse_funds(_total_funding: uint256):
     """
     assert msg.sender == self.admin  # dev: admin only
 
-    ERC20(self.token).transferFrom(msg.sender, self, _total_funding)
+    rbn: address = self.token
+
+    ERC20(rbn).transferFrom(msg.sender, self, _total_funding)
 
     # For all the gauges, fund each one based on respective weight
     for gauge in self.gauges:
-      # 1e18 = 1.0 = 100%
-      gauge_fund_weight: uint256 = self._gauge_relative_weight(gauge, block.timestamp)
-      if(gauge_fund_weight == 0):
+      # weight * total_funding / 1e18.
+      # if weight = 1e18, weight = 1.0
+      gauge_funding_amt: uint256 = self._gauge_relative_weight(gauge, block.timestamp) * _total_funding / MULTIPLIER
+      if(gauge_funding_amt == 0):
         continue
-      VaultStaking(gauge).fund(gauge_fund_weight * _total_funding / MULTIPLIER, WEEK)
+      ERC20(rbn).approve(gauge, gauge_funding_amt)
+      VaultStaking(gauge).fund(gauge_funding_amt, WEEK)
 
     log DisperseFunds(_total_funding)
 
