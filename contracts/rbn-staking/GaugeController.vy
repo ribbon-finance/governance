@@ -1,4 +1,4 @@
-# @version 0.2.4
+# @version 0.2.7
 
 """
 @title Gauge Controller
@@ -27,7 +27,6 @@ struct VotedSlope:
 interface VotingEscrow:
     def get_last_user_slope(addr: address) -> int128: view
     def locked__end(addr: address) -> uint256: view
-
 
 event CommitOwnership:
     admin: address

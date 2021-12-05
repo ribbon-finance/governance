@@ -6,10 +6,11 @@ https://github.com/gysr-io/core
 SPDX-License-Identifier: MIT
 */
 
-pragma solidity 0.8.4;
+pragma solidity ^0.8.4;
 
-import "./interfaces/IRewardModule.sol";
+import "../interfaces/IRewardModule.sol";
 import "./ERC20BaseRewardModule.sol";
+import "../libraries/GysrUtils.sol";
 
 /**
  * @title ERC20 competitive reward module
@@ -26,6 +27,7 @@ import "./ERC20BaseRewardModule.sol";
  */
 contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
   using SafeERC20 for IERC20;
+  using GysrUtils for uint256;
 
   // single stake by user
   struct Stake {
@@ -288,8 +290,7 @@ contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
     // note: we assume shares has been validated upstream
     require(data.length == 0, "crm2");
 
-    // uint256 bonus = spent.gysrBonus(shares, totalStakingShares, _usage);
-    uint256 bonus = 10**DECIMALS;
+    uint256 bonus = spent.gysrBonus(shares, totalStakingShares, _usage);
 
     // do unstaking, first-in last-out, respecting time bonus
     uint256 shareSeconds;
