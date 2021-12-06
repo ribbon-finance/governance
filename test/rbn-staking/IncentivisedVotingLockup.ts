@@ -89,7 +89,6 @@ describe("IncentivisedVotingLockup", () => {
 
     await votingLockup.deployed();
 
-    //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
     await redeemer
       .connect(sa.fundManager.signer)
       .setVotingEscrowContract(votingLockup.address);
@@ -127,8 +126,6 @@ describe("IncentivisedVotingLockup", () => {
     );
 
     testWrapperSC = await TestWrapperSC.deploy(votingLockup.address);
-
-    //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
 
     await redeemer
       .connect(sa.fundManager.signer)
