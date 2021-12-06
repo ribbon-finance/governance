@@ -558,16 +558,19 @@ def vote_for_gauge_weights(_gauge_addr: address, _user_weight: uint256):
     log VoteForGauge(block.timestamp, msg.sender, _gauge_addr, _user_weight)
 
 @external
-def disperse_funds(_total_funding: uint256):
+def disperse_funds(_total_funding: uint256, _duration: uint256 = WEEK):
     """
     @notice Fund all vault deposit staking contracts based on weights
     @param _total_funding Total Funds to distribute
+    @param _duration Duration over which to distribute the funds
     """
     assert msg.sender == self.admin  # dev: admin only
 
     rbn: address = self.token
 
-    ERC20(rbn).transferFrom(msg.sender, self, _total_funding)
+    rbn_balance: uint256 = ERC20(rbn).balanceOf(self)
+    if _total_funding > rbn_balance:
+      ERC20(rbn).transferFrom(msg.sender, self, _total_funding - rbn_balance)
 
     # For all the gauges, fund each one based on respective weight
     for gauge in self.gauges:
@@ -577,7 +580,7 @@ def disperse_funds(_total_funding: uint256):
       if(gauge_funding_amt == 0):
         continue
       ERC20(rbn).approve(gauge, gauge_funding_amt)
-      VaultStaking(gauge).fund(gauge_funding_amt, WEEK)
+      VaultStaking(gauge).fund(gauge_funding_amt, _duration)
 
     log DisperseFunds(_total_funding)
 
