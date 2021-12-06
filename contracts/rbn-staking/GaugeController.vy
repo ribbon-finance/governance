@@ -120,16 +120,18 @@ time_type_weight: public(uint256[1000000000])  # type_id -> last scheduled time 
 
 
 @external
-def __init__(_token: address, _voting_escrow: address):
+def __init__(_token: address, _voting_escrow: address, _admin: address):
     """
     @notice Contract constructor
     @param _token `ERC20CRV` contract address
     @param _voting_escrow `VotingEscrow` contract address
+    @param _admin Admin address
     """
     assert _token != ZERO_ADDRESS
     assert _voting_escrow != ZERO_ADDRESS
+    assert _admin != ZERO_ADDRESS
 
-    self.admin = msg.sender
+    self.admin = _admin
     self.token = _token
     self.voting_escrow = _voting_escrow
     self.time_total = block.timestamp / WEEK * WEEK
@@ -569,6 +571,7 @@ def disperse_funds(_total_funding: uint256, _duration: uint256 = WEEK):
     @param _duration Duration over which to distribute the funds
     """
     assert msg.sender == self.admin  # dev: admin only
+    assert _total_funding > 0, "Funding must be non-zero!"
 
     rbn: address = self.token
 
