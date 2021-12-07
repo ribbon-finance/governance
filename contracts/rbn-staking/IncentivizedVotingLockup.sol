@@ -1131,29 +1131,39 @@ contract IncentivisedVotingLockup is
     return (slope, bias);
   }
 
-  function delegateBoost(address _delegator) external view returns (uint256) {
-    if (delegates[_delegator] == address(0)) {
+  function checkBoost(address _addr, bool _isDelegator)
+    external
+    view
+    returns (uint256)
+  {
+    if (delegates[_addr] == address(0) && _isDelegator) {
       return 0;
     }
 
-    uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
+    uint32 nCheckpoints = numCheckpoints[_addr];
 
-    uint128 expireTime =
-      _boost[msg.sender][nCheckpointsDelegator - 1].nextExpiry;
+    uint128 expireTime = _boost[msg.sender][nCheckpoints - 1].nextExpiry;
 
-    if (expireTime == 0) {
+    if (expireTime == 0 && _isDelegator) {
       return 0;
     }
 
-    uint256 delegatedBias =
-      _boost[_delegator][nCheckpointsDelegator - 1].delegatedBias;
-    int128 delegatedSlope =
-      _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope;
+    uint256 bias =
+      _isDelegator
+        ? _boost[_addr][nCheckpoints - 1].delegatedBias
+        : _boost[_addr][nCheckpoints - 1].receivedBias;
+    int128 slope =
+      _isDelegator
+        ? _boost[_addr][nCheckpoints - 1].delegatedSlope
+        : _boost[_addr][nCheckpoints - 1].receivedSlope;
 
-    int256 balance =
-      delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
+    int256 balance = slope * int256(block.timestamp) + int256(bias);
 
-    return uint256(StableMath.abs(balance));
+    if (_isDelegator) {
+      return uint256(StableMath.abs(balance));
+    } else {
+      return balance > 0 ? uint256(balance) : 0;
+    }
   }
 
   /**
