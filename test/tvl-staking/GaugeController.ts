@@ -75,27 +75,15 @@ describe("Gauge Controller", () => {
     GysrStakingRewards = await ethers.getContractFactory(
       "ERC20CompetitiveRewardModule"
     );
-    gysrStakingRewards = await GysrStakingRewards.deploy(
-      mta.address,
-      0,
-      1,
-      ONE_WEEK,
-      ZERO_ADDRESS
-    );
-    gysrStakingRewards2 = await GysrStakingRewards.deploy(
-      mta.address,
-      0,
-      1,
-      ONE_WEEK,
-      ZERO_ADDRESS
-    );
-    gysrStakingRewards3 = await GysrStakingRewards.deploy(
-      mta.address,
-      0,
-      1,
-      ONE_WEEK,
-      ZERO_ADDRESS
-    );
+    gysrStakingRewards = await GysrStakingRewards.connect(
+      sa.fundManager.signer
+    ).deploy(mta.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
+    gysrStakingRewards2 = await GysrStakingRewards.connect(
+      sa.fundManager.signer
+    ).deploy(mta.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
+    gysrStakingRewards3 = await GysrStakingRewards.connect(
+      sa.fundManager.signer
+    ).deploy(mta.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
 
     await gysrStakingRewards.deployed();
     await gysrStakingRewards2.deployed();
@@ -140,6 +128,27 @@ describe("Gauge Controller", () => {
       await mta
         .connect(bob.signer)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
+
+      // Transfer funding abilities to gauge controller
+      await gysrStakingRewards
+        .connect(sa.fundManager.signer)
+        .transferControl(gaugeController.address);
+      await gysrStakingRewards2
+        .connect(sa.fundManager.signer)
+        .transferControl(gaugeController.address);
+      await gysrStakingRewards3
+        .connect(sa.fundManager.signer)
+        .transferControl(gaugeController.address);
+      console.log(mta.address);
+      // await gysrStakingRewards
+      //   .connect(sa.fundManager.signer)
+      //   .stake(sa.fundManager.address, [], []);
+      //   await gysrStakingRewards2
+      //     .connect(sa.fundManager.signer)
+      //     .stake(sa.fundManager.address, ZERO_ADDRESS, 1, "0x");
+      //     await gysrStakingRewards3
+      //       .connect(sa.fundManager.signer)
+      //       .stake(sa.fundManager.address, ZERO_ADDRESS, 1, "0xs");
 
       // Lock in rbn for sRBN to be used in gauge controller voting
       await votingLockup
@@ -201,6 +210,11 @@ describe("Gauge Controller", () => {
       );
       let fundManagerBeforeBal = await mta.balanceOf(sa.fundManager.address);
 
+      await mta
+        .connect(sa.fundManager.signer)
+        .approve(gaugeController.address, totalFundingAmt);
+
+      console.log(sa.fundManager);
       const tx = await gaugeController
         .connect(sa.fundManager.signer)
         ["disperse_funds(uint256)"](totalFundingAmt);
@@ -246,9 +260,15 @@ describe("Gauge Controller", () => {
         .connect(sa.fundManager.signer)
         .transfer(gaugeController.address, totalFundingAmt);
 
+      let fundManagerBeforeBal = await mta.balanceOf(sa.fundManager.address);
+
       const tx = await gaugeController
         .connect(sa.fundManager.signer)
         ["disperse_funds(uint256)"](totalFundingAmt);
+
+      let fundManagerAfterBal = await mta.balanceOf(sa.fundManager.address);
+
+      expect(fundManagerAfterBal.sub(fundManagerBeforeBal)).eq(0);
 
       await expect(tx)
         .to.emit(gaugeController, "DisperseFunds")
@@ -262,12 +282,17 @@ describe("Gauge Controller", () => {
     });
 
     it("does not fund gysr staking contract with no weight", async () => {
+      let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
+
       let gysrStakingRewards3BeforeBal = await mta.balanceOf(
         gysrStakingRewards3.address
       );
+      await mta
+        .connect(sa.fundManager.signer)
+        .approve(gaugeController.address, totalFundingAmt);
       await gaugeController
         .connect(sa.fundManager.signer)
-        ["disperse_funds(uint256)"](simpleToExactAmount(10, DEFAULT_DECIMALS));
+        ["disperse_funds(uint256)"](totalFundingAmt);
       let gysrStakingRewards3AfterBal = await mta.balanceOf(
         gysrStakingRewards3.address
       );

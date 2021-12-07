@@ -131,9 +131,9 @@ def __init__(_token: address, _voting_escrow: address, _admin: address):
     assert _voting_escrow != ZERO_ADDRESS
     assert _admin != ZERO_ADDRESS
 
-    self.admin = _admin
     self.token = _token
     self.voting_escrow = _voting_escrow
+    self.admin = _admin
     self.time_total = block.timestamp / WEEK * WEEK
 
 
