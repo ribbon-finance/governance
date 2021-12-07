@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../interfaces/IRewardModule.sol";
+import "hardhat/console.sol";
 
 /**
  * @title ERC20 base reward module
@@ -130,10 +131,17 @@ abstract contract ERC20BaseRewardModule is IRewardModule {
     require(_fundings[token].length < MAX_ACTIVE_FUNDINGS, "rm3");
 
     IERC20 rewardToken = IERC20(token);
+    console.log("no problem be5");
+    console.log("rewardToken is %s", address(rewardToken));
+    console.log("amount is %s", amount);
+    console.log("reward token allowance is %s", rewardToken.allowance(msg.sender, address(this)));
+    console.log("balance is %s", rewardToken.balanceOf(msg.sender));
+    console.log("balance other is %s", rewardToken.balanceOf(address(this)));
 
     // do transfer of funding
     uint256 total = rewardToken.balanceOf(address(this));
-    rewardToken.safeTransferFrom(msg.sender, address(this), amount);
+    rewardToken.safeTransferFrom(msg.sender, address(this), 1);
+    console.log("transfer dont work wtf");
     uint256 actual = rewardToken.balanceOf(address(this)) - total;
 
     // mint shares at current rate

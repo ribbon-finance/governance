@@ -342,11 +342,17 @@ contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
    */
   function _update() private {
     _unlockTokens(address(_token));
+    console.log("totalStakingShareSeconds is %s", totalStakingShareSeconds);
+    console.log("block.timestamp is %s", block.timestamp);
+    console.log("lastUpdated is %s", lastUpdated);
+    console.log("totalStakingShares is %s", totalStakingShares);
 
     // global accounting
     totalStakingShareSeconds +=
       (block.timestamp - lastUpdated) *
       totalStakingShares;
+
+    console.log("totalStakingShareSeconds is %s", totalStakingShareSeconds);
     lastUpdated = block.timestamp;
   }
 
