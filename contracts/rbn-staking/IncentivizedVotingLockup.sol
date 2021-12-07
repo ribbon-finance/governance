@@ -885,10 +885,9 @@ contract IncentivisedVotingLockup is
     uint32 nCheckpointsDelegator = numCheckpoints[msg.sender];
     uint32 nCheckpointsReceiver = numCheckpoints[_receiver];
 
+    // Since in order to cancel you must have set a delegation
     uint128 expireTime =
-      nCheckpointsDelegator > 0
-        ? _boost[msg.sender][nCheckpointsDelegator - 1].nextExpiry
-        : 0;
+      _boost[msg.sender][nCheckpointsDelegator - 1].nextExpiry;
 
     if (expireTime == 0) {
       return;
@@ -1013,15 +1012,148 @@ contract IncentivisedVotingLockup is
     return min;
   }
 
+  /**
+   * @dev Uses binarysearch to find the most recent user point history delegation preceeding block
+   * @param _addr User for which to search
+   * @param _block Find the most recent point history before this block
+   * @param _nextExpiry Next expiry of the delegation
+   */
+  function _findDelegationBlockEpoch(
+    address _addr,
+    uint256 _block,
+    uint128 _nextExpiry
+  )
+    internal
+    view
+    returns (
+      uint256,
+      int128,
+      uint256,
+      int128
+    )
+  {
+    require(_block < block.number, "sRBN::getPriorVotes: not yet determined");
+
+    uint32 nCheckpoints = numCheckpoints[_addr];
+    if (nCheckpoints == 0 || _nextExpiry == 0) {
+      return (0, 0, 0, 0);
+    }
+
+    Boost memory cp;
+
+    // First check most recent balance
+    if (_boost[_addr][nCheckpoints - 1].fromBlock <= _block) {
+      cp = _boost[_addr][nCheckpoints - 1];
+      return (
+        cp.delegatedBias,
+        cp.delegatedSlope,
+        cp.receivedBias,
+        cp.receivedSlope
+      );
+    }
+
+    // Next check implicit zero balance
+    if (_boost[_addr][0].fromBlock > _block) {
+      return (0, 0, 0, 0);
+    }
+
+    uint32 lower = 0;
+    uint32 upper = nCheckpoints - 1;
+    while (upper > lower) {
+      uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+      cp = _boost[_addr][center];
+      if (cp.fromBlock == _block) {
+        return (
+          cp.delegatedBias,
+          cp.delegatedSlope,
+          cp.receivedBias,
+          cp.receivedSlope
+        );
+      } else if (cp.fromBlock < _block) {
+        lower = center;
+      } else {
+        upper = center - 1;
+      }
+    }
+    cp = _boost[_addr][lower];
+    return (
+      cp.delegatedBias,
+      cp.delegatedSlope,
+      cp.receivedBias,
+      cp.receivedSlope
+    );
+  }
+
   function _calcBiasSlope(
     int256 _x,
     int256 _y,
     int256 _expireTime
-  ) internal view returns (int128 slope, uint256 bias) {
+  ) internal pure returns (int128 slope, uint256 bias) {
     // SLOPE: (y2 - y1) / (x2 - x1)
     // BIAS: y = mx + b -> y - mx = b
     slope = SafeCast.toInt128(-_y / (_expireTime - _x));
     bias = uint256(_y - slope * _x);
+  }
+
+  function calcBoostBiasSlope(address _delegator)
+    external
+    view
+    returns (int128, uint256)
+  {
+    if (delegates[_delegator] == address(0)) {
+      return (0, 0);
+    }
+
+    uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
+    uint128 expireTime =
+      _boost[msg.sender][nCheckpointsDelegator - 1].nextExpiry;
+
+    if (expireTime == 0) {
+      return (0, 0);
+    }
+
+    uint256 delegatedBias =
+      _boost[_delegator][nCheckpointsDelegator - 1].delegatedBias;
+    int128 delegatedSlope =
+      _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope;
+
+    // delegated boost will be positive, if any of circulating boosts are negative
+    // we have already reverted
+    int256 delegatedBoost =
+      delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
+    int256 y = int256(uint256(getCurrentVotes(_delegator))) - delegatedBoost;
+    require(y > 0, "No boost");
+
+    (int128 slope, uint256 bias) =
+      _calcBiasSlope(int256(block.timestamp), y, int256(block.timestamp));
+    require(slope < 0, "invalid slope");
+
+    return (slope, bias);
+  }
+
+  function delegateBoost(address _delegator) external view returns (uint256) {
+    if (delegates[_delegator] == address(0)) {
+      return 0;
+    }
+
+    uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
+
+    uint128 expireTime =
+      _boost[msg.sender][nCheckpointsDelegator - 1].nextExpiry;
+
+    if (expireTime == 0) {
+      return 0;
+    }
+
+    uint256 delegatedBias =
+      _boost[_delegator][nCheckpointsDelegator - 1].delegatedBias;
+    int128 delegatedSlope =
+      _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope;
+
+    int256 balance =
+      delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
+
+    return uint256(StableMath.abs(balance));
   }
 
   /**
@@ -1046,17 +1178,9 @@ contract IncentivisedVotingLockup is
     return StableMath.toUint96(SafeCast.toUint256(lastPoint.bias));
   }
 
-  /**
-   * @dev Gets a users votingWeight at a given blockNumber
-   * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
-   * @param _owner User for which to return the balance
-   * @param _blockNumber Block at which to calculate balance
-   * @return uint96 Balance of user
-   */
-  function getPriorVotes(address _owner, uint256 _blockNumber)
+  function _balanceOfAt(address _owner, uint256 _blockNumber)
     public
     view
-    override
     returns (uint96)
   {
     require(_blockNumber <= block.number, "Must pass block number in the past");
@@ -1100,6 +1224,77 @@ contract IncentivisedVotingLockup is
     } else {
       return 0;
     }
+  }
+
+  /**
+   * @dev Gets a users votingWeight at a given blockNumber
+   * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+   * @param _owner User for which to return the balance
+   * @param _blockNumber Block at which to calculate balance
+   * @return uint96 Balance of user
+   */
+  function getPriorVotes(address _owner, uint256 _blockNumber)
+    public
+    view
+    override
+    returns (uint96)
+  {
+    uint32 nCheckpoints = numCheckpoints[_owner];
+    uint128 nextExpiry =
+      nCheckpoints > 0 ? _boost[_owner][nCheckpoints - 1].nextExpiry : 0;
+    if (nextExpiry != 0 && nextExpiry < block.timestamp) {
+      // if the account has a negative boost in circulation
+      // we over penalize by setting their adjusted balance to 0
+      // this is because we don't want to iterate to find the real
+      // value
+      return 0;
+    }
+
+    uint96 adjustedBalance = _balanceOfAt(_owner, _blockNumber);
+
+    (
+      uint256 delegatedBias,
+      int128 delegatedSlope,
+      uint256 receivedBias,
+      int128 receivedSlope
+    ) = _findDelegationBlockEpoch(_owner, _blockNumber, nextExpiry);
+
+    if (delegatedBias != 0) {
+      // we take the absolute value, since delegated boost can be negative
+      // if any outstanding negative boosts are in circulation
+      // this can inflate the vecrv balance of a user
+      // taking the absolute value has the effect that it costs
+      // a user to negatively impact another's vecrv balance
+      adjustedBalance -= uint96(
+        uint256(
+          StableMath.abs(
+            delegatedSlope * int256(block.timestamp) + int256(delegatedBias)
+          )
+        )
+      );
+    }
+
+    if (receivedBias != 0) {
+      // similar to delegated boost, our received boost can be negative
+      // if any outstanding negative boosts are in our possession
+      // However, unlike delegated boost, we do not negatively impact
+      // our adjusted balance due to negative boosts. Instead we take
+      // whichever is greater between 0 and the value of our received
+      // boosts.
+      int256 receivedBal =
+        receivedSlope * int256(block.timestamp) + int256(receivedBias);
+      adjustedBalance += uint96(receivedBal > 0 ? uint256(receivedBal) : 0);
+    }
+
+    // since we took the absolute value of our delegated boost, it now instead of
+    // becoming negative is positive, and will continue to increase ...
+    // meaning if we keep a negative outstanding delegated balance for long
+    // enought it will not only decrease our vecrv_balance but also our received
+    // boost, however we return the maximum between our adjusted balance and 0
+    // when delegating boost, received boost isn't used for determining how
+    // much we can delegate.
+
+    return adjustedBalance > 0 ? adjustedBalance : 0;
   }
 
   /**
@@ -1207,24 +1402,5 @@ contract IncentivisedVotingLockup is
   {
     require(n < 2**32, errorMessage);
     return uint32(n);
-  }
-
-  function add96(
-    uint96 a,
-    uint96 b,
-    string memory errorMessage
-  ) internal pure returns (uint96) {
-    uint96 c = a + b;
-    require(c >= a, errorMessage);
-    return c;
-  }
-
-  function sub96(
-    uint96 a,
-    uint96 b,
-    string memory errorMessage
-  ) internal pure returns (uint96) {
-    require(b <= a, errorMessage);
-    return a - b;
   }
 }
