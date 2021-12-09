@@ -290,7 +290,7 @@ contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
     // note: we assume shares has been validated upstream
     require(data.length == 0, "crm2");
 
-    uint256 bonus = spent.gysrBonus(shares, totalStakingShares, _usage);
+    uint256 bonus = 10**DECIMALS;
 
     // do unstaking, first-in last-out, respecting time bonus
     uint256 shareSeconds;
