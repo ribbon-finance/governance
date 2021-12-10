@@ -236,24 +236,6 @@ library StableMath {
     return int112(value);
   }
 
-  /**
-   * @dev Returns the downcasted uint96 from uint256, reverting on
-   * overflow (when the input is greater than largest uint96).
-   *
-   * Counterpart to Solidity's `uint96` operator.
-   *
-   * Requirements:
-   *
-   * - input must fit into 96 bits.
-   */
-  function toUint96(uint256 value) internal pure returns (uint96) {
-    require(
-      value <= type(uint96).max,
-      "SafeCast: value doesn't fit in 96 bits"
-    );
-    return uint96(value);
-  }
-
   function abs(int256 x) internal pure returns (int256) {
     return x >= 0 ? x : -x;
   }
