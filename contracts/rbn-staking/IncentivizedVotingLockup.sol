@@ -660,7 +660,7 @@ contract IncentivisedVotingLockup is
    * @notice Delegate votes from `msg.sender` to `delegatee`
    * @param delegatee The address to delegate votes to
    */
-  function delegate(address delegatee) public {
+  function delegate(address delegatee) external {
     return _delegate(msg.sender, delegatee);
   }
 
@@ -680,7 +680,7 @@ contract IncentivisedVotingLockup is
     uint8 v,
     bytes32 r,
     bytes32 s
-  ) public {
+  ) external {
     bytes32 domainSeparator =
       keccak256(
         abi.encode(
@@ -815,7 +815,6 @@ contract IncentivisedVotingLockup is
       delegatedSlope,
       slope,
       bias,
-      nextExpiry,
       uint128(block.number)
     );
   }
@@ -833,36 +832,32 @@ contract IncentivisedVotingLockup is
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
 
-    if (
-      _nCheckpointsDelegator > 0 &&
-      _boost[_delegator][_nCheckpointsDelegator - 1].fromBlock == _blk
-    ) {
+    Boost memory addrBoost =
+      _nCheckpointsDelegator > 0
+        ? _boost[_delegator][_nCheckpointsDelegator - 1]
+        : Boost(0, 0, 0, 0, 0, _blk);
+
+    if (_nCheckpointsDelegator > 0 && addrBoost.fromBlock == _blk) {
       if (isCancelDelegation) {
-        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedBias = 0;
-        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedSlope = 0;
-        _boost[_delegator][_nCheckpointsDelegator - 1].nextExpiry = 0;
+        addrBoost.delegatedBias = 0;
+        addrBoost.delegatedSlope = 0;
+        addrBoost.nextExpiry = 0;
       } else {
-        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedBias += _bias;
-        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedSlope += _slope;
-        _boost[_delegator][_nCheckpointsDelegator - 1].nextExpiry = _nextExpiry;
+        addrBoost.delegatedBias += _bias;
+        addrBoost.delegatedSlope += _slope;
+        addrBoost.nextExpiry = _nextExpiry;
       }
+      _boost[_delegator][_nCheckpointsDelegator - 1] = addrBoost;
     } else {
-      uint256 receivedBias =
-        _nCheckpointsDelegator > 0
-          ? _boost[_delegator][_nCheckpointsDelegator - 1].receivedBias
-          : 0;
-      int128 receivedSlope =
-        _nCheckpointsDelegator > 0
-          ? _boost[_delegator][_nCheckpointsDelegator - 1].receivedSlope
-          : int128(0);
       _boost[_delegator][_nCheckpointsDelegator] = Boost(
         isCancelDelegation ? int128(0) : _delegatedSlope + _slope,
-        receivedSlope,
+        addrBoost.receivedSlope,
         isCancelDelegation ? 0 : _delegatedBias + _bias,
-        receivedBias,
+        addrBoost.receivedBias,
         isCancelDelegation ? 0 : _nextExpiry,
         _blk
       );
+      _boost[_delegator][_nCheckpointsDelegator] = addrBoost;
       numCheckpoints[_delegator] = _nCheckpointsDelegator + 1;
     }
   }
@@ -878,49 +873,35 @@ contract IncentivisedVotingLockup is
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
 
-    if (
-      _nCheckpointsReceiver > 0 &&
-      _boost[_receiver][_nCheckpointsReceiver - 1].fromBlock == _blk
-    ) {
+    Boost memory addrBoost =
+      _nCheckpointsReceiver > 0
+        ? _boost[_receiver][_nCheckpointsReceiver - 1]
+        : Boost(0, 0, 0, 0, 0, _blk);
+
+    if (_nCheckpointsReceiver > 0 && addrBoost.fromBlock == _blk) {
       if (isCancelDelegation) {
-        _boost[_receiver][_nCheckpointsReceiver - 1]
-          .receivedBias -= _delegatedBias;
-        _boost[_receiver][_nCheckpointsReceiver - 1]
-          .receivedSlope -= _delegatedSlope;
+        addrBoost.receivedBias -= _delegatedBias;
+        addrBoost.receivedSlope -= _delegatedSlope;
       } else {
-        _boost[_receiver][_nCheckpointsReceiver - 1].receivedBias += _bias;
-        _boost[_receiver][_nCheckpointsReceiver - 1].receivedSlope += _slope;
+        addrBoost.receivedBias += _bias;
+        addrBoost.receivedSlope += _slope;
       }
+      _boost[_receiver][_nCheckpointsReceiver - 1] = addrBoost;
     } else {
       if (isCancelDelegation || _nCheckpointsReceiver > 0) {
-        _boost[_receiver][_nCheckpointsReceiver] = _boost[_receiver][
-          _nCheckpointsReceiver - 1
-        ];
         if (isCancelDelegation) {
-          _boost[_receiver][_nCheckpointsReceiver]
-            .receivedBias -= _delegatedBias;
-          _boost[_receiver][_nCheckpointsReceiver]
-            .receivedSlope -= _delegatedSlope;
-          _boost[_receiver][_nCheckpointsReceiver].fromBlock = uint128(
-            block.number
-          );
+          addrBoost.receivedBias -= _delegatedBias;
+          addrBoost.receivedSlope -= _delegatedSlope;
         } else {
-          _boost[_receiver][_nCheckpointsReceiver].receivedBias += _bias;
-          _boost[_receiver][_nCheckpointsReceiver].receivedSlope += _slope;
-          _boost[_receiver][_nCheckpointsReceiver].fromBlock = uint128(
-            block.number
-          );
+          addrBoost.receivedBias += _bias;
+          addrBoost.receivedSlope += _slope;
         }
+        addrBoost.fromBlock = _blk;
       } else {
-        _boost[_receiver][_nCheckpointsReceiver] = Boost(
-          int128(0),
-          _slope,
-          0,
-          _bias,
-          0,
-          _blk
-        );
+        addrBoost.receivedSlope = _slope;
+        addrBoost.receivedBias = _bias;
       }
+      _boost[_receiver][_nCheckpointsReceiver] = addrBoost;
       numCheckpoints[_receiver] = _nCheckpointsReceiver + 1;
     }
   }
@@ -935,49 +916,29 @@ contract IncentivisedVotingLockup is
   }
 
   /**
-   * @dev Uses binarysearch to find the most recent point history preceeding block
+   * @dev Uses binarysearch to find the most recent (user) point history preceeding block
    * @param _block Find the most recent point history before this block
-   * @param _maxEpoch Do not search pointHistories past this index
+   * @param _max Do not search pointHistories past this index
+   * @param _addr User for which to search
    */
-  function _findBlockEpoch(uint256 _block, uint256 _maxEpoch)
-    internal
-    view
-    returns (uint256)
-  {
+  function _findBlockEpoch(
+    uint256 _block,
+    uint256 _max,
+    address _addr
+  ) internal view returns (uint256) {
+    bool isUserBlock = _addr != address(0);
     // Binary search
     uint256 min = 0;
-    uint256 max = _maxEpoch;
+    uint256 max = _max;
     // Will be always enough for 128-bit numbers
     for (uint256 i = 0; i < 128; i++) {
       if (min >= max) break;
       uint256 mid = (min + max + 1) / 2;
-      if (pointHistory[mid].blk <= _block) {
-        min = mid;
-      } else {
-        max = mid - 1;
-      }
-    }
-    return min;
-  }
-
-  /**
-   * @dev Uses binarysearch to find the most recent user point history preceeding block
-   * @param _addr User for which to search
-   * @param _block Find the most recent point history before this block
-   */
-  function _findUserBlockEpoch(address _addr, uint256 _block)
-    internal
-    view
-    returns (uint256)
-  {
-    uint256 min = 0;
-    uint256 max = userPointEpoch[_addr];
-    for (uint256 i = 0; i < 128; i++) {
-      if (min >= max) {
-        break;
-      }
-      uint256 mid = (min + max + 1) / 2;
-      if (userPointHistory[_addr][mid].blk <= _block) {
+      if (
+        (
+          isUserBlock ? userPointHistory[_addr][mid].blk : pointHistory[mid].blk
+        ) <= _block
+      ) {
         min = mid;
       } else {
         max = mid - 1;
@@ -1069,74 +1030,47 @@ contract IncentivisedVotingLockup is
     bias = uint256(_y - slope * _x);
   }
 
-  function calcBoostBiasSlope(address _delegator)
-    external
-    view
-    returns (int128, uint256)
-  {
-    if (delegates[_delegator] == address(0)) {
-      return (0, 0);
-    }
-
-    uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
-    uint128 expireTime =
-      _boost[msg.sender][nCheckpointsDelegator - 1].nextExpiry;
-
-    if (expireTime == 0) {
-      return (0, 0);
-    }
-
-    uint256 delegatedBias =
-      _boost[_delegator][nCheckpointsDelegator - 1].delegatedBias;
-    int128 delegatedSlope =
-      _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope;
-
-    // delegated boost will be positive, if any of circulating boosts are negative
-    // we have already reverted
-    int256 delegatedBoost =
-      delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
-    int256 y = int256(uint256(getCurrentVotes(_delegator))) - delegatedBoost;
-    require(y > 0, "No boost");
-
-    (int128 slope, uint256 bias) =
-      _calcBiasSlope(int256(block.timestamp), y, int256(block.timestamp));
-    require(slope < 0, "invalid slope");
-
-    return (slope, bias);
-  }
-
   function checkBoost(address _addr, bool _isDelegator)
     external
     view
-    returns (uint256)
+    returns (
+      uint256,
+      int128,
+      uint256
+    )
   {
-    if (delegates[_addr] == address(0) && _isDelegator) {
-      return 0;
-    }
-
     uint32 nCheckpoints = numCheckpoints[_addr];
 
-    uint128 expireTime = _boost[msg.sender][nCheckpoints - 1].nextExpiry;
+    if (nCheckpoints == 0 || (delegates[_addr] == address(0) && _isDelegator)) {
+      return (0, 0, 0);
+    }
+
+    Boost memory addrBoost = _boost[_addr][nCheckpoints - 1];
+
+    uint128 expireTime = addrBoost.nextExpiry;
 
     if (expireTime == 0 && _isDelegator) {
-      return 0;
+      return (0, 0, 0);
     }
 
     uint256 bias =
-      _isDelegator
-        ? _boost[_addr][nCheckpoints - 1].delegatedBias
-        : _boost[_addr][nCheckpoints - 1].receivedBias;
+      _isDelegator ? addrBoost.delegatedBias : addrBoost.receivedBias;
     int128 slope =
-      _isDelegator
-        ? _boost[_addr][nCheckpoints - 1].delegatedSlope
-        : _boost[_addr][nCheckpoints - 1].receivedSlope;
+      _isDelegator ? addrBoost.delegatedSlope : addrBoost.receivedSlope;
 
     int256 balance = slope * int256(block.timestamp) + int256(bias);
 
     if (_isDelegator) {
-      return uint256(StableMath.abs(balance));
+      (int128 _slope, uint256 _bias) =
+        _calcBiasSlope(
+          int256(block.timestamp),
+          int256(uint256(getCurrentVotes(_addr))),
+          int256(uint256(expireTime))
+        );
+      require(slope < 0, "invalid slope");
+      return (uint256(StableMath.abs(balance)), _slope, _bias);
     } else {
-      return balance > 0 ? uint256(balance) : 0;
+      return (balance > 0 ? uint256(balance) : 0, 0, 0);
     }
   }
 
@@ -1163,14 +1097,15 @@ contract IncentivisedVotingLockup is
   }
 
   function _balanceOfAt(address _owner, uint256 _blockNumber)
-    public
+    internal
     view
     returns (uint96)
   {
     require(_blockNumber <= block.number, "Must pass block number in the past");
 
     // Get most recent user Point to block
-    uint256 userEpoch = _findUserBlockEpoch(_owner, _blockNumber);
+    uint256 userEpoch =
+      _findBlockEpoch(_blockNumber, userPointEpoch[_owner], _owner);
     if (userEpoch == 0) {
       return 0;
     }
@@ -1178,7 +1113,7 @@ contract IncentivisedVotingLockup is
 
     // Get most recent global Point to block
     uint256 maxEpoch = globalEpoch;
-    uint256 epoch = _findBlockEpoch(_blockNumber, maxEpoch);
+    uint256 epoch = _findBlockEpoch(_blockNumber, maxEpoch, address(0));
     Point memory point0 = pointHistory[epoch];
 
     // Calculate delta (block & time) between user Point and target block
@@ -1336,7 +1271,7 @@ contract IncentivisedVotingLockup is
   }
 
   /**
-   * @dev Calculates total supply of votingWeight at a given blockNumber
+   * @dev Calculates total supply of votingWeight at a given blockNumber (optional)
    * @param _blockNumber Block number at which to calculate total supply
    * @return totalSupply of voting token weight at the given blockNumber
    */
@@ -1344,7 +1279,7 @@ contract IncentivisedVotingLockup is
     require(_blockNumber <= block.number, "Must pass block number in the past");
 
     uint256 epoch = globalEpoch;
-    uint256 targetEpoch = _findBlockEpoch(_blockNumber, epoch);
+    uint256 targetEpoch = _findBlockEpoch(_blockNumber, epoch, address(0));
 
     Point memory point = pointHistory[targetEpoch];
 
@@ -1377,14 +1312,5 @@ contract IncentivisedVotingLockup is
       chainId := chainid()
     }
     return chainId;
-  }
-
-  function safe32(uint256 n, string memory errorMessage)
-    internal
-    pure
-    returns (uint32)
-  {
-    require(n < 2**32, errorMessage);
-    return uint32(n);
   }
 }
