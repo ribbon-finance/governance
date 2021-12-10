@@ -131,12 +131,12 @@ contract IncentivisedVotingLockup is
   }
 
   struct Boost {
-    uint256 delegatedBias;
     int128 delegatedSlope;
-    uint256 receivedBias;
     int128 receivedSlope;
+    uint256 delegatedBias;
+    uint256 receivedBias;
     uint128 nextExpiry;
-    uint32 fromBlock;
+    uint128 fromBlock;
   }
 
   struct LockedBalance {
@@ -705,14 +705,29 @@ contract IncentivisedVotingLockup is
   }
 
   function _delegate(address delegator, address delegatee) internal {
+    address delegateeStored = delegates[delegator];
+
+    // Requirements
+    // a) delegating more to same delegatee as before OR
+    // b) no existing delegation and delegating to new person OR
+    // c) cancelling delegation
     require(
-      delegates[delegator] == delegatee || delegates[delegator] == address(0),
-      "Different delegator"
+      delegateeStored == delegatee ||
+        (delegateeStored == address(0) && delegatee != address(0)) ||
+        delegatee == address(0),
+      "Must only be delegating to single person or cancelling delegation"
     );
-    uint96 delegatorBalance = getCurrentVotes(delegator);
-    uint96 boostExpiry = locked[delegator].end;
-    if (delegates[delegator] == address(0)) {
-      delegates[delegator] = delegatee;
+
+    uint96 delegatorBalance;
+    uint96 boostExpiry;
+
+    // If we are not delegating to zero address (cancelling delegation)
+    if (delegatee != address(0)) {
+      delegatorBalance = getCurrentVotes(delegator);
+      boostExpiry = locked[delegator].end;
+      if (delegateeStored == address(0)) {
+        delegates[delegator] = delegatee;
+      }
     }
 
     emit DelegateSet(delegator, delegatee, delegatorBalance, boostExpiry);
@@ -726,7 +741,7 @@ contract IncentivisedVotingLockup is
     uint256 _expireTime,
     uint256 _amt
   ) internal {
-    require(_receiver != address(0), "Receiver is address(0)!");
+    bool isCancelDelegation = _receiver == address(0);
 
     uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
     uint32 nCheckpointsReceiver = numCheckpoints[_receiver];
@@ -735,14 +750,13 @@ contract IncentivisedVotingLockup is
       nCheckpointsDelegator > 0
         ? _boost[_delegator][nCheckpointsDelegator - 1].nextExpiry
         : 0;
-    uint256 expireTime = (_expireTime / 1 weeks) * 1 weeks;
 
-    if (nextExpiry == 0) {
+    if (!isCancelDelegation && nextExpiry == 0) {
       nextExpiry = type(uint128).max;
     }
 
     require(
-      block.timestamp < nextExpiry,
+      !isCancelDelegation && block.timestamp < nextExpiry,
       "Delegated a now expired boost in the past. Please cancel"
     );
 
@@ -756,26 +770,24 @@ contract IncentivisedVotingLockup is
         ? _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope
         : int128(0);
 
-    // delegated boost will be positive, if any of circulating boosts are negative
-    // we have already reverted
-    int256 delegatedBoost =
-      delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
-    int256 y = int256(_amt) - delegatedBoost;
-    require(y > 0, "No boost");
+    if (!isCancelDelegation) {
+      // delegated boost will be positive, if any of circulating boosts are negative
+      // we have already reverted
+      int256 delegatedBoost =
+        delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
+      int256 y = int256(_amt) - delegatedBoost;
+      require(y > 0, "No boost");
 
-    (int128 slope, uint256 bias) =
-      _calcBiasSlope(int256(block.timestamp), y, int256(expireTime));
-    require(slope < 0, "invalid slope");
+      uint256 expireTime = (_expireTime / 1 weeks) * 1 weeks;
 
-    uint32 blockNumber =
-      safe32(
-        block.number,
-        "sRBN::_writeCheckpoint: block number exceeds 32 bits"
-      );
+      (int128 slope, uint256 bias) =
+        _calcBiasSlope(int256(block.timestamp), y, int256(expireTime));
+      require(slope < 0, "invalid slope");
 
-    // increase the number of expiries for the user
-    if (expireTime < nextExpiry) {
-      nextExpiry = uint128(expireTime);
+      // increase the number of expiries for the user
+      if (expireTime < nextExpiry) {
+        nextExpiry = uint128(expireTime);
+      }
     }
 
     _writeCheckpoint(
@@ -786,7 +798,7 @@ contract IncentivisedVotingLockup is
       slope,
       bias,
       nextExpiry,
-      blockNumber
+      uint128(block.number)
     );
   }
 
@@ -798,15 +810,23 @@ contract IncentivisedVotingLockup is
     int128 _slope,
     uint256 _bias,
     uint128 _nextExpiry,
-    uint32 _blk
+    uint128 _blk
   ) internal {
+    bool isCancelDelegation = _receiver == address(0);
+
     if (
       _nCheckpointsDelegator > 0 &&
       _boost[_delegator][_nCheckpointsDelegator - 1].fromBlock == _blk
     ) {
-      _boost[_delegator][_nCheckpointsDelegator - 1].delegatedBias += _bias;
-      _boost[_delegator][_nCheckpointsDelegator - 1].delegatedSlope += _slope;
-      _boost[_delegator][_nCheckpointsDelegator - 1].nextExpiry = _nextExpiry;
+      if (isCancelDelegation) {
+        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedBias = 0;
+        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedSlope = 0;
+        _boost[_delegator][_nCheckpointsDelegator - 1].nextExpiry = 0;
+      } else {
+        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedBias += _bias;
+        _boost[_delegator][_nCheckpointsDelegator - 1].delegatedSlope += _slope;
+        _boost[_delegator][_nCheckpointsDelegator - 1].nextExpiry = _nextExpiry;
+      }
     } else {
       uint256 delegatedBias =
         _nCheckpointsDelegator > 0
@@ -825,10 +845,10 @@ contract IncentivisedVotingLockup is
           ? _boost[_delegator][_nCheckpointsDelegator - 1].receivedSlope
           : int128(0);
       _boost[_delegator][_nCheckpointsDelegator] = Boost(
-        delegatedBias + _bias,
         delegatedSlope + _slope,
-        receivedBias,
         receivedSlope,
+        delegatedBias + _bias,
+        receivedBias,
         _nextExpiry,
         _blk
       );
@@ -860,10 +880,10 @@ contract IncentivisedVotingLockup is
           ? _boost[_receiver][_nCheckpointsReceiver - 1].receivedSlope
           : int128(0);
       _boost[_receiver][_nCheckpointsReceiver] = Boost(
-        delegatorBias,
         delegatorSlope,
-        receivedBias + _bias,
         receivedSlope + _slope,
+        delegatorBias,
+        receivedBias + _bias,
         _nextExpiry,
         _blk
       );
@@ -887,12 +907,6 @@ contract IncentivisedVotingLockup is
       return;
     }
 
-    uint32 blockNumber =
-      safe32(
-        block.number,
-        "sRBN::_writeCheckpoint: block number exceeds 32 bits"
-      );
-
     // Since in order to cancel you must have set a delegation,
     // nCheckpointsDelegator and nCheckpointsReceiver must both be > 0 at this point
 
@@ -901,7 +915,7 @@ contract IncentivisedVotingLockup is
     int128 delegatedSlope =
       _boost[msg.sender][nCheckpointsDelegator - 1].delegatedSlope;
 
-    if (_boost[_receiver][nCheckpointsReceiver - 1].fromBlock == blockNumber) {
+    if (_boost[_receiver][nCheckpointsReceiver - 1].fromBlock == block.number) {
       _boost[_receiver][nCheckpointsReceiver - 1].receivedBias -= delegatedBias;
       _boost[_receiver][nCheckpointsReceiver - 1]
         .receivedSlope -= delegatedSlope;
@@ -911,12 +925,12 @@ contract IncentivisedVotingLockup is
       ];
       _boost[_receiver][nCheckpointsReceiver].receivedBias -= delegatedBias;
       _boost[_receiver][nCheckpointsReceiver].receivedSlope -= delegatedSlope;
-      _boost[_receiver][nCheckpointsReceiver].fromBlock = blockNumber;
+      _boost[_receiver][nCheckpointsReceiver].fromBlock = uint128(block.number);
       numCheckpoints[_receiver] = nCheckpointsReceiver + 1;
     }
 
     if (
-      _boost[msg.sender][nCheckpointsDelegator - 1].fromBlock == blockNumber
+      _boost[msg.sender][nCheckpointsDelegator - 1].fromBlock == block.number
     ) {
       _boost[msg.sender][nCheckpointsDelegator - 1].delegatedBias = 0;
       _boost[msg.sender][nCheckpointsDelegator - 1].delegatedSlope = 0;
@@ -928,11 +942,11 @@ contract IncentivisedVotingLockup is
         _boost[msg.sender][nCheckpointsDelegator - 1].receivedSlope;
       _boost[msg.sender][nCheckpointsDelegator] = Boost(
         0,
-        0,
-        receivedBias,
         receivedSlope,
         0,
-        blockNumber
+        receivedBias,
+        0,
+        uint128(block.number)
       );
       numCheckpoints[msg.sender] = nCheckpointsDelegator + 1;
     }
