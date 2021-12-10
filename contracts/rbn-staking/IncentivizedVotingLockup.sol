@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import {
-  IIncentivisedVotingLockup
-} from "../interfaces/IIncentivisedVotingLockup.sol";
-import {
-  ReentrancyGuard
-} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IIncentivisedVotingLockup} from "../interfaces/IIncentivisedVotingLockup.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {ISmartWalletChecker} from "../interfaces/ISmartWalletChecker.sol";
-import {
-  SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
@@ -145,7 +139,11 @@ contract IncentivisedVotingLockup is
     uint32 end;
   }
 
-  enum LockAction {CREATE_LOCK, INCREASE_LOCK_AMOUNT, INCREASE_LOCK_TIME}
+  enum LockAction {
+    CREATE_LOCK,
+    INCREASE_LOCK_AMOUNT,
+    INCREASE_LOCK_TIME
+  }
 
   constructor(
     address _stakingToken,
@@ -157,13 +155,12 @@ contract IncentivisedVotingLockup is
     require(_rbnRedeemer != address(0), "!_rbnRedeemer");
 
     stakingToken = IERC20(_stakingToken);
-    Point memory init =
-      Point({
-        bias: int128(0),
-        slope: int128(0),
-        ts: uint128(block.timestamp),
-        blk: uint128(block.number)
-      });
+    Point memory init = Point({
+      bias: int128(0),
+      slope: int128(0),
+      ts: uint128(block.timestamp),
+      blk: uint128(block.number)
+    });
     pointHistory.push(init);
 
     transferOwnership(_owner);
@@ -315,13 +312,12 @@ contract IncentivisedVotingLockup is
       }
     }
 
-    Point memory lastPoint =
-      Point({
-        bias: 0,
-        slope: 0,
-        ts: uint128(block.timestamp),
-        blk: uint128(block.number)
-      });
+    Point memory lastPoint = Point({
+      bias: 0,
+      slope: 0,
+      ts: uint128(block.timestamp),
+      blk: uint128(block.number)
+    });
     if (epoch > 0) {
       lastPoint = pointHistory[epoch];
     }
@@ -330,8 +326,12 @@ contract IncentivisedVotingLockup is
     // initialLastPoint is used for extrapolation to calculate block number
     // (approximately, for *At methods) and save them
     // as we cannot figure that out exactly from inside the contract
-    Point memory initialLastPoint =
-      Point({bias: 0, slope: 0, ts: lastPoint.ts, blk: lastPoint.blk});
+    Point memory initialLastPoint = Point({
+      bias: 0,
+      slope: 0,
+      ts: lastPoint.ts,
+      blk: lastPoint.blk
+    });
     uint256 blockSlope = 0; // dblock/dt
     if (block.timestamp > lastPoint.ts) {
       blockSlope =
@@ -353,9 +353,8 @@ contract IncentivisedVotingLockup is
       } else {
         dSlope = slopeChanges[iterativeTime];
       }
-      int128 biasDelta =
-        lastPoint.slope *
-          SafeCast.toInt128(int256((iterativeTime - lastCheckpoint)));
+      int128 biasDelta = lastPoint.slope *
+        SafeCast.toInt128(int256((iterativeTime - lastCheckpoint)));
       lastPoint.bias = lastPoint.bias - biasDelta;
       lastPoint.slope = lastPoint.slope + dSlope;
       // This can happen
@@ -443,12 +442,11 @@ contract IncentivisedVotingLockup is
     LockedBalance memory _oldLocked,
     LockAction _action
   ) internal {
-    LockedBalance memory newLocked =
-      LockedBalance({
-        amount: _oldLocked.amount,
-        shares: _oldLocked.shares,
-        end: _oldLocked.end
-      });
+    LockedBalance memory newLocked = LockedBalance({
+      amount: _oldLocked.amount,
+      shares: _oldLocked.shares,
+      end: _oldLocked.end
+    });
 
     uint256 _newShares;
     uint256 _totalRBN = stakingToken.balanceOf(address(this));
@@ -505,12 +503,11 @@ contract IncentivisedVotingLockup is
     isWhitelisted(msg.sender)
   {
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
-    LockedBalance memory locked_ =
-      LockedBalance({
-        amount: locked[msg.sender].amount,
-        shares: locked[msg.sender].shares,
-        end: locked[msg.sender].end
-      });
+    LockedBalance memory locked_ = LockedBalance({
+      amount: locked[msg.sender].amount,
+      shares: locked[msg.sender].shares,
+      end: locked[msg.sender].end
+    });
 
     require(_value > 0, "Must stake non zero amount");
     require(locked_.amount == 0, "Withdraw old tokens first");
@@ -544,12 +541,11 @@ contract IncentivisedVotingLockup is
     contractNotStopped
     isWhitelisted(msg.sender)
   {
-    LockedBalance memory locked_ =
-      LockedBalance({
-        amount: locked[msg.sender].amount,
-        shares: locked[msg.sender].shares,
-        end: locked[msg.sender].end
-      });
+    LockedBalance memory locked_ = LockedBalance({
+      amount: locked[msg.sender].amount,
+      shares: locked[msg.sender].shares,
+      end: locked[msg.sender].end
+    });
 
     require(_value > 0, "Must stake non zero amount");
     require(locked_.amount > 0, "No existing lock found");
@@ -578,12 +574,11 @@ contract IncentivisedVotingLockup is
     contractNotStopped
     isWhitelisted(msg.sender)
   {
-    LockedBalance memory locked_ =
-      LockedBalance({
-        amount: locked[msg.sender].amount,
-        shares: locked[msg.sender].shares,
-        end: locked[msg.sender].end
-      });
+    LockedBalance memory locked_ = LockedBalance({
+      amount: locked[msg.sender].amount,
+      shares: locked[msg.sender].shares,
+      end: locked[msg.sender].end
+    });
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
 
     require(locked_.amount > 0, "Nothing is locked");
@@ -615,19 +610,21 @@ contract IncentivisedVotingLockup is
    * @param _addr User for which to withdraw
    */
   function _withdraw(address _addr) internal nonReentrant {
-    LockedBalance memory oldLock =
-      LockedBalance({
-        end: locked[_addr].end,
-        shares: locked[_addr].shares,
-        amount: locked[_addr].amount
-      });
+    LockedBalance memory oldLock = LockedBalance({
+      end: locked[_addr].end,
+      shares: locked[_addr].shares,
+      amount: locked[_addr].amount
+    });
     require(block.timestamp >= oldLock.end, "The lock didn't expire");
     require(oldLock.amount > 0, "Must have something to withdraw");
 
     uint256 shares = SafeCast.toUint256(oldLock.shares);
 
-    LockedBalance memory currentLock =
-      LockedBalance({end: 0, shares: 0, amount: 0});
+    LockedBalance memory currentLock = LockedBalance({
+      end: 0,
+      shares: 0,
+      amount: 0
+    });
     locked[_addr] = currentLock;
 
     // oldLocked can have either expired <= timestamp or zero end
@@ -635,8 +632,9 @@ contract IncentivisedVotingLockup is
     // Both can have >= 0 amount
     _checkpoint(_addr, oldLock, currentLock);
 
-    uint256 value =
-      shares.mul(stakingToken.balanceOf(address(this))).div(totalShares);
+    uint256 value = shares.mul(stakingToken.balanceOf(address(this))).div(
+      totalShares
+    );
     totalShares -= shares;
     totalLocked -= value;
 
@@ -681,19 +679,20 @@ contract IncentivisedVotingLockup is
     bytes32 r,
     bytes32 s
   ) external {
-    bytes32 domainSeparator =
-      keccak256(
-        abi.encode(
-          DOMAIN_TYPEHASH,
-          keccak256(bytes(name)),
-          getChainId(),
-          address(this)
-        )
-      );
-    bytes32 structHash =
-      keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
-    bytes32 digest =
-      keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    bytes32 domainSeparator = keccak256(
+      abi.encode(
+        DOMAIN_TYPEHASH,
+        keccak256(bytes(name)),
+        getChainId(),
+        address(this)
+      )
+    );
+    bytes32 structHash = keccak256(
+      abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
+    );
+    bytes32 digest = keccak256(
+      abi.encodePacked("\x19\x01", domainSeparator, structHash)
+    );
     address signatory = ecrecover(digest, v, r, s);
     require(signatory != address(0), "sRBN::delegateBySig: invalid signature");
     require(nonce == nonces[signatory]++, "sRBN::delegateBySig: invalid nonce");
@@ -746,10 +745,9 @@ contract IncentivisedVotingLockup is
     uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
     uint32 nCheckpointsReceiver = numCheckpoints[_receiver];
 
-    uint128 nextExpiry =
-      nCheckpointsDelegator > 0
-        ? _boost[_delegator][nCheckpointsDelegator - 1].nextExpiry
-        : 0;
+    uint128 nextExpiry = nCheckpointsDelegator > 0
+      ? _boost[_delegator][nCheckpointsDelegator - 1].nextExpiry
+      : 0;
 
     if (!isCancelDelegation && nextExpiry == 0) {
       nextExpiry = type(uint128).max;
@@ -761,14 +759,12 @@ contract IncentivisedVotingLockup is
     );
 
     // delegated slope and bias
-    uint256 delegatedBias =
-      nCheckpointsDelegator > 0
-        ? _boost[_delegator][nCheckpointsDelegator - 1].delegatedBias
-        : 0;
-    int128 delegatedSlope =
-      nCheckpointsDelegator > 0
-        ? _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope
-        : int128(0);
+    uint256 delegatedBias = nCheckpointsDelegator > 0
+      ? _boost[_delegator][nCheckpointsDelegator - 1].delegatedBias
+      : 0;
+    int128 delegatedSlope = nCheckpointsDelegator > 0
+      ? _boost[_delegator][nCheckpointsDelegator - 1].delegatedSlope
+      : int128(0);
 
     int128 slope;
     uint256 bias;
@@ -776,15 +772,19 @@ contract IncentivisedVotingLockup is
     if (!isCancelDelegation) {
       // delegated boost will be positive, if any of circulating boosts are negative
       // we have already reverted
-      int256 delegatedBoost =
-        delegatedSlope * int256(block.timestamp) + int256(delegatedBias);
-      int256 y = int256(_amt) - delegatedBoost;
+      int256 delegatedBoost = delegatedSlope *
+        SafeCast.toInt256(block.timestamp) +
+        SafeCast.toInt256(delegatedBias);
+      int256 y = SafeCast.toInt256(_amt) - delegatedBoost;
       require(y > 0, "No boost");
 
       uint256 expireTime = (_expireTime / 1 weeks) * 1 weeks;
 
-      (int128 _slope, uint256 _bias) =
-        _calcBiasSlope(int256(block.timestamp), y, int256(expireTime));
+      (int128 _slope, uint256 _bias) = _calcBiasSlope(
+        SafeCast.toInt256(block.timestamp),
+        y,
+        SafeCast.toInt256(expireTime)
+      );
       require(slope < 0, "invalid slope");
 
       slope = _slope;
@@ -792,7 +792,7 @@ contract IncentivisedVotingLockup is
 
       // increase the number of expiries for the user
       if (expireTime < nextExpiry) {
-        nextExpiry = uint128(expireTime);
+        nextExpiry = SafeCast.toUint128(expireTime);
       }
     }
 
@@ -805,7 +805,7 @@ contract IncentivisedVotingLockup is
       slope,
       bias,
       nextExpiry,
-      uint128(block.number)
+      SafeCast.toUint128(block.number)
     );
 
     _writeReceiverCheckpoint(
@@ -815,14 +815,14 @@ contract IncentivisedVotingLockup is
       delegatedSlope,
       slope,
       bias,
-      uint128(block.number)
+      SafeCast.toUint128(block.number)
     );
   }
 
   function _writeDelegatorCheckpoint(
     address _delegator,
     address _receiver,
-    uint32 _nCheckpointsDelegator,
+    uint32 _nCheckpoints,
     uint256 _delegatedBias,
     int128 _delegatedSlope,
     int128 _slope,
@@ -832,12 +832,11 @@ contract IncentivisedVotingLockup is
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
 
-    Boost memory addrBoost =
-      _nCheckpointsDelegator > 0
-        ? _boost[_delegator][_nCheckpointsDelegator - 1]
-        : Boost(0, 0, 0, 0, 0, _blk);
+    Boost memory addrBoost = _nCheckpoints > 0
+      ? _boost[_delegator][_nCheckpoints - 1]
+      : Boost(0, 0, 0, 0, 0, _blk);
 
-    if (_nCheckpointsDelegator > 0 && addrBoost.fromBlock == _blk) {
+    if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
       if (isCancelDelegation) {
         addrBoost.delegatedBias = 0;
         addrBoost.delegatedSlope = 0;
@@ -847,9 +846,9 @@ contract IncentivisedVotingLockup is
         addrBoost.delegatedSlope += _slope;
         addrBoost.nextExpiry = _nextExpiry;
       }
-      _boost[_delegator][_nCheckpointsDelegator - 1] = addrBoost;
+      _boost[_delegator][_nCheckpoints - 1] = addrBoost;
     } else {
-      _boost[_delegator][_nCheckpointsDelegator] = Boost(
+      _boost[_delegator][_nCheckpoints] = Boost(
         isCancelDelegation ? int128(0) : _delegatedSlope + _slope,
         addrBoost.receivedSlope,
         isCancelDelegation ? 0 : _delegatedBias + _bias,
@@ -857,14 +856,14 @@ contract IncentivisedVotingLockup is
         isCancelDelegation ? 0 : _nextExpiry,
         _blk
       );
-      _boost[_delegator][_nCheckpointsDelegator] = addrBoost;
-      numCheckpoints[_delegator] = _nCheckpointsDelegator + 1;
+      _boost[_delegator][_nCheckpoints] = addrBoost;
+      numCheckpoints[_delegator] = _nCheckpoints + 1;
     }
   }
 
   function _writeReceiverCheckpoint(
     address _receiver,
-    uint32 _nCheckpointsReceiver,
+    uint32 _nCheckpoints,
     uint256 _delegatedBias,
     int128 _delegatedSlope,
     int128 _slope,
@@ -873,12 +872,11 @@ contract IncentivisedVotingLockup is
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
 
-    Boost memory addrBoost =
-      _nCheckpointsReceiver > 0
-        ? _boost[_receiver][_nCheckpointsReceiver - 1]
-        : Boost(0, 0, 0, 0, 0, _blk);
+    Boost memory addrBoost = _nCheckpoints > 0
+      ? _boost[_receiver][_nCheckpoints - 1]
+      : Boost(0, 0, 0, 0, 0, _blk);
 
-    if (_nCheckpointsReceiver > 0 && addrBoost.fromBlock == _blk) {
+    if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
       if (isCancelDelegation) {
         addrBoost.receivedBias -= _delegatedBias;
         addrBoost.receivedSlope -= _delegatedSlope;
@@ -886,9 +884,9 @@ contract IncentivisedVotingLockup is
         addrBoost.receivedBias += _bias;
         addrBoost.receivedSlope += _slope;
       }
-      _boost[_receiver][_nCheckpointsReceiver - 1] = addrBoost;
+      _boost[_receiver][_nCheckpoints - 1] = addrBoost;
     } else {
-      if (isCancelDelegation || _nCheckpointsReceiver > 0) {
+      if (isCancelDelegation || _nCheckpoints > 0) {
         if (isCancelDelegation) {
           addrBoost.receivedBias -= _delegatedBias;
           addrBoost.receivedSlope -= _delegatedSlope;
@@ -901,8 +899,8 @@ contract IncentivisedVotingLockup is
         addrBoost.receivedSlope = _slope;
         addrBoost.receivedBias = _bias;
       }
-      _boost[_receiver][_nCheckpointsReceiver] = addrBoost;
-      numCheckpoints[_receiver] = _nCheckpointsReceiver + 1;
+      _boost[_receiver][_nCheckpoints] = addrBoost;
+      numCheckpoints[_receiver] = _nCheckpoints + 1;
     }
   }
 
@@ -1027,7 +1025,7 @@ contract IncentivisedVotingLockup is
     // SLOPE: (y2 - y1) / (x2 - x1)
     // BIAS: y = mx + b -> y - mx = b
     slope = SafeCast.toInt128(-_y / (_expireTime - _x));
-    bias = uint256(_y - slope * _x);
+    bias = SafeCast.toUint256(_y - slope * _x);
   }
 
   function checkBoost(address _addr, bool _isDelegator)
@@ -1047,30 +1045,31 @@ contract IncentivisedVotingLockup is
 
     Boost memory addrBoost = _boost[_addr][nCheckpoints - 1];
 
-    uint128 expireTime = addrBoost.nextExpiry;
-
-    if (expireTime == 0 && _isDelegator) {
+    if (addrBoost.nextExpiry == 0 && _isDelegator) {
       return (0, 0, 0);
     }
 
-    uint256 bias =
-      _isDelegator ? addrBoost.delegatedBias : addrBoost.receivedBias;
-    int128 slope =
-      _isDelegator ? addrBoost.delegatedSlope : addrBoost.receivedSlope;
+    uint256 bias = _isDelegator
+      ? addrBoost.delegatedBias
+      : addrBoost.receivedBias;
+    int128 slope = _isDelegator
+      ? addrBoost.delegatedSlope
+      : addrBoost.receivedSlope;
 
-    int256 balance = slope * int256(block.timestamp) + int256(bias);
+    int256 balance = slope *
+      SafeCast.toInt256(block.timestamp) +
+      SafeCast.toInt256(bias);
 
     if (_isDelegator) {
-      (int128 _slope, uint256 _bias) =
-        _calcBiasSlope(
-          int256(block.timestamp),
-          int256(uint256(getCurrentVotes(_addr))),
-          int256(uint256(expireTime))
-        );
+      (int128 _slope, uint256 _bias) = _calcBiasSlope(
+        SafeCast.toInt256(block.timestamp),
+        SafeCast.toInt256(uint256(getCurrentVotes(_addr))),
+        SafeCast.toInt256(uint256(addrBoost.nextExpiry))
+      );
       require(slope < 0, "invalid slope");
-      return (uint256(StableMath.abs(balance)), _slope, _bias);
+      return (SafeCast.toUint256(StableMath.abs(balance)), _slope, _bias);
     } else {
-      return (balance > 0 ? uint256(balance) : 0, 0, 0);
+      return (balance > 0 ? SafeCast.toUint256(balance) : 0, 0, 0);
     }
   }
 
@@ -1088,7 +1087,7 @@ contract IncentivisedVotingLockup is
     lastPoint.bias =
       lastPoint.bias -
       (lastPoint.slope *
-        SafeCast.toInt128(int256(block.timestamp - lastPoint.ts)));
+        SafeCast.toInt128(SafeCast.toInt256(block.timestamp - lastPoint.ts)));
     if (lastPoint.bias < 0) {
       lastPoint.bias = 0;
     }
@@ -1104,8 +1103,11 @@ contract IncentivisedVotingLockup is
     require(_blockNumber <= block.number, "Must pass block number in the past");
 
     // Get most recent user Point to block
-    uint256 userEpoch =
-      _findBlockEpoch(_blockNumber, userPointEpoch[_owner], _owner);
+    uint256 userEpoch = _findBlockEpoch(
+      _blockNumber,
+      userPointEpoch[_owner],
+      _owner
+    );
     if (userEpoch == 0) {
       return 0;
     }
@@ -1159,8 +1161,9 @@ contract IncentivisedVotingLockup is
     returns (uint96)
   {
     uint32 nCheckpoints = numCheckpoints[_owner];
-    uint128 nextExpiry =
-      nCheckpoints > 0 ? _boost[_owner][nCheckpoints - 1].nextExpiry : 0;
+    uint128 nextExpiry = nCheckpoints > 0
+      ? _boost[_owner][nCheckpoints - 1].nextExpiry
+      : 0;
     if (nextExpiry != 0 && nextExpiry < block.timestamp) {
       // if the account has a negative boost in circulation
       // we over penalize by setting their adjusted balance to 0
@@ -1184,10 +1187,12 @@ contract IncentivisedVotingLockup is
       // this can inflate the vecrv balance of a user
       // taking the absolute value has the effect that it costs
       // a user to negatively impact another's vecrv balance
-      adjustedBalance -= uint96(
-        uint256(
+      adjustedBalance -= SafeCast.toUint96(
+        SafeCast.toUint256(
           StableMath.abs(
-            delegatedSlope * int256(block.timestamp) + int256(delegatedBias)
+            delegatedSlope *
+              SafeCast.toInt256(block.timestamp) +
+              SafeCast.toInt256(delegatedBias)
           )
         )
       );
@@ -1200,9 +1205,12 @@ contract IncentivisedVotingLockup is
       // our adjusted balance due to negative boosts. Instead we take
       // whichever is greater between 0 and the value of our received
       // boosts.
-      int256 receivedBal =
-        receivedSlope * int256(block.timestamp) + int256(receivedBias);
-      adjustedBalance += uint96(receivedBal > 0 ? uint256(receivedBal) : 0);
+      int256 receivedBal = receivedSlope *
+        SafeCast.toInt256(block.timestamp) +
+        SafeCast.toInt256(receivedBias);
+      adjustedBalance += SafeCast.toUint96(
+        uint256((receivedBal > 0 ? SafeCast.toUint256(receivedBal) : 0))
+      );
     }
 
     // since we took the absolute value of our delegated boost, it now instead of
