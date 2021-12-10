@@ -1092,7 +1092,7 @@ contract IncentivisedVotingLockup is
       lastPoint.bias = 0;
     }
 
-    return StableMath.toUint96(SafeCast.toUint256(lastPoint.bias));
+    return SafeCast.toUint96(SafeCast.toUint256(lastPoint.bias));
   }
 
   function _balanceOfAt(address _owner, uint256 _blockNumber)
@@ -1141,7 +1141,7 @@ contract IncentivisedVotingLockup is
       upoint.bias -
       (upoint.slope * SafeCast.toInt128(int256(blockTime - upoint.ts)));
     if (upoint.bias >= 0) {
-      return StableMath.toUint96(SafeCast.toUint256(upoint.bias));
+      return SafeCast.toUint96(SafeCast.toUint256(upoint.bias));
     } else {
       return 0;
     }
