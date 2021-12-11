@@ -23,6 +23,7 @@ import {
   ONE_HOUR,
   ONE_DAY,
   ONE_YEAR,
+  ZERO_ADDRESS,
   DEFAULT_DECIMALS,
 } from "../utils/constants";
 import { Account } from "../../types";
@@ -897,6 +898,62 @@ describe("IncentivisedVotingLockup", () => {
 
       expect(davidAfter.senderStakingTokenBalance).eq(
         davidBefore.senderStakingTokenBalance.add(davidToWithdraw)
+      );
+    });
+  });
+
+  describe("delegation", () => {
+    let alice: Account;
+    let bob: Account;
+    let david: Account;
+    let charlie: Account;
+
+    let stakeAmt1: BN;
+    let stakeAmt2: BN;
+    let amountToSeize: BN;
+
+    before(async () => {
+      alice = sa.mockMasset;
+      bob = sa.mockRewardsDistributor;
+      david = sa.mockInterestValidator;
+      charlie = sa.mockRecollateraliser;
+
+      stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
+      stakeAmt2 = simpleToExactAmount(1000, DEFAULT_DECIMALS);
+
+      await deployFresh();
+
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(alice.address, stakeAmt1);
+      await mta.connect(sa.fundManager.signer).transfer(bob.address, stakeAmt2);
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(david.address, stakeAmt1);
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(charlie.address, stakeAmt2);
+
+      await mta.connect(alice.signer).approve(votingLockup.address, stakeAmt1);
+      await mta.connect(bob.signer).approve(votingLockup.address, stakeAmt2);
+      await mta.connect(david.signer).approve(votingLockup.address, stakeAmt1);
+      await mta
+        .connect(charlie.signer)
+        .approve(votingLockup.address, stakeAmt2);
+
+      await votingLockup
+        .connect(alice.signer)
+        .createLock(stakeAmt1, (await getTimestamp()).add(ONE_WEEK.add(1)));
+      await votingLockup
+        .connect(bob.signer)
+        .createLock(stakeAmt2, (await getTimestamp()).add(ONE_WEEK.add(1)));
+    });
+
+    it("reverts on delegation to zero-address when no prior delegation", async () => {
+      await expect(
+        votingLockup.connect(alice.signer).delegate(ZERO_ADDRESS)
+      ).to.be.revertedWith(
+        "Must only be delegating to single person or cancelling delegation"
       );
     });
   });

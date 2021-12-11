@@ -876,7 +876,7 @@ contract IncentivisedVotingLockup is
       ? _boost[_receiver][_nCheckpoints - 1]
       : Boost(0, 0, 0, 0, 0, _blk);
 
-    if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
+    if (isCancelDelegation || _nCheckpoints > 0) {
       if (isCancelDelegation) {
         addrBoost.receivedBias -= _delegatedBias;
         addrBoost.receivedSlope -= _delegatedSlope;
@@ -884,21 +884,15 @@ contract IncentivisedVotingLockup is
         addrBoost.receivedBias += _bias;
         addrBoost.receivedSlope += _slope;
       }
+      addrBoost.fromBlock = _blk;
+    } else {
+      addrBoost.receivedSlope = _slope;
+      addrBoost.receivedBias = _bias;
+    }
+
+    if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
       _boost[_receiver][_nCheckpoints - 1] = addrBoost;
     } else {
-      if (isCancelDelegation || _nCheckpoints > 0) {
-        if (isCancelDelegation) {
-          addrBoost.receivedBias -= _delegatedBias;
-          addrBoost.receivedSlope -= _delegatedSlope;
-        } else {
-          addrBoost.receivedBias += _bias;
-          addrBoost.receivedSlope += _slope;
-        }
-        addrBoost.fromBlock = _blk;
-      } else {
-        addrBoost.receivedSlope = _slope;
-        addrBoost.receivedBias = _bias;
-      }
       _boost[_receiver][_nCheckpoints] = addrBoost;
       numCheckpoints[_receiver] = _nCheckpoints + 1;
     }
@@ -965,7 +959,7 @@ contract IncentivisedVotingLockup is
       int128
     )
   {
-    require(_block < block.number, "sRBN::getPriorVotes: not yet determined");
+    require(_block <= block.number, "sRBN::getPriorVotes: not yet determined");
 
     uint32 nCheckpoints = numCheckpoints[_addr];
     if (nCheckpoints == 0 || _nextExpiry == 0) {
@@ -1095,8 +1089,8 @@ contract IncentivisedVotingLockup is
     return SafeCast.toUint96(SafeCast.toUint256(lastPoint.bias));
   }
 
-  function _balanceOfAt(address _owner, uint256 _blockNumber)
-    internal
+  function balanceOfAt(address _owner, uint256 _blockNumber)
+    public
     view
     returns (uint96)
   {
@@ -1172,7 +1166,7 @@ contract IncentivisedVotingLockup is
       return 0;
     }
 
-    uint96 adjustedBalance = _balanceOfAt(_owner, _blockNumber);
+    uint96 adjustedBalance = balanceOfAt(_owner, _blockNumber);
 
     (
       uint256 delegatedBias,
