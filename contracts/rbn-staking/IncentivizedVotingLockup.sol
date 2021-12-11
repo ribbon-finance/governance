@@ -707,14 +707,12 @@ contract IncentivisedVotingLockup is
     address delegateeStored = delegates[delegator];
 
     // Requirements
-    // a) delegating more to same delegatee as before OR
-    // b) no existing delegation and delegating to new person OR
-    // c) cancelling delegation
+    // a) delegating more to same delegatee as before OR switching delegates
+    // b) has existing delegation when cancelling delegation
     require(
-      delegateeStored == delegatee ||
-        (delegateeStored == address(0) && delegatee != address(0)) ||
-        delegatee == address(0),
-      "Must only be delegating to single person or cancelling delegation"
+      (delegateeStored == address(0) && delegatee != address(0)) ||
+        delegateeStored != address(0),
+      "Cannot cancel delegation without existing delegation"
     );
 
     uint96 delegatorBalance;
@@ -731,16 +729,25 @@ contract IncentivisedVotingLockup is
 
     emit DelegateSet(delegator, delegatee, delegatorBalance, boostExpiry);
 
-    _moveDelegates(delegator, delegatee, boostExpiry, delegatorBalance);
+    _moveDelegates(
+      delegator,
+      delegatee,
+      delegateeStored,
+      boostExpiry,
+      delegatorBalance
+    );
   }
 
   function _moveDelegates(
     address _delegator,
     address _receiver,
+    address _oldReceiver,
     uint256 _expireTime,
     uint256 _amt
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
+    bool isTransferDelegation = !isCancelDelegation &&
+      _receiver != _oldReceiver;
 
     uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
     uint32 nCheckpointsReceiver = numCheckpoints[_receiver];
@@ -775,8 +782,9 @@ contract IncentivisedVotingLockup is
       int256 delegatedBoost = delegatedSlope *
         SafeCast.toInt256(block.timestamp) +
         SafeCast.toInt256(delegatedBias);
-      int256 y = SafeCast.toInt256(_amt) - delegatedBoost;
-      require(y > 0, "No boost");
+      int256 y = SafeCast.toInt256(_amt) -
+        (isTransferDelegation ? int256(0) : delegatedBoost);
+      require(y > 0, "No boost available");
 
       uint256 expireTime = (_expireTime / 1 weeks) * 1 weeks;
 
@@ -796,6 +804,33 @@ contract IncentivisedVotingLockup is
       }
     }
 
+    // Cancel the previous delegation if we are transferring
+    // delegations
+    if (isTransferDelegation) {
+      _writeDelegatorCheckpoint(
+        _delegator,
+        address(0),
+        nCheckpointsDelegator,
+        delegatedBias,
+        delegatedSlope,
+        slope,
+        bias,
+        nextExpiry,
+        SafeCast.toUint128(block.number)
+      );
+
+      _writeReceiverCheckpoint(
+        _oldReceiver,
+        address(0),
+        nCheckpointsReceiver,
+        delegatedBias,
+        delegatedSlope,
+        slope,
+        bias,
+        SafeCast.toUint128(block.number)
+      );
+    }
+
     _writeDelegatorCheckpoint(
       _delegator,
       _receiver,
@@ -809,6 +844,7 @@ contract IncentivisedVotingLockup is
     );
 
     _writeReceiverCheckpoint(
+      _oldReceiver,
       _receiver,
       nCheckpointsReceiver,
       delegatedBias,
@@ -862,7 +898,8 @@ contract IncentivisedVotingLockup is
   }
 
   function _writeReceiverCheckpoint(
-    address _receiver,
+    address _newReceiver,
+    address _oldReceiver,
     uint32 _nCheckpoints,
     uint256 _delegatedBias,
     int128 _delegatedSlope,
@@ -870,10 +907,11 @@ contract IncentivisedVotingLockup is
     uint256 _bias,
     uint128 _blk
   ) internal {
-    bool isCancelDelegation = _receiver == address(0);
+    bool isCancelDelegation = _newReceiver == address(0);
+    address receiver = isCancelDelegation ? _oldReceiver : _newReceiver;
 
     Boost memory addrBoost = _nCheckpoints > 0
-      ? _boost[_receiver][_nCheckpoints - 1]
+      ? _boost[receiver][_nCheckpoints - 1]
       : Boost(0, 0, 0, 0, 0, _blk);
 
     if (isCancelDelegation || _nCheckpoints > 0) {
@@ -891,10 +929,10 @@ contract IncentivisedVotingLockup is
     }
 
     if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
-      _boost[_receiver][_nCheckpoints - 1] = addrBoost;
+      _boost[receiver][_nCheckpoints - 1] = addrBoost;
     } else {
-      _boost[_receiver][_nCheckpoints] = addrBoost;
-      numCheckpoints[_receiver] = _nCheckpoints + 1;
+      _boost[receiver][_nCheckpoints] = addrBoost;
+      numCheckpoints[receiver] = _nCheckpoints + 1;
     }
   }
 

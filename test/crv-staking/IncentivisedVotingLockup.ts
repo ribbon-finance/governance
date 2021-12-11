@@ -902,6 +902,8 @@ describe("IncentivisedVotingLockup", () => {
     });
   });
 
+  // creating delegation: https://github.com/curvefi/curve-veBoost/blob/master/tests/boosts/test_create_boost.py
+  // cancelling delegation: https://github.com/curvefi/curve-veBoost/blob/master/tests/boosts/test_cancel_boost.py
   describe("delegation", () => {
     let alice: Account;
     let bob: Account;
@@ -953,8 +955,115 @@ describe("IncentivisedVotingLockup", () => {
       await expect(
         votingLockup.connect(alice.signer).delegate(ZERO_ADDRESS)
       ).to.be.revertedWith(
-        "Must only be delegating to single person or cancelling delegation"
+        "Cannot cancel delegation without existing delegation"
       );
+    });
+
+    it("reverts when no boost to delegate", async () => {
+      // Only applies when delegating to same person again
+      // otherwise it is considered a transfer of delegation
+      votingLockup.connect(alice.signer).delegate(bob.address);
+      await expect(
+        votingLockup.connect(alice.signer).delegate(bob.address)
+      ).to.be.revertedWith("No boost available");
+    });
+
+    it("reverts on negative boost", async () => {
+      let expiry =
+        Math.floor((await getTimestamp()) / WEEK) * WEEK +
+        (2 * WEEK) /
+          (await votingLockup
+            .connect(david.signer)
+            .createLock(stakeAmt1, expiry));
+
+      await increaseTimeTo(expiry + 1);
+
+      await expect(
+        votingLockup.connect(david.signer).delegate(alice.address)
+      ).to.be.revertedWith(
+        "Delegated a now expired boost in the past. Please cancel"
+      );
+    });
+
+    it("reverts on invalid slope", async () => {
+      // slope can be equal to 0 due to integer division, as the
+      // amount of boost we are delegating is divided by the length of the
+      // boost period, in which case if abs(y) < boost period, the slope will be 0
+
+      let timeLocked = Math.floor((ONE_DAY * 365 * 4) / WEEK) * WEEK;
+
+      await votingLockup
+        .connect(david.signer)
+        .createLock(stakeAmt1, (await getTimestamp()).add(timeLocked));
+
+      await expect(
+        votingLockup.connect(david.signer).delegate(alice.address)
+      ).to.be.revertedWith("invalid slope");
+    });
+
+    it("creates delegation for another address", async () => {
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+
+      let alice_adj_balance = await votingLockup.getPriorVotes(alice.address);
+      let charlie_adj_balance = await votingLockup.getPriorVotes(
+        charlie.address
+      );
+
+      let [alice_delgated_boost, ,] = await votingLockup.checkBoost(
+        alice.address,
+        true
+      );
+      let [charlie_received_boost, ,] = await votingLockup.checkBoost(
+        charlie.address,
+        false
+      );
+
+      let alice_vecrv_balance = await votingLockup.balanceOfAt(
+        alice.address,
+        BN.from((await latestBlock()).number)
+      );
+
+      expect(alice_adj_balance).eq(0);
+      expect(charlie_adj_balance).eq(alice_vecrv_balance);
+      expect(charlie_received_boost).eq(alice_delgated_boost);
+    });
+
+    it("cancels delegation before expiry", async () => {
+      let expiry =
+        Math.floor((await getTimestamp()) / WEEK) * WEEK +
+        (2 * WEEK) /
+          (await votingLockup
+            .connect(david.signer)
+            .createLock(stakeAmt1, expiry));
+
+      await votingLockup.connect(david.signer).delegate(charlie.address);
+      await increaseTimeTo(expiry - 100);
+      await votingLockup.connect(david.signer).delegate(ZERO_ADDRESS);
+    });
+
+    it("cancels delegation after expiry", async () => {
+      let expiry =
+        Math.floor((await getTimestamp()) / WEEK) * WEEK +
+        (2 * WEEK) /
+          (await votingLockup
+            .connect(david.signer)
+            .createLock(stakeAmt1, expiry));
+
+      await votingLockup.connect(david.signer).delegate(charlie.address);
+      await increaseTimeTo(expiry + 100);
+      await votingLockup.connect(david.signer).delegate(ZERO_ADDRESS);
+    });
+
+    it("creates delegation for own address", async () => {
+      await votingLockup.connect(alice.signer).delegate(alice.address);
+
+      let alice_adj_balance = await votingLockup.getPriorVotes(alice.address);
+      let alice_vecrv_balance = await votingLockup.balanceOfAt(
+        alice.address,
+        BN.from((await latestBlock()).number)
+      );
+
+      expect(alice_adj_balance).eq(alice_vecrv_balance);
     });
   });
 
