@@ -12,6 +12,7 @@ import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "hardhat/console.sol";
 
 /**
  * @title  IncentivisedVotingLockup
@@ -747,6 +748,7 @@ contract IncentivisedVotingLockup is
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
     bool isTransferDelegation = !isCancelDelegation &&
+      _oldReceiver != address(0) &&
       _receiver != _oldReceiver;
 
     uint32 nCheckpointsDelegator = numCheckpoints[_delegator];
@@ -761,7 +763,7 @@ contract IncentivisedVotingLockup is
     }
 
     require(
-      !isCancelDelegation && block.timestamp < nextExpiry,
+      isCancelDelegation || block.timestamp < nextExpiry,
       "Delegated a now expired boost in the past. Please cancel"
     );
 
@@ -793,7 +795,8 @@ contract IncentivisedVotingLockup is
         y,
         SafeCast.toInt256(expireTime)
       );
-      require(slope < 0, "invalid slope");
+
+      require(_slope < 0, "invalid slope");
 
       slope = _slope;
       bias = _bias;
@@ -892,7 +895,6 @@ contract IncentivisedVotingLockup is
         isCancelDelegation ? 0 : _nextExpiry,
         _blk
       );
-      _boost[_delegator][_nCheckpoints] = addrBoost;
       numCheckpoints[_delegator] = _nCheckpoints + 1;
     }
   }
