@@ -132,6 +132,7 @@ contract IncentivisedVotingLockup is
     uint256 receivedBias;
     uint128 nextExpiry;
     uint128 fromBlock;
+    uint128 fromTimestamp;
   }
 
   struct LockedBalance {
@@ -814,12 +815,11 @@ contract IncentivisedVotingLockup is
         _delegator,
         address(0),
         nCheckpointsDelegator,
-        delegatedBias,
-        delegatedSlope,
         slope,
         bias,
         nextExpiry,
-        SafeCast.toUint128(block.number)
+        SafeCast.toUint128(block.number),
+        SafeCast.toUint128(block.timestamp)
       );
 
       _writeReceiverCheckpoint(
@@ -830,7 +830,8 @@ contract IncentivisedVotingLockup is
         delegatedSlope,
         slope,
         bias,
-        SafeCast.toUint128(block.number)
+        SafeCast.toUint128(block.number),
+        SafeCast.toUint128(block.timestamp)
       );
     }
 
@@ -838,12 +839,11 @@ contract IncentivisedVotingLockup is
       _delegator,
       _receiver,
       nCheckpointsDelegator,
-      delegatedBias,
-      delegatedSlope,
       slope,
       bias,
       nextExpiry,
-      SafeCast.toUint128(block.number)
+      SafeCast.toUint128(block.number),
+      SafeCast.toUint128(block.timestamp)
     );
 
     _writeReceiverCheckpoint(
@@ -854,7 +854,8 @@ contract IncentivisedVotingLockup is
       delegatedSlope,
       slope,
       bias,
-      SafeCast.toUint128(block.number)
+      SafeCast.toUint128(block.number),
+      SafeCast.toUint128(block.timestamp)
     );
   }
 
@@ -862,39 +863,33 @@ contract IncentivisedVotingLockup is
     address _delegator,
     address _receiver,
     uint32 _nCheckpoints,
-    uint256 _delegatedBias,
-    int128 _delegatedSlope,
     int128 _slope,
     uint256 _bias,
     uint128 _nextExpiry,
-    uint128 _blk
+    uint128 _blk,
+    uint128 _ts
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
 
     Boost memory addrBoost = _nCheckpoints > 0
       ? _boost[_delegator][_nCheckpoints - 1]
-      : Boost(0, 0, 0, 0, 0, _blk);
+      : Boost(0, 0, 0, 0, 0, 0, 0);
 
-    if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
-      if (isCancelDelegation) {
-        addrBoost.delegatedBias = 0;
-        addrBoost.delegatedSlope = 0;
-        addrBoost.nextExpiry = 0;
-      } else {
-        addrBoost.delegatedBias += _bias;
-        addrBoost.delegatedSlope += _slope;
-        addrBoost.nextExpiry = _nextExpiry;
-      }
-      _boost[_delegator][_nCheckpoints - 1] = addrBoost;
-    } else {
-      _boost[_delegator][_nCheckpoints] = Boost(
-        isCancelDelegation ? int128(0) : _delegatedSlope + _slope,
-        addrBoost.receivedSlope,
-        isCancelDelegation ? 0 : _delegatedBias + _bias,
-        addrBoost.receivedBias,
-        isCancelDelegation ? 0 : _nextExpiry,
-        _blk
-      );
+    uint32 currCP = _nCheckpoints > 0 && addrBoost.fromBlock == _blk
+      ? _nCheckpoints - 1
+      : _nCheckpoints;
+
+    _boost[_delegator][currCP] = Boost(
+      isCancelDelegation ? int128(0) : addrBoost.delegatedSlope + _slope,
+      addrBoost.receivedSlope,
+      isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias,
+      addrBoost.receivedBias,
+      isCancelDelegation ? 0 : _nextExpiry,
+      currCP == _nCheckpoints ? _blk : addrBoost.fromBlock,
+      currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp
+    );
+
+    if (currCP == _nCheckpoints) {
       numCheckpoints[_delegator] = _nCheckpoints + 1;
     }
   }
@@ -907,16 +902,17 @@ contract IncentivisedVotingLockup is
     int128 _delegatedSlope,
     int128 _slope,
     uint256 _bias,
-    uint128 _blk
+    uint128 _blk,
+    uint128 _ts
   ) internal {
     bool isCancelDelegation = _newReceiver == address(0);
     address receiver = isCancelDelegation ? _oldReceiver : _newReceiver;
 
     Boost memory addrBoost = _nCheckpoints > 0
       ? _boost[receiver][_nCheckpoints - 1]
-      : Boost(0, 0, 0, 0, 0, _blk);
+      : Boost(0, 0, 0, 0, 0, 0, 0);
 
-    if (isCancelDelegation || _nCheckpoints > 0) {
+    if (_nCheckpoints > 0) {
       if (isCancelDelegation) {
         addrBoost.receivedBias -= _delegatedBias;
         addrBoost.receivedSlope -= _delegatedSlope;
@@ -924,16 +920,26 @@ contract IncentivisedVotingLockup is
         addrBoost.receivedBias += _bias;
         addrBoost.receivedSlope += _slope;
       }
-      addrBoost.fromBlock = _blk;
     } else {
       addrBoost.receivedSlope = _slope;
       addrBoost.receivedBias = _bias;
     }
 
-    if (_nCheckpoints > 0 && addrBoost.fromBlock == _blk) {
-      _boost[receiver][_nCheckpoints - 1] = addrBoost;
-    } else {
-      _boost[receiver][_nCheckpoints] = addrBoost;
+    uint32 currCP = _nCheckpoints > 0 && addrBoost.fromBlock == _blk
+      ? _nCheckpoints - 1
+      : _nCheckpoints;
+
+    _boost[receiver][currCP] = Boost(
+      addrBoost.delegatedSlope,
+      addrBoost.receivedSlope,
+      addrBoost.delegatedBias,
+      addrBoost.receivedBias,
+      addrBoost.nextExpiry,
+      currCP == _nCheckpoints ? _blk : addrBoost.fromBlock,
+      currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp
+    );
+
+    if (currCP == _nCheckpoints) {
       numCheckpoints[receiver] = _nCheckpoints + 1;
     }
   }
@@ -983,27 +989,25 @@ contract IncentivisedVotingLockup is
    * @dev Uses binarysearch to find the most recent user point history delegation preceeding block
    * @param _addr User for which to search
    * @param _block Find the most recent point history before this block
-   * @param _nextExpiry Next expiry of the delegation
    */
-  function _findDelegationBlockEpoch(
-    address _addr,
-    uint256 _block,
-    uint128 _nextExpiry
-  )
+  function _findDelegationBlockEpoch(address _addr, uint256 _block)
     internal
     view
     returns (
       uint256,
       int128,
       uint256,
-      int128
+      int128,
+      uint128,
+      uint128
     )
   {
     require(_block <= block.number, "sRBN::getPriorVotes: not yet determined");
 
     uint32 nCheckpoints = numCheckpoints[_addr];
-    if (nCheckpoints == 0 || _nextExpiry == 0) {
-      return (0, 0, 0, 0);
+
+    if (nCheckpoints == 0) {
+      return (0, 0, 0, 0, 0, 0);
     }
 
     Boost memory cp;
@@ -1015,13 +1019,15 @@ contract IncentivisedVotingLockup is
         cp.delegatedBias,
         cp.delegatedSlope,
         cp.receivedBias,
-        cp.receivedSlope
+        cp.receivedSlope,
+        cp.nextExpiry,
+        cp.fromTimestamp
       );
     }
 
     // Next check implicit zero balance
     if (_boost[_addr][0].fromBlock > _block) {
-      return (0, 0, 0, 0);
+      return (0, 0, 0, 0, 0, 0);
     }
 
     uint32 lower = 0;
@@ -1034,7 +1040,9 @@ contract IncentivisedVotingLockup is
           cp.delegatedBias,
           cp.delegatedSlope,
           cp.receivedBias,
-          cp.receivedSlope
+          cp.receivedSlope,
+          cp.nextExpiry,
+          cp.fromTimestamp
         );
       } else if (cp.fromBlock < _block) {
         lower = center;
@@ -1047,7 +1055,9 @@ contract IncentivisedVotingLockup is
       cp.delegatedBias,
       cp.delegatedSlope,
       cp.receivedBias,
-      cp.receivedSlope
+      cp.receivedSlope,
+      cp.nextExpiry,
+      cp.fromTimestamp
     );
   }
 
@@ -1194,26 +1204,24 @@ contract IncentivisedVotingLockup is
     override
     returns (uint96)
   {
-    uint32 nCheckpoints = numCheckpoints[_owner];
-    uint128 nextExpiry = nCheckpoints > 0
-      ? _boost[_owner][nCheckpoints - 1].nextExpiry
-      : 0;
-    if (nextExpiry != 0 && nextExpiry < block.timestamp) {
-      // if the account has a negative boost in circulation
-      // we over penalize by setting their adjusted balance to 0
-      // this is because we don't want to iterate to find the real
-      // value
-      return 0;
-    }
-
     uint96 adjustedBalance = balanceOfAt(_owner, _blockNumber);
 
     (
       uint256 delegatedBias,
       int128 delegatedSlope,
       uint256 receivedBias,
-      int128 receivedSlope
-    ) = _findDelegationBlockEpoch(_owner, _blockNumber, nextExpiry);
+      int128 receivedSlope,
+      uint128 nextExpiry,
+      uint128 ts
+    ) = _findDelegationBlockEpoch(_owner, _blockNumber);
+
+    if (nextExpiry != 0 && nextExpiry < ts) {
+      // if the account has a negative boost in circulation
+      // we over penalize by setting their adjusted balance to 0
+      // this is because we don't want to iterate to find the real
+      // value
+      return 0;
+    }
 
     if (delegatedBias != 0) {
       // we take the absolute value, since delegated boost can be negative
