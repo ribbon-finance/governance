@@ -125,13 +125,13 @@ contract IncentivisedVotingLockup is
   }
 
   struct Boost {
+    uint32 nextExpiry;
+    uint32 fromBlock;
+    uint32 fromTimestamp;
     int128 delegatedSlope;
     int128 receivedSlope;
     uint256 delegatedBias;
     uint256 receivedBias;
-    uint128 nextExpiry;
-    uint128 fromBlock;
-    uint128 fromTimestamp;
   }
 
   struct LockedBalance {
@@ -181,20 +181,20 @@ contract IncentivisedVotingLockup is
    * @dev Check if the call is from a whitelisted smart contract, revert if not
    * @param _addr address to be checked
    */
-  modifier isWhitelisted(address _addr) {
+  function checkIsWhitelisted(address _addr) internal view {
     address checker = smartWalletChecker;
     require(
       _addr == tx.origin ||
         (checker != address(0) && ISmartWalletChecker(checker).check(_addr)),
       "Smart contract depositors not allowed"
     );
-    _;
   }
 
-  /** @dev Modifier to ensure contract has not stopped */
-  modifier contractNotStopped() {
+  /**
+   * @notice It's stupid to split this out to a different function, but we are trying to save bytecode here
+   */
+  function checkIsContractStopped() internal view {
     require(!contractStopped, "Contract is stopped");
-    _;
   }
 
   /***************************************
@@ -506,9 +506,10 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    contractNotStopped
-    isWhitelisted(msg.sender)
   {
+    checkIsWhitelisted(msg.sender);
+    checkIsContractStopped();
+
     uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
     LockedBalance memory locked_ = LockedBalance({
       amount: locked[msg.sender].amount,
@@ -545,9 +546,10 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    contractNotStopped
-    isWhitelisted(msg.sender)
   {
+    checkIsWhitelisted(msg.sender);
+    checkIsContractStopped();
+
     LockedBalance memory locked_ = LockedBalance({
       amount: locked[msg.sender].amount,
       shares: locked[msg.sender].shares,
@@ -578,9 +580,10 @@ contract IncentivisedVotingLockup is
     external
     override
     nonReentrant
-    contractNotStopped
-    isWhitelisted(msg.sender)
   {
+    checkIsWhitelisted(msg.sender);
+    checkIsContractStopped();
+
     LockedBalance memory locked_ = LockedBalance({
       amount: locked[msg.sender].amount,
       shares: locked[msg.sender].shares,
@@ -608,15 +611,9 @@ contract IncentivisedVotingLockup is
   /**
    * @dev Withdraws all the senders stake, providing lockup is over
    */
-  function withdraw() external override {
-    _withdraw(msg.sender);
-  }
+  function withdraw() external override nonReentrant {
+    address _addr = msg.sender;
 
-  /**
-   * @dev Withdraws a given users stake, providing the lockup has finished
-   * @param _addr User for which to withdraw
-   */
-  function _withdraw(address _addr) internal nonReentrant {
     LockedBalance memory oldLock = LockedBalance({
       end: locked[_addr].end,
       shares: locked[_addr].shares,
@@ -930,15 +927,15 @@ contract IncentivisedVotingLockup is
     // If we are cancelling delegation, we set delegation
     // slope, bias, and next expiry to 0. Otherwise, we increment
     // the delegated slope, the delegated bias, and update the nextExpiry
-    _boost[_delegator][currCP] = Boost(
-      isCancelDelegation ? int128(0) : addrBoost.delegatedSlope + _slope,
-      addrBoost.receivedSlope,
-      isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias,
-      addrBoost.receivedBias,
-      isCancelDelegation ? 0 : _nextExpiry,
-      currCP == _nCheckpoints ? _blk : addrBoost.fromBlock,
-      currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp
-    );
+    _boost[_delegator][currCP] = Boost({
+      delegatedSlope: isCancelDelegation ? int128(0) : addrBoost.delegatedSlope + _slope,
+      receivedSlope: addrBoost.receivedSlope,
+      nextExpiry: uint32(isCancelDelegation ? 0 : _nextExpiry),
+      fromBlock: uint32(currCP == _nCheckpoints ? _blk : addrBoost.fromBlock),
+      fromTimestamp: uint32(currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp),
+      delegatedBias: uint128(isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias),
+      receivedBias: uint128(addrBoost.receivedBias)
+    });
 
     if (currCP == _nCheckpoints) {
       numCheckpoints[_delegator] = _nCheckpoints + 1;
@@ -1000,15 +997,15 @@ contract IncentivisedVotingLockup is
       ? _nCheckpoints - 1
       : _nCheckpoints;
 
-    _boost[receiver][currCP] = Boost(
-      addrBoost.delegatedSlope,
-      addrBoost.receivedSlope,
-      addrBoost.delegatedBias,
-      addrBoost.receivedBias,
-      addrBoost.nextExpiry,
-      currCP == _nCheckpoints ? _blk : addrBoost.fromBlock,
-      currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp
-    );
+    _boost[receiver][currCP] = Boost({
+      delegatedSlope: addrBoost.delegatedSlope,
+      receivedSlope: addrBoost.receivedSlope,
+      delegatedBias: addrBoost.delegatedBias,
+      receivedBias: addrBoost.receivedBias,
+      nextExpiry: addrBoost.nextExpiry,
+      fromBlock: currCP == _nCheckpoints ? uint32(_blk) : addrBoost.fromBlock,
+      fromTimestamp: currCP == _nCheckpoints ? uint32(_ts) : addrBoost.fromTimestamp
+    });
 
     if (currCP == _nCheckpoints) {
       numCheckpoints[receiver] = _nCheckpoints + 1;
