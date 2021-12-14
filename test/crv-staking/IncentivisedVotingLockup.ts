@@ -1021,7 +1021,7 @@ describe("IncentivisedVotingLockup", () => {
     it("creates delegation for another address", async () => {
       await votingLockup.connect(alice.signer).delegate(charlie.address);
 
-      const b = BN.from((await latestBlock()).number);
+      const b = (await ethers.provider.getBlock("latest")).number;
 
       let alice_adj_balance = await votingLockup.getPriorVotes(
         alice.address,
@@ -1051,12 +1051,49 @@ describe("IncentivisedVotingLockup", () => {
       expect(charlie_received_boost).eq(alice_delgated_boost);
     });
 
+    it("creates delegation for another address, cancels, 2 times over, then delegates", async () => {
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+      await votingLockup.connect(alice.signer).delegate(ZERO_ADDRESS);
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+      await votingLockup.connect(alice.signer).delegate(ZERO_ADDRESS);
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+
+      const b = (await ethers.provider.getBlock("latest")).number;
+
+      let alice_adj_balance = await votingLockup.getPriorVotes(
+        alice.address,
+        b
+      );
+      let charlie_adj_balance = await votingLockup.getPriorVotes(
+        charlie.address,
+        b
+      );
+
+      let [alice_delgated_boost, ,] = await votingLockup.checkBoost(
+        alice.address,
+        true
+      );
+      let [charlie_received_boost, ,] = await votingLockup.checkBoost(
+        charlie.address,
+        false
+      );
+
+      let alice_vecrv_balance = await votingLockup.balanceOfAt(
+        alice.address,
+        b
+      );
+
+      expect(alice_adj_balance).eq(0);
+      expect(charlie_adj_balance).eq(alice_vecrv_balance);
+      expect(charlie_received_boost).eq(alice_delgated_boost);
+    });
+
     it("transfers delegation to another address", async () => {
       await votingLockup.connect(alice.signer).delegate(charlie.address);
 
       await votingLockup.connect(alice.signer).delegate(david.address);
 
-      const b = BN.from((await latestBlock()).number);
+      const b = (await ethers.provider.getBlock("latest")).number;
 
       let alice_adj_balance = await votingLockup.getPriorVotes(
         alice.address,
@@ -1101,6 +1138,58 @@ describe("IncentivisedVotingLockup", () => {
       expect(charlie_received_boost).eq(0);
     });
 
+    it("transfers delegation to another address, then to another, 2 times over, then delegates", async () => {
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+      await votingLockup.connect(alice.signer).delegate(david.address);
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+      await votingLockup.connect(alice.signer).delegate(david.address);
+      await votingLockup.connect(alice.signer).delegate(charlie.address);
+
+      const b = (await ethers.provider.getBlock("latest")).number;
+
+      let alice_adj_balance = await votingLockup.getPriorVotes(
+        alice.address,
+        b
+      );
+
+      let david_adj_balance = await votingLockup.getPriorVotes(
+        david.address,
+        b
+      );
+
+      let charlie_adj_balance = await votingLockup.getPriorVotes(
+        charlie.address,
+        b
+      );
+
+      let [alice_delgated_boost, ,] = await votingLockup.checkBoost(
+        alice.address,
+        true
+      );
+      let [david_received_boost, ,] = await votingLockup.checkBoost(
+        david.address,
+        false
+      );
+
+      let [charlie_received_boost, ,] = await votingLockup.checkBoost(
+        charlie.address,
+        false
+      );
+
+      let alice_vecrv_balance = await votingLockup.balanceOfAt(
+        alice.address,
+        b
+      );
+
+      expect(alice_adj_balance).eq(0);
+
+      expect(charlie_adj_balance).eq(alice_vecrv_balance);
+      expect(charlie_received_boost).eq(alice_delgated_boost);
+
+      expect(david_adj_balance).eq(0);
+      expect(david_received_boost).eq(0);
+    });
+
     it("cancels delegation before expiry", async () => {
       await votingLockup
         .connect(david.signer)
@@ -1110,7 +1199,7 @@ describe("IncentivisedVotingLockup", () => {
       await increaseTimeTo((await getTimestamp()).add(ONE_WEEK).sub(100));
       await votingLockup.connect(david.signer).delegate(ZERO_ADDRESS);
 
-      const b = await ethers.provider.getBlockNumber();
+      const b = (await ethers.provider.getBlock("latest")).number;
 
       let david_adj_balance = await votingLockup.getPriorVotes(
         david.address,
@@ -1151,7 +1240,7 @@ describe("IncentivisedVotingLockup", () => {
 
       await votingLockup.connect(david.signer).delegate(ZERO_ADDRESS);
 
-      const b = await ethers.provider.getBlockNumber();
+      const b = (await ethers.provider.getBlock("latest")).number;
 
       let david_adj_balance = await votingLockup.getPriorVotes(
         david.address,
@@ -1199,7 +1288,7 @@ describe("IncentivisedVotingLockup", () => {
 
       await votingLockup.connect(david.signer).delegate(alice.address);
 
-      const b = BN.from((await latestBlock()).number);
+      const b = (await ethers.provider.getBlock("latest")).number;
 
       let david_adj_balance = await votingLockup.getPriorVotes(
         david.address,
