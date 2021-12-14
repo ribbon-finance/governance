@@ -12,7 +12,6 @@ import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "hardhat/console.sol";
 
 /**
  * @title  IncentivisedVotingLockup
@@ -711,11 +710,15 @@ contract IncentivisedVotingLockup is
     // Requirements
     // a) delegating more to same delegatee as before OR switching delegates
     // b) has existing delegation when cancelling delegation
+    // c) cannot delegate to oneself
+
     require(
       (delegateeStored == address(0) && delegatee != address(0)) ||
         delegateeStored != address(0),
       "Cannot cancel delegation without existing delegation"
     );
+
+    require(delegator != delegatee, "Cannot delegate to oneself");
 
     uint96 delegatorBalance;
     uint96 boostExpiry;
@@ -724,9 +727,10 @@ contract IncentivisedVotingLockup is
     if (delegatee != address(0)) {
       delegatorBalance = getCurrentVotes(delegator);
       boostExpiry = locked[delegator].end;
-      if (delegateeStored == address(0)) {
-        delegates[delegator] = delegatee;
-      }
+    }
+
+    if (delegateeStored != delegatee) {
+      delegates[delegator] = delegatee;
     }
 
     emit DelegateSet(delegator, delegatee, delegatorBalance, boostExpiry);
@@ -787,6 +791,7 @@ contract IncentivisedVotingLockup is
         SafeCast.toInt256(delegatedBias);
       int256 y = SafeCast.toInt256(_amt) -
         (isTransferDelegation ? int256(0) : delegatedBoost);
+
       require(y > 0, "No boost available");
 
       uint256 expireTime = (_expireTime / 1 weeks) * 1 weeks;
@@ -833,6 +838,8 @@ contract IncentivisedVotingLockup is
         SafeCast.toUint128(block.number),
         SafeCast.toUint128(block.timestamp)
       );
+
+      nCheckpointsDelegator = numCheckpoints[_delegator];
     }
 
     _writeDelegatorCheckpoint(
@@ -895,8 +902,8 @@ contract IncentivisedVotingLockup is
   }
 
   function _writeReceiverCheckpoint(
-    address _newReceiver,
     address _oldReceiver,
+    address _newReceiver,
     uint32 _nCheckpoints,
     uint256 _delegatedBias,
     int128 _delegatedSlope,
@@ -921,8 +928,10 @@ contract IncentivisedVotingLockup is
         addrBoost.receivedSlope += _slope;
       }
     } else {
-      addrBoost.receivedSlope = _slope;
-      addrBoost.receivedBias = _bias;
+      if (!isCancelDelegation) {
+        addrBoost.receivedSlope = _slope;
+        addrBoost.receivedBias = _bias;
+      }
     }
 
     uint32 currCP = _nCheckpoints > 0 && addrBoost.fromBlock == _blk
@@ -1015,6 +1024,7 @@ contract IncentivisedVotingLockup is
     // First check most recent balance
     if (_boost[_addr][nCheckpoints - 1].fromBlock <= _block) {
       cp = _boost[_addr][nCheckpoints - 1];
+
       return (
         cp.delegatedBias,
         cp.delegatedSlope,
@@ -1247,11 +1257,11 @@ contract IncentivisedVotingLockup is
       // our adjusted balance due to negative boosts. Instead we take
       // whichever is greater between 0 and the value of our received
       // boosts.
-      int256 receivedBal = receivedSlope *
+      int256 receivedBoost = receivedSlope *
         SafeCast.toInt256(block.timestamp) +
         SafeCast.toInt256(receivedBias);
       adjustedBalance += SafeCast.toUint96(
-        uint256((receivedBal > 0 ? SafeCast.toUint256(receivedBal) : 0))
+        uint256((receivedBoost > 0 ? SafeCast.toUint256(receivedBoost) : 0))
       );
     }
 
