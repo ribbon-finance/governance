@@ -58,9 +58,7 @@ describe("Fee Distributor", () => {
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
       sa.fundManager.address,
-      redeemer.address,
-      await mta.name(),
-      await mta.symbol()
+      redeemer.address
     );
 
     await votingLockup.deployed();
