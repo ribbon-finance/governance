@@ -1850,4 +1850,41 @@ describe("IncentivisedVotingLockup", () => {
       expect(w_bob).eq(BN.from(0));
     });
   });
+
+  describe('gas test', () => {
+    let alice: Account;
+    let bob: Account;
+    let start: BN;
+    let maxTime: BN;
+    let stakeAmt1: BN;
+
+    before(async() => {
+      alice = sa.default;
+      bob = sa.dummy1;
+      stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
+
+      await goToNextUnixWeekStart();
+      start = await getTimestamp();
+      await deployFresh();
+      maxTime = await votingLockup.MAXTIME();
+      await mta
+        .connect(sa.fundManager.signer)
+        .transfer(alice.address, simpleToExactAmount(1, 22));
+    });
+    
+    it('fits gas budget for createLock', async() => {
+      const tx = await votingLockup
+          .connect(alice.signer)
+          .createLock(stakeAmt1, start.add(ONE_YEAR));
+      const receipt = await tx.wait()
+      console.log(receipt.gasUsed.toNumber())
+      expect(receipt.gasUsed.toNumber()).lt(350000);
+    });
+
+    it('fits gas budget for delegate', async () => {
+      const tx = await votingLockup.connect(alice.signer).delegate(bob.address);
+      const receipt = await tx.wait()
+      expect(receipt.gasUsed.toNumber()).lt(230000);
+    })
+  })
 });
