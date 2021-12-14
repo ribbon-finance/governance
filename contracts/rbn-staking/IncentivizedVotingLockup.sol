@@ -934,7 +934,7 @@ contract IncentivisedVotingLockup is
       receivedBias: uint128(addrBoost.receivedBias),
       nextExpiry: uint32(isCancelDelegation ? 0 : _nextExpiry),
       fromBlock: uint32(currCP == _nCheckpoints ? _blk : addrBoost.fromBlock),
-      fromTimestamp: uint32(currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp),
+      fromTimestamp: uint32(currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp)
     });
 
     if (currCP == _nCheckpoints) {
