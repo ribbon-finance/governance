@@ -48,14 +48,14 @@ contract IncentivisedVotingLockup is
   );
   event Withdraw(address indexed provider, uint256 value, uint256 ts);
   event ContractStopped(bool contractStopped);
-  /// @notice An event thats emitted when an account changes its delegate
+  // An event thats emitted when an account changes its delegate
   event DelegateSet(
     address indexed delegator,
     address indexed toDelegate,
     uint96 amount,
     uint96 expireTime
   );
-  /// @notice An event thats emitted when an account removes its delegate
+  // An event thats emitted when an account removes its delegate
   event DelegateRemoved(
     address indexed delegator,
     address indexed delegateeToRemove,
@@ -95,25 +95,25 @@ contract IncentivisedVotingLockup is
   /// @notice The number of checkpoints for each account
   mapping(address => uint32) public numCheckpoints;
 
-  /// @notice The EIP-712 typehash for the contract's domain
+  // The EIP-712 typehash for the contract's domain
   bytes32 public constant DOMAIN_TYPEHASH =
     keccak256(
       "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
     );
 
-  /// @notice The EIP-712 typehash for the delegation struct used by the contract
+  // The EIP-712 typehash for the delegation struct used by the contract
   bytes32 public constant DELEGATION_TYPEHASH =
     keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
-  /// @notice A record of states for signing / validating signatures
+  // A record of states for signing / validating signatures
   mapping(address => uint256) public nonces;
 
   // Voting token - Checkpointed view only ERC20
-  /// @notice EIP-20 token name for this token
+  // EIP-20 token name for this token
   string public constant name = "Staked Ribbon";
-  /// @notice EIP-20 token symbol for this token
+  // EIP-20 token symbol for this token
   string public constant symbol = "sRBN";
-  /// @notice EIP-20 token decimals for this token
+  // EIP-20 token decimals for this token
   uint8 public constant decimals = 18;
 
   /** Structs */
@@ -146,6 +146,12 @@ contract IncentivisedVotingLockup is
     INCREASE_LOCK_TIME
   }
 
+  /**
+   * @dev Constructor
+   * @param _stakingToken the staking token to lock
+   * @param _owner the owner of the contract
+   * @param _rbnRedeemer the contract address with redeeming logic
+   */
   constructor(
     address _stakingToken,
     address _owner,
@@ -665,20 +671,20 @@ contract IncentivisedVotingLockup is
 
   /**
    * @notice Delegates votes from signatory to `delegatee`
-   * @param delegatee The address to delegate votes to
-   * @param nonce The contract state required to match the signature
-   * @param expiry The time at which to expire the signature
-   * @param v The recovery byte of the signature
-   * @param r Half of the ECDSA signature pair
-   * @param s Half of the ECDSA signature pair
+   * @param _delegatee The address to delegate votes to
+   * @param _nonce The contract state required to match the signature
+   * @param _expiry The time at which to expire the signature
+   * @param _v The recovery byte of the signature
+   * @param _r Half of the ECDSA signature pair
+   * @param _s Half of the ECDSA signature pair
    */
   function delegateBySig(
-    address delegatee,
-    uint256 nonce,
-    uint256 expiry,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
+    address _delegatee,
+    uint256 _nonce,
+    uint256 _expiry,
+    uint8 _v,
+    bytes32 _r,
+    bytes32 _s
   ) external {
     bytes32 domainSeparator = keccak256(
       abi.encode(
@@ -689,21 +695,29 @@ contract IncentivisedVotingLockup is
       )
     );
     bytes32 structHash = keccak256(
-      abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
+      abi.encode(DELEGATION_TYPEHASH, _delegatee, _nonce, _expiry)
     );
     bytes32 digest = keccak256(
       abi.encodePacked("\x19\x01", domainSeparator, structHash)
     );
-    address signatory = ecrecover(digest, v, r, s);
+    address signatory = ecrecover(digest, _v, _r, _s);
     require(signatory != address(0), "sRBN::delegateBySig: invalid signature");
-    require(nonce == nonces[signatory]++, "sRBN::delegateBySig: invalid nonce");
     require(
-      block.timestamp <= expiry,
+      _nonce == nonces[signatory]++,
+      "sRBN::delegateBySig: invalid nonce"
+    );
+    require(
+      block.timestamp <= _expiry,
       "sRBN::delegateBySig: signature expired"
     );
-    return _delegate(signatory, delegatee);
+    return _delegate(signatory, _delegatee);
   }
 
+  /**
+   * @notice Delegates votes from signatory to `delegatee`
+   * @param delegatee The address to delegate votes to
+   * @param delegatee The address to delegate votes to
+   */
   function _delegate(address delegator, address delegatee) internal {
     address delegateeStored = delegates[delegator];
 
@@ -729,11 +743,10 @@ contract IncentivisedVotingLockup is
       boostExpiry = locked[delegator].end;
     }
 
+    // Change the delegator's delegatee
     if (delegateeStored != delegatee) {
       delegates[delegator] = delegatee;
     }
-
-    emit DelegateSet(delegator, delegatee, delegatorBalance, boostExpiry);
 
     _moveDelegates(
       delegator,
@@ -742,8 +755,18 @@ contract IncentivisedVotingLockup is
       boostExpiry,
       delegatorBalance
     );
+
+    emit DelegateSet(delegator, delegatee, delegatorBalance, boostExpiry);
   }
 
+  /**
+   * @dev Update delegation logic
+   * @param _delegator address of the delegator
+   * @param _receiver address of the delegatee
+   * @param _oldReceiver address of the old delegatee
+   * @param _expireTime time when the rbn boost expires
+   * @param _amt balance of the
+   */
   function _moveDelegates(
     address _delegator,
     address _receiver,
@@ -752,6 +775,7 @@ contract IncentivisedVotingLockup is
     uint256 _amt
   ) internal {
     bool isCancelDelegation = _receiver == address(0);
+    // If we are transferring delegations from one EOA to another
     bool isTransferDelegation = !isCancelDelegation &&
       _oldReceiver != address(0) &&
       _receiver != _oldReceiver;
@@ -763,6 +787,8 @@ contract IncentivisedVotingLockup is
       ? _boost[_delegator][nCheckpointsDelegator - 1].nextExpiry
       : 0;
 
+    // Update the next expiry to be _expireTime if we have no current
+    // delegation
     if (!isCancelDelegation && nextExpiry == 0) {
       nextExpiry = type(uint128).max;
     }
@@ -807,7 +833,7 @@ contract IncentivisedVotingLockup is
       slope = _slope;
       bias = _bias;
 
-      // increase the number of expiries for the user
+      // increase the expiry of the sRBN boost
       if (expireTime < nextExpiry) {
         nextExpiry = SafeCast.toUint128(expireTime);
       }
@@ -842,6 +868,7 @@ contract IncentivisedVotingLockup is
       nCheckpointsDelegator = numCheckpoints[_delegator];
     }
 
+    // Creating delegation for delegator / receiver of delegation
     _writeDelegatorCheckpoint(
       _delegator,
       _receiver,
@@ -866,6 +893,17 @@ contract IncentivisedVotingLockup is
     );
   }
 
+  /**
+   * @dev Update delegator side delegation logic
+   * @param _delegator address of the delegator
+   * @param _receiver address of the delegatee
+   * @param _nCheckpoints index of next checkpoint
+   * @param _slope slope of boost
+   * @param _bias bias of boost (y-intercept)
+   * @param _nextExpiry expiry of the boost
+   * @param _blk current block number
+   * @param _ts current timestamp
+   */
   function _writeDelegatorCheckpoint(
     address _delegator,
     address _receiver,
@@ -882,10 +920,16 @@ contract IncentivisedVotingLockup is
       ? _boost[_delegator][_nCheckpoints - 1]
       : Boost(0, 0, 0, 0, 0, 0, 0);
 
+    // If the previous checkpoint is the same block number
+    // we will update same checkpoint with new delegation
+    // updates
     uint32 currCP = _nCheckpoints > 0 && addrBoost.fromBlock == _blk
       ? _nCheckpoints - 1
       : _nCheckpoints;
 
+    // If we are cancelling delegation, we set delegation
+    // slope, bias, and next expiry to 0. Otherwise, we increment
+    // the delegated slope, the delegated bias, and update the nextExpiry
     _boost[_delegator][currCP] = Boost(
       isCancelDelegation ? int128(0) : addrBoost.delegatedSlope + _slope,
       addrBoost.receivedSlope,
@@ -901,6 +945,18 @@ contract IncentivisedVotingLockup is
     }
   }
 
+  /**
+   * @dev Update delegatee side delegation logic
+   * @param _oldReceiver address of the old delegatee of delegator
+   * @param _newReceiver address of the new delegatee of delegatee
+   * @param _nCheckpoints index of next checkpoint
+   * @param _delegatedBias bias of delegator
+   * @param _delegatedSlope slope of delegator
+   * @param _slope slope of boost
+   * @param _bias bias of boost (y-intercept)
+   * @param _blk current block number
+   * @param _ts current timestamp
+   */
   function _writeReceiverCheckpoint(
     address _oldReceiver,
     address _newReceiver,
@@ -919,6 +975,10 @@ contract IncentivisedVotingLockup is
       ? _boost[receiver][_nCheckpoints - 1]
       : Boost(0, 0, 0, 0, 0, 0, 0);
 
+    // If this is not the first checkpoint, if it is a
+    // cancellation we subtract the delegated bias and
+    // slope of this delegator from the delegatee.
+    // Otherwise we increment the bias and slope.
     if (_nCheckpoints > 0) {
       if (isCancelDelegation) {
         addrBoost.receivedBias -= _delegatedBias;
@@ -928,6 +988,8 @@ contract IncentivisedVotingLockup is
         addrBoost.receivedSlope += _slope;
       }
     } else {
+      // If we are not cancelling, we set the bias
+      // and slope
       if (!isCancelDelegation) {
         addrBoost.receivedSlope = _slope;
         addrBoost.receivedBias = _bias;
@@ -998,6 +1060,7 @@ contract IncentivisedVotingLockup is
    * @dev Uses binarysearch to find the most recent user point history delegation preceeding block
    * @param _addr User for which to search
    * @param _block Find the most recent point history before this block
+   * @return delegatedBias, delegatedSlope, receivedBias, receivedSlope, nextExpiry, fromTimestamp
    */
   function _findDelegationBlockEpoch(address _addr, uint256 _block)
     internal
@@ -1071,6 +1134,14 @@ contract IncentivisedVotingLockup is
     );
   }
 
+  /**
+   * @dev Calculates slope and bias using y = mx + b
+   * @param _x current timestamp
+   * @param _y current boost size
+   * @param _expireTime expiry of boost
+   * @return slope slope of boost
+   * @return bias bias of boost
+   */
   function _calcBiasSlope(
     int256 _x,
     int256 _y,
@@ -1082,6 +1153,12 @@ contract IncentivisedVotingLockup is
     bias = SafeCast.toUint256(_y - slope * _x);
   }
 
+  /**
+   * @dev Calculates the boost size, slope, and bias
+   * @param _addr address to check boost for
+   * @param _isDelegator whether address is delegator or receiver of boost
+   * @return boost size, slope, bias
+   */
   function checkBoost(address _addr, bool _isDelegator)
     external
     view
@@ -1093,12 +1170,14 @@ contract IncentivisedVotingLockup is
   {
     uint32 nCheckpoints = numCheckpoints[_addr];
 
+    // No boost exists
     if (nCheckpoints == 0 || (delegates[_addr] == address(0) && _isDelegator)) {
       return (0, 0, 0);
     }
 
     Boost memory addrBoost = _boost[_addr][nCheckpoints - 1];
 
+    // No boost exists
     if (addrBoost.nextExpiry == 0 && _isDelegator) {
       return (0, 0, 0);
     }
@@ -1114,21 +1193,17 @@ contract IncentivisedVotingLockup is
       SafeCast.toInt256(block.timestamp) +
       SafeCast.toInt256(bias);
 
+    // If we are delegator we get abs(balance)
+    // If we are receiver we get min(balance, 0) of balance
     if (_isDelegator) {
-      (int128 _slope, uint256 _bias) = _calcBiasSlope(
-        SafeCast.toInt256(block.timestamp),
-        SafeCast.toInt256(uint256(getCurrentVotes(_addr))),
-        SafeCast.toInt256(uint256(addrBoost.nextExpiry))
-      );
-      require(slope < 0, "invalid slope");
-      return (SafeCast.toUint256(StableMath.abs(balance)), _slope, _bias);
+      return (SafeCast.toUint256(StableMath.abs(balance)), slope, bias);
     } else {
-      return (balance > 0 ? SafeCast.toUint256(balance) : 0, 0, 0);
+      return (balance > 0 ? SafeCast.toUint256(balance) : 0, slope, bias);
     }
   }
 
   /**
-   * @dev Gets curent user voting weight (aka effectiveStake)
+   * @dev Gets current user voting weight (aka effectiveStake)
    * @param _owner User for which to return the balance
    * @return uint96 Balance of user
    */
@@ -1149,6 +1224,12 @@ contract IncentivisedVotingLockup is
     return SafeCast.toUint96(SafeCast.toUint256(lastPoint.bias));
   }
 
+  /**
+   * @dev Gets current user voting weight (aka effectiveStake) for a specific block
+   * @param _owner User for which to return the balance
+   * @param _blockNumber Block number to check
+   * @return uint96 Balance of user
+   */
   function balanceOfAt(address _owner, uint256 _blockNumber)
     public
     view
@@ -1366,6 +1447,9 @@ contract IncentivisedVotingLockup is
     return _supplyAt(point, point.ts + dTime);
   }
 
+  /**
+   * @dev Get chain id
+   */
   function getChainId() internal view returns (uint256) {
     uint256 chainId;
     assembly {
