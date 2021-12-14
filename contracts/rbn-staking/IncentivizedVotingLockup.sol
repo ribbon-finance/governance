@@ -929,12 +929,12 @@ contract IncentivisedVotingLockup is
     // the delegated slope, the delegated bias, and update the nextExpiry
     _boost[_delegator][currCP] = Boost({
       delegatedSlope: isCancelDelegation ? int128(0) : addrBoost.delegatedSlope + _slope,
+      delegatedBias: uint128(isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias),
       receivedSlope: addrBoost.receivedSlope,
+      receivedBias: uint128(addrBoost.receivedBias),
       nextExpiry: uint32(isCancelDelegation ? 0 : _nextExpiry),
       fromBlock: uint32(currCP == _nCheckpoints ? _blk : addrBoost.fromBlock),
       fromTimestamp: uint32(currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp),
-      delegatedBias: uint128(isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias),
-      receivedBias: uint128(addrBoost.receivedBias)
     });
 
     if (currCP == _nCheckpoints) {
