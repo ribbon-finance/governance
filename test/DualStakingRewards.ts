@@ -638,7 +638,7 @@ describe("DualStakingRewards contract", function () {
       const earned = await stakingRewards.earned(deployerAccount.address);
 
       assert.bnGt(earned[0], toUnit("1249.99"));
-      assert.bnGt(earned[1], toUnit("1249.99"));
+      assert.bnGt(earned[1], toUnit("1499.99"));
 
       await fastForward(DAY * 30);
 
