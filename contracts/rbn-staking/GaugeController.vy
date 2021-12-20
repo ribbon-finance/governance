@@ -38,10 +38,6 @@ event CommitOwnership:
 event ApplyOwnership:
     admin: address
 
-event DisperseFunds:
-    gauge: address
-    gauge_funding: uint256
-
 event DisperseTotalFunds:
     total_funding: uint256
 
@@ -588,7 +584,6 @@ def disperse_funds(_total_funding: uint256, _duration: uint256 = WEEK):
         continue
       ERC20(rbn).approve(gauge, gauge_funding_amt)
       VaultStaking(gauge).fund(gauge_funding_amt, _duration)
-      log DisperseFunds(gauge, gauge_funding_amt)
 
     log DisperseTotalFunds(_total_funding)
 
