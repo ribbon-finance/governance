@@ -145,6 +145,7 @@ describe("StakingRewards contract", function () {
       ignoreParents: ["ReentrancyGuard", "Owned"],
       expected: [
         "stake",
+        "stakeFor",
         "withdraw",
         "exit",
         "getReward",
@@ -453,8 +454,6 @@ describe("StakingRewards contract", function () {
   });
 
   describe("stake()", () => {
-    const seventyDays = DAY * 70;
-
     it("staking increases staking balance", async () => {
       const totalToStake = toUnit("100");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
@@ -469,20 +468,78 @@ describe("StakingRewards contract", function () {
         deployerAccount.address
       );
 
-      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+      await expect(stakingRewards.connect(deployerAccount).stake(totalToStake))
+        .to.emit(stakingRewards, "Staked")
+        .withArgs(
+          deployerAccount.address,
+          deployerAccount.address,
+          totalToStake
+        );
 
       const postStakeBal = await stakingRewards.balanceOf(
         deployerAccount.address
       );
       const postLpBal = await stakingToken.balanceOf(deployerAccount.address);
 
-      assert.bnLt(postLpBal, initialLpBal);
-      assert.bnGt(postStakeBal, initialStakeBal);
+      assert.bnEqual(BigNumber.from(postLpBal).add(totalToStake), initialLpBal);
+      assert.bnEqual(
+        postStakeBal,
+        BigNumber.from(initialStakeBal).add(totalToStake)
+      );
     });
 
     it("cannot stake 0", async () => {
       await assert.revert(
         stakingRewards.connect(owner).stake("0"),
+        "Cannot stake 0"
+      );
+    });
+  });
+
+  describe("stakeFor()", () => {
+    it("staking increases staking balance", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(account3.address, totalToStake);
+      await stakingToken
+        .connect(account3)
+        .approve(stakingRewards.address, totalToStake);
+
+      const initialStakeBal = await stakingRewards.balanceOf(
+        deployerAccount.address
+      );
+      const initialLpBal = await stakingToken.balanceOf(
+        deployerAccount.address
+      );
+      const initialLpBalSender = await stakingToken.balanceOf(account3.address);
+
+      await expect(
+        stakingRewards
+          .connect(account3)
+          .stakeFor(totalToStake, deployerAccount.address)
+      )
+        .to.emit(stakingRewards, "Staked")
+        .withArgs(deployerAccount.address, account3.address, totalToStake);
+
+      const postStakeBal = await stakingRewards.balanceOf(
+        deployerAccount.address
+      );
+      const postLpBal = await stakingToken.balanceOf(deployerAccount.address);
+      const postLpBalSender = await stakingToken.balanceOf(account3.address);
+
+      assert.bnEqual(postLpBal, initialLpBal);
+      assert.bnEqual(
+        BigNumber.from(postLpBalSender).add(totalToStake),
+        initialLpBalSender
+      );
+      assert.bnEqual(
+        postStakeBal,
+        BigNumber.from(initialStakeBal).add(totalToStake)
+      );
+    });
+
+    it("cannot stake 0", async () => {
+      await assert.revert(
+        stakingRewards.connect(owner).stakeFor("0", owner.address),
         "Cannot stake 0"
       );
     });
