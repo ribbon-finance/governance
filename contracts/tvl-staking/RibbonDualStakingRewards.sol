@@ -207,12 +207,10 @@ contract DualStakingRewards is
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
     Rewards memory _rewards = rewards[msg.sender];
-    uint256 reward0 = block.timestamp >= periodFinish.add(1 days)
-      ? _rewards.token0
-      : 0;
-    uint256 reward1 = block.timestamp >= periodFinish.add(1 days)
-      ? _rewards.token1
-      : 0;
+    (uint256 reward0, uint256 reward1) = block.timestamp >=
+      periodFinish.add(1 days)
+      ? (_rewards.token0, _rewards.token1)
+      : (0, 0);
     if (reward0 > 0) {
       rewards[msg.sender].token0 = 0;
       IERC20 _rewardsToken0 = rewardsToken0;
