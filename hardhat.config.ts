@@ -4,6 +4,7 @@ import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-web3";
 import "@nomiclabs/hardhat-vyper";
 import "@nomiclabs/hardhat-ethers";
+import "hardhat-contract-sizer";
 
 require("dotenv").config();
 

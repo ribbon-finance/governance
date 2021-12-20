@@ -12,7 +12,6 @@ interface GovernanceFixture {
   sRBN: Contract;
   timelock: Contract;
   governorBravo: Contract;
-  minter: SignerWithAddress;
   admin: SignerWithAddress;
 }
 
@@ -27,10 +26,14 @@ const PROPOSAL_THRESHOLD = parseEther("50000");
 const TIMELOCK_DELAY = 172800; // 48 hours
 
 export async function governanceFixture(): Promise<GovernanceFixture> {
-  const [minter, admin] = await ethers.getSigners();
+  const [admin] = await ethers.getSigners();
 
   // Contract factories
-  const StakedRibbon = await ethers.getContractFactory("StakedRibbon");
+  const RibbonToken = await ethers.getContractFactory("RibbonToken");
+  const Redeemer = await ethers.getContractFactory("Redeemer");
+  const StakedRibbon = await ethers.getContractFactory(
+    "IncentivisedVotingLockup"
+  );
   const GovernorBravoDelegate = await ethers.getContractFactory(
     "GovernorBravoDelegate"
   );
@@ -39,21 +42,29 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
   );
   const Timelock = await ethers.getContractFactory("Timelock");
 
-  const sRBN = await StakedRibbon.deploy(minter.address, admin.address, false);
+  const rbn = await RibbonToken.deploy("Ribbon", "RBN", 100, admin.address);
+
+  const redeemer = await Redeemer.deploy(admin.address, "9000");
+
+  const sRBN = await StakedRibbon.deploy(
+    rbn.address,
+    admin.address,
+    redeemer.address
+  );
 
   const governorBravoDelegate = await GovernorBravoDelegate.deploy();
 
   // Using nonces we get the pre-determined addresses for timelock and governor
   const governorNonce = await ethers.provider.getTransactionCount(
-    minter.address
+    admin.address
   );
   const timelockNonce = governorNonce + 1;
   const governorAddress = Contract.getContractAddress({
-    from: minter.address,
+    from: admin.address,
     nonce: governorNonce,
   });
   const timelockAddress = Contract.getContractAddress({
-    from: minter.address,
+    from: admin.address,
     nonce: timelockNonce,
   });
 
@@ -77,5 +88,5 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
     ethers.provider
   );
 
-  return { sRBN, timelock, governorBravo, minter, admin };
+  return { sRBN, timelock, governorBravo, admin };
 }
