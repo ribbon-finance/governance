@@ -208,20 +208,18 @@ contract DualStakingRewards is
     if (block.timestamp >= periodFinish.add(1 days)) {
       Rewards memory _rewards = rewards[msg.sender];
       if (_rewards.token0 > 0) {
-        IERC20 _rewardsToken0 = rewardsToken0;
-        _rewardsToken0.safeTransfer(
+        rewardsToken0.safeTransfer(
           msg.sender,
-          Math.min(_rewards.token0, _rewardsToken0.balanceOf(address(this)))
+          Math.min(_rewards.token0, rewardsToken0.balanceOf(address(this)))
         );
-        emit RewardPaid(address(_rewardsToken0), msg.sender, _rewards.token0);
+        emit RewardPaid(address(rewardsToken0), msg.sender, _rewards.token0);
       }
       if (_rewards.token1 > 0) {
-        IERC20 _rewardsToken1 = rewardsToken1;
-        _rewardsToken1.safeTransfer(
+        rewardsToken1.safeTransfer(
           msg.sender,
-          Math.min(_rewards.token1, _rewardsToken1.balanceOf(address(this)))
+          Math.min(_rewards.token1, rewardsToken1.balanceOf(address(this)))
         );
-        emit RewardPaid(address(_rewardsToken1), msg.sender, _rewards.token1);
+        emit RewardPaid(address(rewardsToken1), msg.sender, _rewards.token1);
       }
       delete rewards[msg.sender];
     }
@@ -274,24 +272,22 @@ contract DualStakingRewards is
     // This keeps the reward rate in the right range, preventing overflows due to
     // very high values of rewardRate in the earned and rewardsPerToken functions;
     // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-    IERC20 _rewardsToken0 = rewardsToken0;
-    IERC20 _rewardsToken1 = rewardsToken1;
     require(
       _rewardRate.token0 <=
-        _rewardsToken0.balanceOf(address(this)).div(rewardsDuration),
+        rewardsToken0.balanceOf(address(this)).div(rewardsDuration),
       "Provided reward0 too high"
     );
     require(
       _rewardRate.token1 <=
-        _rewardsToken1.balanceOf(address(this)).div(rewardsDuration),
+        rewardsToken1.balanceOf(address(this)).div(rewardsDuration),
       "Provided reward1 too high"
     );
 
     rewardRate = _rewardRate;
     periodFinish = startEmission.add(rewardsDuration);
     lastUpdateTime = lastTimeRewardApplicable();
-    emit RewardAdded(address(_rewardsToken0), reward0);
-    emit RewardAdded(address(_rewardsToken1), reward1);
+    emit RewardAdded(address(rewardsToken0), reward0);
+    emit RewardAdded(address(rewardsToken1), reward1);
   }
 
   // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
