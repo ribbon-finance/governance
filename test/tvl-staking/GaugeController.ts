@@ -28,7 +28,7 @@ describe("Gauge Controller", () => {
   let GysrStakingRewards: ContractFactory;
   let GaugeController: ContractFactory;
 
-  let mta: Contract,
+  let rbn: Contract,
     gysrStakingRewards: Contract,
     gysrStakingRewards2: Contract,
     gysrStakingRewards3: Contract,
@@ -44,22 +44,22 @@ describe("Gauge Controller", () => {
 
     // Get RBN token
     RibbonToken = await ethers.getContractFactory("RibbonToken");
-    mta = await RibbonToken.deploy(
+    rbn = await RibbonToken.deploy(
       "Ribbon",
       "RBN",
       simpleToExactAmount(1000000000, DEFAULT_DECIMALS),
       sa.fundManager.address
     );
 
-    await mta.deployed();
+    await rbn.deployed();
 
-    await mta.connect(sa.fundManager.signer).setTransfersAllowed(true);
+    await rbn.connect(sa.fundManager.signer).setTransfersAllowed(true);
 
     IncentivisedVotingLockup = await ethers.getContractFactory(
       "IncentivisedVotingLockup"
     );
     votingLockup = await IncentivisedVotingLockup.deploy(
-      mta.address,
+      rbn.address,
       sa.fundManager.address,
       DEAD_ADDRESS
     );
@@ -72,13 +72,13 @@ describe("Gauge Controller", () => {
     );
     gysrStakingRewards = await GysrStakingRewards.connect(
       sa.fundManager.signer
-    ).deploy(mta.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
+    ).deploy(rbn.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
     gysrStakingRewards2 = await GysrStakingRewards.connect(
       sa.fundManager.signer
-    ).deploy(mta.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
+    ).deploy(rbn.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
     gysrStakingRewards3 = await GysrStakingRewards.connect(
       sa.fundManager.signer
-    ).deploy(mta.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
+    ).deploy(rbn.address, 0, 1, ONE_WEEK, ZERO_ADDRESS);
 
     await gysrStakingRewards.deployed();
     await gysrStakingRewards2.deployed();
@@ -87,7 +87,7 @@ describe("Gauge Controller", () => {
     // Get gauge controller
     GaugeController = await ethers.getContractFactory("GaugeController");
     gaugeController = await GaugeController.deploy(
-      mta.address,
+      rbn.address,
       votingLockup.address,
       sa.fundManager.address
     );
@@ -111,16 +111,16 @@ describe("Gauge Controller", () => {
       alice = sa.default;
       bob = sa.dummy1;
       const stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
-      await mta
+      await rbn
         .connect(sa.fundManager.signer)
         .transfer(alice.address, simpleToExactAmount(1, 22));
-      await mta
+      await rbn
         .connect(sa.fundManager.signer)
         .transfer(bob.address, simpleToExactAmount(1, 22));
-      await mta
+      await rbn
         .connect(alice.signer)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
-      await mta
+      await rbn
         .connect(bob.signer)
         .approve(votingLockup.address, simpleToExactAmount(100, 21));
 
@@ -198,15 +198,15 @@ describe("Gauge Controller", () => {
     it("funds gysr staking contracts", async () => {
       let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
 
-      let gysrStakingRewardsBeforeBal = await mta.balanceOf(
+      let gysrStakingRewardsBeforeBal = await rbn.balanceOf(
         gysrStakingRewards.address
       );
-      let gysrStakingRewards2BeforeBal = await mta.balanceOf(
+      let gysrStakingRewards2BeforeBal = await rbn.balanceOf(
         gysrStakingRewards2.address
       );
-      let fundManagerBeforeBal = await mta.balanceOf(sa.fundManager.address);
+      let fundManagerBeforeBal = await rbn.balanceOf(sa.fundManager.address);
 
-      await mta
+      await rbn
         .connect(sa.fundManager.signer)
         .approve(gaugeController.address, totalFundingAmt);
 
@@ -218,13 +218,13 @@ describe("Gauge Controller", () => {
         .to.emit(gaugeController, "DisperseTotalFunds")
         .withArgs(totalFundingAmt);
 
-      let gysrStakingRewardsAfterBal = await mta.balanceOf(
+      let gysrStakingRewardsAfterBal = await rbn.balanceOf(
         gysrStakingRewards.address
       );
-      let gysrStakingRewards2AfterBal = await mta.balanceOf(
+      let gysrStakingRewards2AfterBal = await rbn.balanceOf(
         gysrStakingRewards2.address
       );
-      let fundManagerAfterBal = await mta.balanceOf(sa.fundManager.address);
+      let fundManagerAfterBal = await rbn.balanceOf(sa.fundManager.address);
 
       expect(fundManagerBeforeBal.sub(fundManagerAfterBal)).eq(totalFundingAmt);
 
@@ -232,9 +232,11 @@ describe("Gauge Controller", () => {
       // since alice and bob respectively allocated 100% of their
       // equal voting power to opposite gauges
       expect(gysrStakingRewardsAfterBal.sub(gysrStakingRewardsBeforeBal)).eq(
-        totalFundingAmt.div(2))
+        totalFundingAmt.div(2)
+      );
       expect(gysrStakingRewards2AfterBal.sub(gysrStakingRewards2BeforeBal)).eq(
-        totalFundingAmt.div(2))
+        totalFundingAmt.div(2)
+      );
     });
 
     it("funds gysr staking contracts without transferFrom", async () => {
@@ -243,17 +245,17 @@ describe("Gauge Controller", () => {
       // Pre-emptively transfers rbn to contract so that
       // it funds staking contracts with those funds and not
       // multisig funds
-      await mta
+      await rbn
         .connect(sa.fundManager.signer)
         .transfer(gaugeController.address, totalFundingAmt);
 
-      let fundManagerBeforeBal = await mta.balanceOf(sa.fundManager.address);
+      let fundManagerBeforeBal = await rbn.balanceOf(sa.fundManager.address);
 
       const tx = await gaugeController
         .connect(sa.fundManager.signer)
         ["disperse_funds(uint256)"](totalFundingAmt);
 
-      let fundManagerAfterBal = await mta.balanceOf(sa.fundManager.address);
+      let fundManagerAfterBal = await rbn.balanceOf(sa.fundManager.address);
 
       expect(fundManagerAfterBal.sub(fundManagerBeforeBal)).eq(0);
 
@@ -265,16 +267,16 @@ describe("Gauge Controller", () => {
     it("does not fund gysr staking contract with no weight", async () => {
       let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
 
-      let gysrStakingRewards3BeforeBal = await mta.balanceOf(
+      let gysrStakingRewards3BeforeBal = await rbn.balanceOf(
         gysrStakingRewards3.address
       );
-      await mta
+      await rbn
         .connect(sa.fundManager.signer)
         .approve(gaugeController.address, totalFundingAmt);
       await gaugeController
         .connect(sa.fundManager.signer)
         ["disperse_funds(uint256)"](totalFundingAmt);
-      let gysrStakingRewards3AfterBal = await mta.balanceOf(
+      let gysrStakingRewards3AfterBal = await rbn.balanceOf(
         gysrStakingRewards3.address
       );
 
