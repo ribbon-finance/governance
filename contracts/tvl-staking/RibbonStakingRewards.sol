@@ -157,9 +157,8 @@ contract StakingRewards is
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    uint256 reward = block.timestamp >= periodFinish.add(1 days)
-      ? rewards[msg.sender]
-      : 0;
+    uint256 reward =
+      block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
     if (reward > 0) {
       rewards[msg.sender] = 0;
       rewardsToken.safeTransfer(
