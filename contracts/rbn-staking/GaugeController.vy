@@ -574,21 +574,31 @@ def disperse_funds(_total_funding: uint256, _duration: uint256 = WEEK):
     rbn_balance: uint256 = ERC20(rbn).balanceOf(self)
     if _total_funding > rbn_balance:
       ERC20(rbn).transferFrom(msg.sender, self, _total_funding - rbn_balance)
-    
+
+    # do general checkpointing
+    self._get_total()
+
+    total_funding_amt: uint256 = 0
+
     # For all the gauges, fund each one based on respective weight
-    for i in range(500):
-      gauge: address = self.gauges[i]
+    for gauge in self.gauges:
       if gauge == ZERO_ADDRESS:
         break
 
+      # checkpointing for specific gauge
+      self._get_weight(gauge)
+
+      # weight * total_funding / 1e18
+      # if weight = 1e18, weight = 1.0
       gauge_funding_amt: uint256 = self._gauge_relative_weight(gauge, block.timestamp) * _total_funding / MULTIPLIER
 
       if(gauge_funding_amt == 0):
         continue
       ERC20(rbn).approve(gauge, gauge_funding_amt)
       VaultStaking(gauge).fund(gauge_funding_amt, _duration)
+      total_funding_amt += gauge_funding_amt
 
-    log DisperseTotalFunds(_total_funding)
+    log DisperseTotalFunds(total_funding_amt)
 
 @external
 @view

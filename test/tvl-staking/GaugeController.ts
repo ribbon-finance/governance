@@ -6,12 +6,13 @@ import { Contract, ContractFactory } from "@ethersproject/contracts";
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
-import { getTimestamp } from "../utils/time";
+import { increaseTime, getTimestamp } from "../utils/time";
 import { BN, simpleToExactAmount } from "../utils/math";
 import { StandardAccounts } from "../utils/machines";
 import { Account } from "../../types";
 import { addSnapshotBeforeRestoreAfterEach } from "../common";
 import {
+  ONE_DAY,
   ONE_WEEK,
   ONE_YEAR,
   DEFAULT_DECIMALS,
@@ -107,7 +108,9 @@ describe("Gauge Controller", () => {
     let alice: Account;
     let bob: Account;
 
-    before(async () => {
+    addSnapshotBeforeRestoreAfterEach();
+
+    beforeEach(async () => {
       alice = sa.default;
       bob = sa.dummy1;
       const stakeAmt1 = simpleToExactAmount(10, DEFAULT_DECIMALS);
@@ -134,15 +137,6 @@ describe("Gauge Controller", () => {
       await gysrStakingRewards3
         .connect(sa.fundManager.signer)
         .transferControl(gaugeController.address);
-      // await gysrStakingRewards
-      //   .connect(sa.fundManager.signer)
-      //   .stake(sa.fundManager.address, [], []);
-      //   await gysrStakingRewards2
-      //     .connect(sa.fundManager.signer)
-      //     .stake(sa.fundManager.address, ZERO_ADDRESS, 1, "0x");
-      //     await gysrStakingRewards3
-      //       .connect(sa.fundManager.signer)
-      //       .stake(sa.fundManager.address, ZERO_ADDRESS, 1, "0xs");
 
       // Lock in rbn for sRBN to be used in gauge controller voting
       await votingLockup
@@ -179,8 +173,6 @@ describe("Gauge Controller", () => {
         .vote_for_gauge_weights(gysrStakingRewards2.address, 10000);
     });
 
-    addSnapshotBeforeRestoreAfterEach();
-
     it("it reverts when not admin", async () => {
       await expect(
         gaugeController.connect(alice.signer)["disperse_funds(uint256)"](0)
@@ -195,7 +187,55 @@ describe("Gauge Controller", () => {
       ).to.be.revertedWith("Funding must be non-zero!");
     });
 
+    it("does not fund gysr staking contract with no weight", async () => {
+      await increaseTime(ONE_WEEK.add(ONE_DAY));
+
+      let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
+
+      let gysrStakingRewards3BeforeBal = await rbn.balanceOf(
+        gysrStakingRewards3.address
+      );
+      await rbn
+        .connect(sa.fundManager.signer)
+        .approve(gaugeController.address, totalFundingAmt);
+      await gaugeController
+        .connect(sa.fundManager.signer)
+        ["disperse_funds(uint256)"](totalFundingAmt);
+      let gysrStakingRewards3AfterBal = await rbn.balanceOf(
+        gysrStakingRewards3.address
+      );
+
+      // Rewards for gysr 3 should be 0 because no votes were allocated towards it
+      expect(gysrStakingRewards3AfterBal.sub(gysrStakingRewards3BeforeBal)).eq(
+        0
+      );
+    });
+
+    it("does not fund gysr staking contract with weight but next week", async () => {
+      await increaseTime(ONE_WEEK.add(ONE_DAY));
+
+      let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
+
+      let gysrStakingRewardsBeforeBal = await rbn.balanceOf(
+        gysrStakingRewards.address
+      );
+      await rbn
+        .connect(sa.fundManager.signer)
+        .approve(gaugeController.address, totalFundingAmt);
+      await gaugeController
+        .connect(sa.fundManager.signer)
+        ["disperse_funds(uint256)"](totalFundingAmt);
+      let gysrStakingRewardsAfterBal = await rbn.balanceOf(
+        gysrStakingRewards.address
+      );
+
+      // Rewards for gysr 3 should be 0 because no votes were allocated towards it
+      expect(gysrStakingRewardsAfterBal.sub(gysrStakingRewardsBeforeBal)).eq(0);
+    });
+
     it("funds gysr staking contracts", async () => {
+      await increaseTime(ONE_WEEK.add(ONE_DAY));
+
       let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
 
       let gysrStakingRewardsBeforeBal = await rbn.balanceOf(
@@ -240,6 +280,8 @@ describe("Gauge Controller", () => {
     });
 
     it("funds gysr staking contracts without transferFrom", async () => {
+      await increaseTime(ONE_WEEK.add(ONE_DAY));
+
       let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
 
       // Pre-emptively transfers rbn to contract so that
@@ -262,28 +304,6 @@ describe("Gauge Controller", () => {
       await expect(tx)
         .to.emit(gaugeController, "DisperseTotalFunds")
         .withArgs(totalFundingAmt);
-    });
-
-    it("does not fund gysr staking contract with no weight", async () => {
-      let totalFundingAmt = simpleToExactAmount(10, DEFAULT_DECIMALS);
-
-      let gysrStakingRewards3BeforeBal = await rbn.balanceOf(
-        gysrStakingRewards3.address
-      );
-      await rbn
-        .connect(sa.fundManager.signer)
-        .approve(gaugeController.address, totalFundingAmt);
-      await gaugeController
-        .connect(sa.fundManager.signer)
-        ["disperse_funds(uint256)"](totalFundingAmt);
-      let gysrStakingRewards3AfterBal = await rbn.balanceOf(
-        gysrStakingRewards3.address
-      );
-
-      // Rewards for gysr 3 should be 0 because no votes were allocated towards it
-      expect(gysrStakingRewards3AfterBal.sub(gysrStakingRewards3BeforeBal)).eq(
-        0
-      );
     });
   });
 });
