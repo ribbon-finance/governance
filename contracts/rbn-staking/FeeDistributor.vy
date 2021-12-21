@@ -380,12 +380,12 @@ def burn(_coin: address, _amount: uint256) -> bool:
     @return bool success
     """
     assert _coin == self.token
+    assert _amount != 0
     assert not self.is_killed
 
-    if _amount != 0:
-        ERC20(_coin).transferFrom(msg.sender, self, _amount)
-        if self.can_checkpoint_token and (block.timestamp > self.last_token_time + TOKEN_CHECKPOINT_DEADLINE):
-            self._checkpoint_token()
+    ERC20(_coin).transferFrom(msg.sender, self, _amount)
+    if self.can_checkpoint_token and (block.timestamp > self.last_token_time + TOKEN_CHECKPOINT_DEADLINE):
+        self._checkpoint_token()
 
     return True
 
