@@ -18,6 +18,8 @@ interface IDualStakingRewards {
 
     // Mutative
 
+    function notifyRewardAmount(uint256 reward0, uint256 reward1) external;
+
     function stake(uint256 amount) external;
 
     function stakeFor(uint256 amount, address user) external;
