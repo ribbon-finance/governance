@@ -80,6 +80,14 @@ contract DualStakingRewards is
       _startEmission > block.timestamp,
       "Start Emission must be in the future"
     );
+    require(
+      _rewardsToken0 != _stakingToken && _rewardsToken1 != _stakingToken,
+      "Rewards and staking tokens must be different"
+    );
+    require(
+      _rewardsToken0 != _rewardsToken1,
+      "Rewards tokens must be different"
+    );
 
     rewardsToken0 = IERC20(_rewardsToken0);
     rewardsToken1 = IERC20(_rewardsToken1);
