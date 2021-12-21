@@ -115,22 +115,19 @@ contract DualStakingRewards is
     }
 
     Rewards memory _rewardRate = rewardRate;
-    uint256 _lastTimeRewardApplicable = lastTimeRewardApplicable();
-    uint256 _lastUpdateTime = lastUpdateTime;
+    uint256 _lastTimeRewardApplicable = lastTimeRewardApplicable().sub(
+      lastUpdateTime
+    );
     return (
       uint256(_rewardPerTokenStored.token0).add(
-        _lastTimeRewardApplicable
-          .sub(_lastUpdateTime)
-          .mul(_rewardRate.token0)
-          .mul(1e18)
-          .div(totalSupply_)
+        _lastTimeRewardApplicable.mul(_rewardRate.token0).mul(1e18).div(
+          totalSupply_
+        )
       ),
       uint256(_rewardPerTokenStored.token1).add(
-        _lastTimeRewardApplicable
-          .sub(_lastUpdateTime)
-          .mul(_rewardRate.token1)
-          .mul(1e18)
-          .div(totalSupply_)
+        _lastTimeRewardApplicable.mul(_rewardRate.token1).mul(1e18).div(
+          totalSupply_
+        )
       )
     );
   }
@@ -142,14 +139,15 @@ contract DualStakingRewards is
     returns (uint256, uint256)
   {
     (uint256 rewardPerToken0, uint256 rewardPerToken1) = rewardPerToken();
+    uint256 balance = _balances[account];
     Rewards memory _userRewardPerTokenPaid = userRewardPerTokenPaid[account];
     Rewards memory _rewards = rewards[account];
     return (
-      _balances[account]
+      balance
         .mul(rewardPerToken0.sub(_userRewardPerTokenPaid.token0))
         .div(1e18)
         .add(_rewards.token0),
-      _balances[account]
+      balance
         .mul(rewardPerToken1.sub(_userRewardPerTokenPaid.token1))
         .div(1e18)
         .add(_rewards.token1)
@@ -250,7 +248,7 @@ contract DualStakingRewards is
     onlyRewardsDistribution
     updateReward(address(0))
   {
-    Rewards memory _rewardRate = rewardRate;
+    Rewards memory _rewardRate;
     uint256 _rewardsDuration = rewardsDuration;
     if (block.timestamp >= periodFinish) {
       _rewardRate = Rewards(
@@ -259,6 +257,7 @@ contract DualStakingRewards is
       );
     } else {
       uint256 remaining = periodFinish.sub(block.timestamp);
+      _rewardRate = rewardRate;
       _rewardRate = Rewards(
         reward0
           .add(remaining.mul(_rewardRate.token0))
