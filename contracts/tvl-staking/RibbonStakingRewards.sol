@@ -23,8 +23,8 @@ contract StakingRewards is
 
   /* ========== STATE VARIABLES ========== */
 
-  IERC20 public rewardsToken;
-  IERC20 public stakingToken;
+  IERC20 public immutable rewardsToken;
+  IERC20 public immutable stakingToken;
   uint256 public periodFinish = 0;
   uint256 public rewardRate = 0;
   uint256 public rewardsDuration = 28 days;
@@ -157,8 +157,9 @@ contract StakingRewards is
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    uint256 reward =
-      block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
+    uint256 reward = block.timestamp >= periodFinish.add(1 days)
+      ? rewards[msg.sender]
+      : 0;
     if (reward > 0) {
       rewards[msg.sender] = 0;
       rewardsToken.safeTransfer(

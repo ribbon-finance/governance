@@ -30,9 +30,9 @@ contract DualStakingRewards is
 
   /* ========== STATE VARIABLES ========== */
 
-  IERC20 public rewardsToken0;
-  IERC20 public rewardsToken1;
-  IERC20 public stakingToken;
+  IERC20 public immutable rewardsToken0;
+  IERC20 public immutable rewardsToken1;
+  IERC20 public immutable stakingToken;
   Rewards public rewardRate;
   Rewards public rewardPerTokenStored;
   uint256 public periodFinish = 0;
