@@ -163,9 +163,10 @@ contract DualStakingRewards is
     returns (uint256, uint256)
   {
     Rewards memory _rewardRate = rewardRate;
+    uint256 _rewardsDuration = rewardsDuration;
     return (
-      uint256(_rewardRate.token0).mul(rewardsDuration),
-      uint256(_rewardRate.token1).mul(rewardsDuration)
+      uint256(_rewardRate.token0).mul(_rewardsDuration),
+      uint256(_rewardRate.token1).mul(_rewardsDuration)
     );
   }
 
@@ -199,35 +200,32 @@ contract DualStakingRewards is
     _totalSupply = _totalSupply.sub(amount);
     _balances[msg.sender] = _balances[msg.sender].sub(amount);
     if (block.timestamp < periodFinish.add(1 days)) {
-      rewards[msg.sender] = Rewards(0, 0);
+      delete rewards[msg.sender];
     }
     stakingToken.safeTransfer(msg.sender, amount);
     emit Withdrawn(msg.sender, amount);
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    Rewards memory _rewards = rewards[msg.sender];
-    (uint256 reward0, uint256 reward1) = block.timestamp >=
-      periodFinish.add(1 days)
-      ? (_rewards.token0, _rewards.token1)
-      : (0, 0);
-    if (reward0 > 0) {
-      rewards[msg.sender].token0 = 0;
-      IERC20 _rewardsToken0 = rewardsToken0;
-      _rewardsToken0.safeTransfer(
-        msg.sender,
-        Math.min(reward0, _rewardsToken0.balanceOf(address(this)))
-      );
-      emit RewardPaid(address(_rewardsToken0), msg.sender, reward0);
-    }
-    if (reward1 > 0) {
-      rewards[msg.sender].token1 = 0;
-      IERC20 _rewardsToken1 = rewardsToken1;
-      _rewardsToken1.safeTransfer(
-        msg.sender,
-        Math.min(reward1, _rewardsToken1.balanceOf(address(this)))
-      );
-      emit RewardPaid(address(_rewardsToken1), msg.sender, reward1);
+    if (block.timestamp >= periodFinish.add(1 days)) {
+      Rewards memory _rewards = rewards[msg.sender];
+      if (_rewards.token0 > 0) {
+        IERC20 _rewardsToken0 = rewardsToken0;
+        _rewardsToken0.safeTransfer(
+          msg.sender,
+          Math.min(_rewards.token0, _rewardsToken0.balanceOf(address(this)))
+        );
+        emit RewardPaid(address(_rewardsToken0), msg.sender, _rewards.token0);
+      }
+      if (_rewards.token1 > 0) {
+        IERC20 _rewardsToken1 = rewardsToken1;
+        _rewardsToken1.safeTransfer(
+          msg.sender,
+          Math.min(_rewards.token1, _rewardsToken1.balanceOf(address(this)))
+        );
+        emit RewardPaid(address(_rewardsToken1), msg.sender, _rewards.token1);
+      }
+      delete rewards[msg.sender];
     }
   }
 
@@ -237,10 +235,11 @@ contract DualStakingRewards is
   }
 
   function _numWeeksPassed(uint256 time) internal view returns (uint256) {
-    if (time < startEmission) {
+    uint256 _startEmission = startEmission;
+    if (time < _startEmission) {
       return 0;
     }
-    return time.sub(startEmission).div(1 weeks).add(1);
+    return time.sub(_startEmission).div(1 weeks).add(1);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -252,21 +251,22 @@ contract DualStakingRewards is
     updateReward(address(0))
   {
     Rewards memory _rewardRate = rewardRate;
+    uint256 _rewardsDuration = rewardsDuration;
     if (block.timestamp >= periodFinish) {
       _rewardRate = Rewards(
-        reward0.div(rewardsDuration).toUint128(),
-        reward1.div(rewardsDuration).toUint128()
+        reward0.div(_rewardsDuration).toUint128(),
+        reward1.div(_rewardsDuration).toUint128()
       );
     } else {
       uint256 remaining = periodFinish.sub(block.timestamp);
       _rewardRate = Rewards(
         reward0
           .add(remaining.mul(_rewardRate.token0))
-          .div(rewardsDuration)
+          .div(_rewardsDuration)
           .toUint128(),
         reward1
           .add(remaining.mul(_rewardRate.token1))
-          .div(rewardsDuration)
+          .div(_rewardsDuration)
           .toUint128()
       );
     }
