@@ -3,11 +3,10 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
 import { Contract, ContractFactory } from "@ethersproject/contracts";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
-import { getTimestamp, takeSnapshot, revertToSnapShot } from "../utils/time";
+import { getTimestamp } from "../utils/time";
 import { BN, simpleToExactAmount } from "../utils/math";
 import { StandardAccounts } from "../utils/machines";
 import { Account } from "../../types";
@@ -39,8 +38,6 @@ describe("Gauge Controller", () => {
 
   let start: BN;
 
-  addSnapshotBeforeRestoreAfterEach();
-
   before("Init contract", async () => {
     const accounts = await ethers.getSigners();
     sa = await new StandardAccounts().initAccounts(accounts);
@@ -64,9 +61,7 @@ describe("Gauge Controller", () => {
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
       sa.fundManager.address,
-      DEAD_ADDRESS,
-      await mta.name(),
-      await mta.symbol()
+      DEAD_ADDRESS
     );
 
     await votingLockup.deployed();
@@ -139,7 +134,6 @@ describe("Gauge Controller", () => {
       await gysrStakingRewards3
         .connect(sa.fundManager.signer)
         .transferControl(gaugeController.address);
-      console.log(mta.address);
       // await gysrStakingRewards
       //   .connect(sa.fundManager.signer)
       //   .stake(sa.fundManager.address, [], []);
@@ -185,6 +179,8 @@ describe("Gauge Controller", () => {
         .vote_for_gauge_weights(gysrStakingRewards2.address, 10000);
     });
 
+    addSnapshotBeforeRestoreAfterEach();
+
     it("it reverts when not admin", async () => {
       await expect(
         gaugeController.connect(alice.signer)["disperse_funds(uint256)"](0)
@@ -214,17 +210,10 @@ describe("Gauge Controller", () => {
         .connect(sa.fundManager.signer)
         .approve(gaugeController.address, totalFundingAmt);
 
-      console.log(sa.fundManager);
       const tx = await gaugeController
         .connect(sa.fundManager.signer)
         ["disperse_funds(uint256)"](totalFundingAmt);
 
-      await expect(tx)
-        .to.emit(gaugeController, "DisperseFunds")
-        .withArgs(gysrStakingRewards.address, totalFundingAmt.div(2));
-      await expect(tx)
-        .to.emit(gaugeController, "DisperseFunds")
-        .withArgs(gysrStakingRewards2.address, totalFundingAmt.div(2));
       await expect(tx)
         .to.emit(gaugeController, "DisperseTotalFunds")
         .withArgs(totalFundingAmt);
@@ -237,17 +226,15 @@ describe("Gauge Controller", () => {
       );
       let fundManagerAfterBal = await mta.balanceOf(sa.fundManager.address);
 
-      expect(fundManagerAfterBal.sub(fundManagerBeforeBal)).eq(totalFundingAmt);
+      expect(fundManagerBeforeBal.sub(fundManagerAfterBal)).eq(totalFundingAmt);
 
       // Rewards for each gauge should be 50% of total funding
       // since alice and bob respectively allocated 100% of their
       // equal voting power to opposite gauges
       expect(gysrStakingRewardsAfterBal.sub(gysrStakingRewardsBeforeBal)).eq(
-        totalFundingAmt.div(2)
-      );
+        totalFundingAmt.div(2))
       expect(gysrStakingRewards2AfterBal.sub(gysrStakingRewards2BeforeBal)).eq(
-        totalFundingAmt.div(2)
-      );
+        totalFundingAmt.div(2))
     });
 
     it("funds gysr staking contracts without transferFrom", async () => {
@@ -270,12 +257,6 @@ describe("Gauge Controller", () => {
 
       expect(fundManagerAfterBal.sub(fundManagerBeforeBal)).eq(0);
 
-      await expect(tx)
-        .to.emit(gaugeController, "DisperseFunds")
-        .withArgs(gysrStakingRewards.address, totalFundingAmt.div(2));
-      await expect(tx)
-        .to.emit(gaugeController, "DisperseFunds")
-        .withArgs(gysrStakingRewards2.address, totalFundingAmt.div(2));
       await expect(tx)
         .to.emit(gaugeController, "DisperseTotalFunds")
         .withArgs(totalFundingAmt);
