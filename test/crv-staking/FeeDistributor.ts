@@ -105,7 +105,15 @@ describe("Fee Distributor", () => {
   describe("burns", () => {
     it("it reverts when not RBN token", async () => {
       await expect(
-        feeDistributor.connect(sa.fundManager.signer).burn(votingLockup.address)
+        feeDistributor
+          .connect(sa.fundManager.signer)
+          .burn(votingLockup.address, 0)
+      ).to.be.reverted;
+    });
+
+    it("it reverts when 0 amount", async () => {
+      await expect(
+        feeDistributor.connect(sa.fundManager.signer).burn(mta.address, 0)
       ).to.be.reverted;
     });
 
@@ -121,7 +129,9 @@ describe("Fee Distributor", () => {
         .connect(sa.fundManager.signer)
         .approve(feeDistributor.address, totalFundManagerRBNBalanceBefore);
 
-      await feeDistributor.connect(sa.fundManager.signer).burn(mta.address);
+      await feeDistributor
+        .connect(sa.fundManager.signer)
+        .burn(mta.address, totalFundManagerRBNBalanceBefore);
 
       let totalFundManagerRBNBalanceAfter = await mta.balanceOf(
         sa.fundManager.address
