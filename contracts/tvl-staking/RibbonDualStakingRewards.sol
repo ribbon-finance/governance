@@ -282,17 +282,17 @@ contract DualStakingRewards is
     // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
     require(
       _rewardRate.token0 <=
-        rewardsToken0.balanceOf(address(this)).div(rewardsDuration),
+        rewardsToken0.balanceOf(address(this)).div(_rewardsDuration),
       "Provided reward0 too high"
     );
     require(
       _rewardRate.token1 <=
-        rewardsToken1.balanceOf(address(this)).div(rewardsDuration),
+        rewardsToken1.balanceOf(address(this)).div(_rewardsDuration),
       "Provided reward1 too high"
     );
 
     rewardRate = _rewardRate;
-    periodFinish = startEmission.add(rewardsDuration);
+    periodFinish = startEmission.add(_rewardsDuration);
     lastUpdateTime = lastTimeRewardApplicable();
     emit RewardAdded(address(rewardsToken0), reward0);
     emit RewardAdded(address(rewardsToken1), reward1);
