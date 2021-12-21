@@ -1,3 +1,4 @@
+import { task } from "hardhat/config";
 import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-truffle5";
 import "@nomiclabs/hardhat-etherscan";
@@ -5,6 +6,7 @@ import "@nomiclabs/hardhat-web3";
 import "@nomiclabs/hardhat-vyper";
 import "@nomiclabs/hardhat-ethers";
 import "hardhat-contract-sizer";
+import verifyContracts from "./scripts/verifyContracts";
 
 require("dotenv").config();
 
@@ -70,3 +72,5 @@ module.exports = {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
 };
+
+task("verify-contracts", "Verify solidity source", verifyContracts);
