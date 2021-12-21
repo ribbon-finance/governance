@@ -9,13 +9,13 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Inheritance
 import "../interfaces/IDualStakingRewards.sol";
-import "./DualRewardsDistributionRecipient.sol";
+import "./RewardsDistributionRecipient.sol";
 import "../common/Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
 contract DualStakingRewards is
   IDualStakingRewards,
-  DualRewardsDistributionRecipient,
+  RewardsDistributionRecipient,
   ReentrancyGuard,
   Pausable
 {
