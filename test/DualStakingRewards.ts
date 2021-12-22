@@ -1831,5 +1831,46 @@ describe("DualStakingRewards contract", function () {
         "Provided reward0 too high"
       );
     });
+
+    it("Should allow rewards for secondary token to be added later on", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardValue0 = toUnit(5000);
+      const rewardValue1 = toUnit(0);
+      await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue0);
+      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue1);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue0, rewardValue1);
+
+      await fastForward(DAY);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(DAY * 7);
+
+      const earned = await stakingRewards.earned(deployerAccount.address);
+
+      assert.bnGt(earned[0], toUnit("1249.99"));
+      assert.bnEqual(earned[1], 0);
+
+      const rewardValue2 = toUnit(0);
+      const rewardValue3 = toUnit(6000);
+      await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue2);
+      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue3);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue2, rewardValue3);
+
+      await fastForward(DAY * 7);
+
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+      assert.bnGt(earned1[0], toUnit("2143.33"));
+      assert.bnGt(earned1[1], toUnit("1499.99"));
+    });
   });
 });
