@@ -2,15 +2,15 @@
 pragma solidity ^0.8.0;
 
 // https://docs.synthetix.io/contracts/source/interfaces/istakingrewards
-interface IStakingRewards {
+interface IDualStakingRewards {
     // Views
     function lastTimeRewardApplicable() external view returns (uint256);
 
-    function rewardPerToken() external view returns (uint256);
+    function rewardPerToken() external view returns (uint256, uint256);
 
-    function earned(address account) external view returns (uint256);
+    function earned(address account) external view returns (uint256, uint256);
 
-    function getRewardForDuration() external view returns (uint256);
+    function getRewardForDuration() external view returns (uint256, uint256);
 
     function totalSupply() external view returns (uint256);
 
@@ -18,7 +18,7 @@ interface IStakingRewards {
 
     // Mutative
 
-    function notifyRewardAmount(uint256 reward) external;
+    function notifyRewardAmount(uint256 reward0, uint256 reward1) external;
 
     function stake(uint256 amount) external;
 
