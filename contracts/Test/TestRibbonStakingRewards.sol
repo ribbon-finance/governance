@@ -124,18 +124,22 @@ contract KovanStakingRewards is
 
   /* ========== MUTATIVE FUNCTIONS ========== */
 
-  function stake(uint256 amount)
-    external
+  function stake(uint256 amount) external override {
+    stakeFor(amount, msg.sender);
+  }
+
+  function stakeFor(uint256 amount, address account)
+    public
     override
     nonReentrant
     notPaused
-    updateReward(msg.sender)
+    updateReward(account)
   {
     require(amount > 0, "Cannot stake 0");
     _totalSupply = _totalSupply.add(amount);
-    _balances[msg.sender] = _balances[msg.sender].add(amount);
+    _balances[account] = _balances[account].add(amount);
     stakingToken.safeTransferFrom(msg.sender, address(this), amount);
-    emit Staked(msg.sender, amount);
+    emit Staked(account, msg.sender, amount);
   }
 
   function withdraw(uint256 amount)
@@ -249,7 +253,7 @@ contract KovanStakingRewards is
   /* ========== EVENTS ========== */
 
   event RewardAdded(uint256 reward);
-  event Staked(address indexed user, uint256 amount);
+  event Staked(address indexed user, address sender, uint256 amount);
   event Withdrawn(address indexed user, uint256 amount);
   event RewardPaid(address indexed user, uint256 reward);
   event RewardsDurationUpdated(uint256 newDuration);
