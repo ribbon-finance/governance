@@ -257,23 +257,19 @@ contract DualStakingRewards is
     Rewards memory _rewardRate;
     uint256 _rewardsDuration = rewardsDuration;
     if (block.timestamp >= periodFinish) {
-      _rewardRate = Rewards(
-        reward0.div(_rewardsDuration).toUint128(),
-        reward1.div(_rewardsDuration).toUint128()
-      );
+      _rewardRate.token0 = reward0.div(_rewardsDuration).toUint128();
+      _rewardRate.token1 = reward1.div(_rewardsDuration).toUint128();
     } else {
       uint256 remaining = periodFinish.sub(block.timestamp);
       _rewardRate = rewardRate;
-      _rewardRate = Rewards(
-        reward0
-          .add(remaining.mul(_rewardRate.token0))
-          .div(_rewardsDuration)
-          .toUint128(),
-        reward1
-          .add(remaining.mul(_rewardRate.token1))
-          .div(_rewardsDuration)
-          .toUint128()
-      );
+      _rewardRate.token0 = reward0
+        .add(remaining.mul(_rewardRate.token0))
+        .div(_rewardsDuration)
+        .toUint128();
+      _rewardRate.token1 = reward1
+        .add(remaining.mul(_rewardRate.token1))
+        .div(_rewardsDuration)
+        .toUint128();
     }
 
     // Ensure the provided reward amount is not more than the balance in the contract.
