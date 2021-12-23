@@ -1872,5 +1872,54 @@ describe("DualStakingRewards contract", function () {
       assert.bnGt(earned1[0], toUnit("2143.33"));
       assert.bnGt(earned1[1], toUnit("1499.99"));
     });
+
+    it("Should create monthly staking periods", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardsDuration = DAY * 26;
+      const month = DAY * 30;
+
+      await stakingRewards.connect(owner).setRewardsDuration(rewardsDuration);
+
+      await stakingRewards
+        .connect(owner)
+        .setStartEmission((await currentTime()) + 1000);
+
+      const rewardValue0 = toUnit(5000);
+      const rewardValue1 = toUnit(6000);
+      await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue0);
+      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue1);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue0, rewardValue1);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      await fastForward(month);
+
+      console.log(await stakingRewards.rewardRate());
+      console.log(await stakingRewards.earned(deployerAccount.address));
+
+      await stakingRewards
+        .connect(owner)
+        .setStartEmission((await currentTime()) + 1000);
+
+      const rewardValue2 = toUnit(5000);
+      const rewardValue3 = toUnit(6000);
+      await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue2);
+      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue3);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue2, rewardValue3);
+
+      await fastForward(month);
+
+      console.log(await stakingRewards.rewardRate());
+      console.log(await stakingRewards.earned(deployerAccount.address));
+    });
   });
 });
