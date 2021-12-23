@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Inheritance
 import "../interfaces/IStakingRewards.sol";
-import "../tvl-staking/RewardsDistributionRecipient.sol";
+import "../tvl-staking/avalanche/RewardsDistributionRecipient.sol";
 import "../common/Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
