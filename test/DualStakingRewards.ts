@@ -1901,25 +1901,28 @@ describe("DualStakingRewards contract", function () {
 
       await fastForward(month);
 
-      console.log(await stakingRewards.rewardRate());
-      console.log(await stakingRewards.earned(deployerAccount.address));
+      const rewardRate0 = await stakingRewards.rewardRate();
+      const earned0 = await stakingRewards.earned(deployerAccount.address);
 
       await stakingRewards
         .connect(owner)
         .setStartEmission((await currentTime()) + 1000);
 
-      const rewardValue2 = toUnit(5000);
-      const rewardValue3 = toUnit(6000);
-      await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue2);
-      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue3);
+      await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue0);
+      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue0);
       await stakingRewards
         .connect(mockRewardsDistributionAddress)
-        .notifyRewardAmount(rewardValue2, rewardValue3);
+        .notifyRewardAmount(rewardValue0, rewardValue1);
 
       await fastForward(month);
 
-      console.log(await stakingRewards.rewardRate());
-      console.log(await stakingRewards.earned(deployerAccount.address));
+      const rewardRate1 = await stakingRewards.rewardRate();
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+
+      assert.bnEqual(rewardRate0[0], rewardRate1[0]);
+      assert.bnEqual(rewardRate0[1], rewardRate1[1]);
+      assert.bnEqual(earned1[0].sub(earned0[0]), earned0[0]);
+      assert.bnEqual(earned1[1].sub(earned0[1]), earned0[1]);
     });
   });
 });
