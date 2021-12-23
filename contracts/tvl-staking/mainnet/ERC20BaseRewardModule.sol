@@ -9,7 +9,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "../interfaces/IRewardModule.sol";
+import "../../interfaces/IRewardModule.sol";
 
 /**
  * @title ERC20 base reward module
@@ -137,10 +137,9 @@ abstract contract ERC20BaseRewardModule is IRewardModule {
     uint256 actual = rewardToken.balanceOf(address(this)) - total;
 
     // mint shares at current rate
-    uint256 minted =
-      (total > 0)
-        ? (_shares[token] * actual) / total
-        : actual * INITIAL_SHARES_PER_TOKEN;
+    uint256 minted = (total > 0)
+      ? (_shares[token] * actual) / total
+      : actual * INITIAL_SHARES_PER_TOKEN;
 
     _locked[token] += minted;
     _shares[token] += minted;

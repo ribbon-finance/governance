@@ -8,9 +8,9 @@ SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.4;
 
-import "../interfaces/IRewardModule.sol";
+import "../../interfaces/IRewardModule.sol";
 import "./ERC20BaseRewardModule.sol";
-import "../libraries/GysrUtils.sol";
+import "../../libraries/GysrUtils.sol";
 
 /**
  * @title ERC20 competitive reward module
@@ -237,8 +237,8 @@ contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
    * @return total number of unlocked reward tokens
    */
   function totalUnlocked() public view returns (uint256) {
-    uint256 unlockedShares =
-      totalShares(address(_token)) - lockedShares(address(_token));
+    uint256 unlockedShares = totalShares(address(_token)) -
+      lockedShares(address(_token));
 
     if (unlockedShares == 0) {
       return 0;
@@ -301,16 +301,15 @@ contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
     );
 
     // compute and apply GYSR token bonus
-    uint256 gysrWeightedShareSeconds =
-      (bonus * timeWeightedShareSeconds) / 10**DECIMALS;
+    uint256 gysrWeightedShareSeconds = (bonus * timeWeightedShareSeconds) /
+      10**DECIMALS;
 
     // get reward in shares
-    uint256 unlockedShares =
-      totalShares(address(_token)) - lockedShares(address(_token));
+    uint256 unlockedShares = totalShares(address(_token)) -
+      lockedShares(address(_token));
 
-    uint256 rewardShares =
-      (unlockedShares * gysrWeightedShareSeconds) /
-        (totalStakingShareSeconds + gysrWeightedShareSeconds);
+    uint256 rewardShares = (unlockedShares * gysrWeightedShareSeconds) /
+      (totalStakingShareSeconds + gysrWeightedShareSeconds);
 
     // reward
     if (rewardShares > 0) {
@@ -324,9 +323,8 @@ contract ERC20CompetitiveRewardModule is ERC20BaseRewardModule {
         emit GysrVested(user, vested);
         ratio = ((bonus - 10**DECIMALS) * 10**DECIMALS) / bonus;
       }
-      uint256 weight =
-        (shareSeconds * 10**DECIMALS) /
-          (totalStakingShareSeconds + shareSeconds);
+      uint256 weight = (shareSeconds * 10**DECIMALS) /
+        (totalStakingShareSeconds + shareSeconds);
       _usage =
         _usage -
         (weight * _usage) /

@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Inheritance
-import "../interfaces/IStakingRewards.sol";
+import "../../interfaces/IStakingRewards.sol";
 import "./RewardsDistributionRecipient.sol";
-import "../common/Pausable.sol";
+import "../../common/Pausable.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/stakingrewards
 contract StakingRewards is
@@ -157,8 +157,9 @@ contract StakingRewards is
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    uint256 reward =
-      block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
+    uint256 reward = block.timestamp >= periodFinish.add(1 days)
+      ? rewards[msg.sender]
+      : 0;
     if (reward > 0) {
       rewards[msg.sender] = 0;
       rewardsToken.safeTransfer(
