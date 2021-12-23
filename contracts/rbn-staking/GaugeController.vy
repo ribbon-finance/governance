@@ -497,8 +497,8 @@ def vote_for_gauge_weights(_gauge_addr: address, _user_weight: uint256):
     @param _user_weight Weight for a gauge in bps (units of 0.01%). Minimal is 0.01%. Ignored if 0
     """
     escrow: address = self.voting_escrow
-    delegated_slope: uint256 = convert(VotingEscrow(escrow).checkBoost(msg.sender, true)[1], uint256)
-    received_slope: uint256 = convert(VotingEscrow(escrow).checkBoost(msg.sender, false)[1], uint256)
+    delegated_slope: uint256 = convert(VotingEscrow(escrow).checkBoost(msg.sender, True)[1], uint256)
+    received_slope: uint256 = convert(VotingEscrow(escrow).checkBoost(msg.sender, False)[1], uint256)
     slope: uint256 = convert(VotingEscrow(escrow).getLastUserPoint(msg.sender)[1], uint256) + received_slope - delegated_slope
     lock_end: uint256 = VotingEscrow(escrow).lockedEnd(msg.sender)
     _n_gauges: int128 = self.n_gauges
