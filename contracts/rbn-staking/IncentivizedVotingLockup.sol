@@ -19,16 +19,12 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * @author Voting Weight tracking & Decay
  *             -> Curve Finance (MIT) - forked & ported to Solidity
  *             -> https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy
- *         osolmaz - Research & Reward distributions
- *         alsco77 - Solidity implementation
- * @notice Lockup MTA, receive vMTA (voting weight that decays over time), and earn
- *         rewards based on staticWeight
+ * @notice Lockup RBN, receive sRBN (voting weight that decays over time), and earn
+ *         RBN
  * @dev    Supports:
  *            1) Tracking MTA Locked up (LockedBalance)
- *            2) Pull Based Reward allocations based on Lockup (Static Balance)
- *            3) Decaying voting weight lookup through CheckpointedERC20 (balanceOf)
- *            5) Migration of points to v2 (used as multiplier in future) ***** (rewardsPaid)
- *            6) Closure of contract (expire)
+ *            2) Decaying voting weight lookup through CheckpointedERC20 (balanceOf)
+ *            3) Delegation
  */
 contract IncentivisedVotingLockup is
   IIncentivisedVotingLockup,
