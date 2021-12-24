@@ -62,6 +62,9 @@ contract IncentivisedVotingLockup is
     uint256 amtDelegationRemoved
   );
 
+  event CommitSmartWalletChecker(address indexed checker);
+  event ApplySmartWalletChecker(address indexed checker);
+
   // RBN Redeemer contract
   address public rbnRedeemer;
 
@@ -224,6 +227,7 @@ contract IncentivisedVotingLockup is
    */
   function commitSmartWalletChecker(address _addr) external onlyOwner {
     futureSmartWalletChecker = _addr;
+    emit CommitSmartWalletChecker(_addr);
   }
 
   /**
@@ -231,6 +235,7 @@ contract IncentivisedVotingLockup is
    */
   function applySmartWalletChecker() external onlyOwner {
     smartWalletChecker = futureSmartWalletChecker;
+    emit ApplySmartWalletChecker(futureSmartWalletChecker);
   }
 
   /**
