@@ -46,6 +46,9 @@ contract DualStakingRewards is
   mapping(address => Rewards) public userRewardPerTokenPaid;
   mapping(address => Rewards) public rewards;
 
+  // The last timestamp at which a user staked
+  mapping(address => uint256) public checkpoint;
+
   uint256 private _totalSupply;
   mapping(address => uint256) private _balances;
 
@@ -192,6 +195,7 @@ contract DualStakingRewards is
     require(amount > 0, "Cannot stake 0");
     _totalSupply = _totalSupply.add(amount);
     _balances[account] = _balances[account].add(amount);
+    checkpoint[account] = block.timestamp;
     stakingToken.safeTransferFrom(msg.sender, address(this), amount);
     emit Staked(account, msg.sender, amount);
   }
@@ -205,7 +209,12 @@ contract DualStakingRewards is
     require(amount > 0, "Cannot withdraw 0");
     _totalSupply = _totalSupply.sub(amount);
     _balances[msg.sender] = _balances[msg.sender].sub(amount);
-    if (block.timestamp < periodFinish.add(1 days)) {
+    if (
+      block.timestamp <
+      Math.min(checkpoint[msg.sender].add(rewardsDuration), periodFinish).add(
+        1 days
+      )
+    ) {
       delete rewards[msg.sender];
     }
     stakingToken.safeTransfer(msg.sender, amount);
@@ -213,7 +222,12 @@ contract DualStakingRewards is
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    if (block.timestamp >= periodFinish.add(1 days)) {
+    if (
+      block.timestamp >=
+      Math.min(checkpoint[msg.sender].add(rewardsDuration), periodFinish).add(
+        1 days
+      )
+    ) {
       Rewards memory _rewards = rewards[msg.sender];
       if (_rewards.token0 > 0) {
         rewardsToken0.safeTransfer(
