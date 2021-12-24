@@ -74,7 +74,7 @@ contract IncentivisedVotingLockup is
   IERC20 public stakingToken;
   uint256 private constant WEEK = 7 days;
   uint256 public constant MAXTIME = 4 * 365 days; // 4 years
-  uint256 public END;
+  uint256 public END = block.timestamp + MAXTIME;
 
   /** Lockup */
   uint256 public globalEpoch;
@@ -173,8 +173,6 @@ contract IncentivisedVotingLockup is
     transferOwnership(_owner);
 
     rbnRedeemer = _rbnRedeemer;
-
-    END = block.timestamp + MAXTIME;
   }
 
   /**
