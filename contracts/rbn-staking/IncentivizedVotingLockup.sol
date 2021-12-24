@@ -744,7 +744,7 @@ contract IncentivisedVotingLockup is
 
     // If we are not delegating to zero address (cancelling delegation)
     if (delegatee != address(0)) {
-      delegatorBalance = getCurrentVotes(delegator);
+      delegatorBalance = balanceOf(delegator);
       boostExpiry = locked[delegator].end;
     }
 
@@ -1209,10 +1209,11 @@ contract IncentivisedVotingLockup is
 
   /**
    * @dev Gets current user voting weight (aka effectiveStake)
+   * @dev Does not include delegations
    * @param _owner User for which to return the balance
    * @return uint96 Balance of user
    */
-  function getCurrentVotes(address _owner) public view returns (uint96) {
+  function balanceOf(address _owner) public view returns (uint96) {
     uint256 epoch = userPointEpoch[_owner];
     if (epoch == 0) {
       return 0;
@@ -1231,6 +1232,7 @@ contract IncentivisedVotingLockup is
 
   /**
    * @dev Gets current user voting weight (aka effectiveStake) for a specific block
+   * @dev Does not include delegations
    * @param _owner User for which to return the balance
    * @param _blockNumber Block number to check
    * @return uint96 Balance of user
@@ -1290,6 +1292,7 @@ contract IncentivisedVotingLockup is
   /**
    * @dev Gets a users votingWeight at a given blockNumber
    * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+   * @dev Includes delegations
    * @param _owner User for which to return the balance
    * @param _blockNumber Block at which to calculate balance
    * @return uint96 Balance of user
