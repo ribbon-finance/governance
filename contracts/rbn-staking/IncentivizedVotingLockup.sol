@@ -8,6 +8,7 @@ import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {ISmartWalletChecker} from "../interfaces/ISmartWalletChecker.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -185,7 +186,7 @@ contract IncentivisedVotingLockup is
   function checkIsWhitelisted(address _addr) internal view {
     address checker = smartWalletChecker;
     require(
-      _addr == tx.origin ||
+      (_addr == tx.origin && !Address.isContract(_addr)) ||
         (checker != address(0) && ISmartWalletChecker(checker).check(_addr)),
       "Smart contract depositors not allowed"
     );
