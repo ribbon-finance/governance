@@ -249,7 +249,7 @@ contract IncentivisedVotingLockup is
     returns (
       int128 bias,
       int128 slope,
-      uint256 ts
+      uint128 ts
     )
   {
     uint256 uepoch = userPointEpoch[_addr];
