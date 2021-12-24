@@ -788,6 +788,12 @@ describe("IncentivisedVotingLockup", () => {
       );
     });
 
+    it("reverts on setting new redeemer from non-owner", async () => {
+      await expect(
+        votingLockup.connect(alice.signer).setRBNRedeemer(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
     it("seizes rbn", async () => {
       amountToSeize = simpleToExactAmount(500, DEFAULT_DECIMALS);
 
@@ -900,6 +906,13 @@ describe("IncentivisedVotingLockup", () => {
       expect(davidAfter.senderStakingTokenBalance).eq(
         davidBefore.senderStakingTokenBalance.add(davidToWithdraw)
       );
+    });
+
+    it("sets new rbn redeemer contract", async () => {
+      await votingLockup
+        .connect(sa.fundManager.signer)
+        .setRBNRedeemer(ZERO_ADDRESS);
+      await expect(await votingLockup.rbnRedeemer()).eq(ZERO_ADDRESS);
     });
   });
 
@@ -1871,7 +1884,7 @@ describe("IncentivisedVotingLockup", () => {
         .connect(sa.fundManager.signer)
         .transfer(alice.address, simpleToExactAmount(1, 22));
     });
-    
+
     it('fits gas budget for createLock', async() => {
       const tx = await votingLockup
           .connect(alice.signer)

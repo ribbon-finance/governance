@@ -213,6 +213,14 @@ contract IncentivisedVotingLockup is
   }
 
   /**
+   * @dev Set rbn redeemer
+   * @param _rbnRedeemer new rbn redeemer
+   */
+  function setRBNRedeemer(address _rbnRedeemer) external onlyOwner {
+    rbnRedeemer = _rbnRedeemer;
+  }
+
+  /**
    * @dev Set an external contract to check for approved smart contract wallets
    * @param _addr amount to withdraw to redeemer contract
    */
