@@ -1075,8 +1075,8 @@ contract IncentivisedVotingLockup is
       int128,
       uint256,
       int128,
-      uint128,
-      uint128
+      uint32,
+      uint32
     )
   {
     require(_block <= block.number, "sRBN::getPriorVotes: not yet determined");
