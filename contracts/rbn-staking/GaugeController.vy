@@ -26,7 +26,7 @@ struct VotedSlope:
 
 
 interface VotingEscrow:
-    def getLastUserPoint(addr: address) -> (int128, int128, uint256): view
+    def getLastUserPoint(addr: address) -> (int128, int128, uint128): view
     def checkBoost(addr: address, isDelegator: bool) -> (uint256, int128, uint256): view
     def lockedEnd(addr: address) -> uint256: view
 
