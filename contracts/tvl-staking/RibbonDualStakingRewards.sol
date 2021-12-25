@@ -39,10 +39,6 @@ contract DualStakingRewards is
   uint256 public rewardsDuration = 28 days;
   uint256 public lastUpdateTime;
 
-  // timestamp dictating at what time of week to release rewards
-  // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
-  uint256 public startEmission;
-
   mapping(address => Rewards) public userRewardPerTokenPaid;
   mapping(address => Rewards) public rewards;
 
@@ -56,8 +52,7 @@ contract DualStakingRewards is
     address _rewardsDistribution,
     address _rewardsToken0,
     address _rewardsToken1,
-    address _stakingToken,
-    uint256 _startEmission
+    address _stakingToken
   ) Owned(_owner) {
     require(_owner != address(0), "Owner must be non-zero address");
     require(
@@ -77,10 +72,6 @@ contract DualStakingRewards is
       "Rewards Distributor must be non-zero address"
     );
     require(
-      _startEmission > block.timestamp,
-      "Start Emission must be in the future"
-    );
-    require(
       _rewardsToken0 != _stakingToken && _rewardsToken1 != _stakingToken,
       "Rewards and staking tokens must be different"
     );
@@ -93,7 +84,6 @@ contract DualStakingRewards is
     rewardsToken1 = IERC20(_rewardsToken1);
     stakingToken = IERC20(_stakingToken);
     rewardsDistribution = _rewardsDistribution;
-    startEmission = _startEmission;
   }
 
   /* ========== VIEWS ========== */
@@ -108,11 +98,7 @@ contract DualStakingRewards is
 
   // The minimum between periodFinish and the last instance of the current startEmission release time
   function lastTimeRewardApplicable() public view override returns (uint256) {
-    return
-      Math.min(
-        _numWeeksPassed(block.timestamp).mul(1 weeks).add(startEmission),
-        periodFinish
-      );
+    return Math.min(_weeksPassed(), periodFinish);
   }
 
   function rewardPerToken() public view override returns (uint256, uint256) {
@@ -205,32 +191,27 @@ contract DualStakingRewards is
     require(amount > 0, "Cannot withdraw 0");
     _totalSupply = _totalSupply.sub(amount);
     _balances[msg.sender] = _balances[msg.sender].sub(amount);
-    if (block.timestamp < periodFinish.add(1 days)) {
-      delete rewards[msg.sender];
-    }
     stakingToken.safeTransfer(msg.sender, amount);
     emit Withdrawn(msg.sender, amount);
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    if (block.timestamp >= periodFinish.add(1 days)) {
-      Rewards memory _rewards = rewards[msg.sender];
-      if (_rewards.token0 > 0) {
-        rewardsToken0.safeTransfer(
-          msg.sender,
-          Math.min(_rewards.token0, rewardsToken0.balanceOf(address(this)))
-        );
-        emit RewardPaid(address(rewardsToken0), msg.sender, _rewards.token0);
-      }
-      if (_rewards.token1 > 0) {
-        rewardsToken1.safeTransfer(
-          msg.sender,
-          Math.min(_rewards.token1, rewardsToken1.balanceOf(address(this)))
-        );
-        emit RewardPaid(address(rewardsToken1), msg.sender, _rewards.token1);
-      }
-      delete rewards[msg.sender];
+    Rewards memory _rewards = rewards[msg.sender];
+    if (_rewards.token0 > 0) {
+      rewardsToken0.safeTransfer(
+        msg.sender,
+        Math.min(_rewards.token0, rewardsToken0.balanceOf(address(this)))
+      );
+      emit RewardPaid(address(rewardsToken0), msg.sender, _rewards.token0);
     }
+    if (_rewards.token1 > 0) {
+      rewardsToken1.safeTransfer(
+        msg.sender,
+        Math.min(_rewards.token1, rewardsToken1.balanceOf(address(this)))
+      );
+      emit RewardPaid(address(rewardsToken1), msg.sender, _rewards.token1);
+    }
+    delete rewards[msg.sender];
   }
 
   function exit() external override {
@@ -238,12 +219,8 @@ contract DualStakingRewards is
     getReward();
   }
 
-  function _numWeeksPassed(uint256 time) internal view returns (uint256) {
-    uint256 _startEmission = startEmission;
-    if (time < _startEmission) {
-      return 0;
-    }
-    return time.sub(_startEmission).div(1 weeks).add(1);
+  function _weeksPassed() internal view returns (uint256) {
+    return block.timestamp.div(1 weeks).add(1).mul(1 weeks);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -256,11 +233,11 @@ contract DualStakingRewards is
   {
     Rewards memory _rewardRate;
     uint256 _rewardsDuration = rewardsDuration;
-    if (block.timestamp >= periodFinish) {
+    if (_weeksPassed() >= periodFinish) {
       _rewardRate.token0 = reward0.div(_rewardsDuration).toUint128();
       _rewardRate.token1 = reward1.div(_rewardsDuration).toUint128();
     } else {
-      uint256 remaining = periodFinish.sub(block.timestamp);
+      uint256 remaining = periodFinish.sub(_weeksPassed());
       _rewardRate = rewardRate;
       _rewardRate.token0 = reward0
         .add(remaining.mul(_rewardRate.token0))
@@ -288,8 +265,8 @@ contract DualStakingRewards is
     );
 
     rewardRate = _rewardRate;
-    periodFinish = startEmission.add(_rewardsDuration);
-    lastUpdateTime = lastTimeRewardApplicable();
+    periodFinish = _weeksPassed().add(rewardsDuration);
+    lastUpdateTime = _weeksPassed();
     emit RewardAdded(address(rewardsToken0), reward0);
     emit RewardAdded(address(rewardsToken1), reward1);
   }
@@ -314,15 +291,6 @@ contract DualStakingRewards is
     );
     rewardsDuration = _rewardsDuration;
     emit RewardsDurationUpdated(rewardsDuration);
-  }
-
-  function setStartEmission(uint256 _startEmission) external onlyOwner {
-    require(
-      block.timestamp < _startEmission,
-      "Start emission must be in the future"
-    );
-    startEmission = _startEmission;
-    emit StartEmissionUpdated(startEmission);
   }
 
   /* ========== MODIFIERS ========== */

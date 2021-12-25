@@ -43,8 +43,7 @@ describe("DualStakingRewards contract", function () {
     stakingTokenOwner: Contract,
     externalRewardsToken: Contract,
     externalRewardsTokenOwner: Contract,
-    stakingRewards: Contract,
-    startEmission: string;
+    stakingRewards: Contract;
 
   addSnapshotBeforeRestoreAfterEach();
 
@@ -90,8 +89,6 @@ describe("DualStakingRewards contract", function () {
       EXTERNAL_TOKEN_PARAMS.ADDRESS
     );
 
-    startEmission = ((await currentTime()) + 1000).toString();
-
     // Get staking rewards contract
     RibbonDualStakingRewards = await ethers.getContractFactory(
       "DualStakingRewards"
@@ -101,8 +98,7 @@ describe("DualStakingRewards contract", function () {
       mockRewardsDistributionAddress.address,
       rewardsToken0.address,
       rewardsToken1.address,
-      STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
-      startEmission
+      STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
     );
 
     await owner.sendTransaction({
@@ -181,7 +177,6 @@ describe("DualStakingRewards contract", function () {
         "setPaused",
         "setRewardsDistribution",
         "setRewardsDuration",
-        "setStartEmission",
         "recoverERC20",
       ],
     });
@@ -212,11 +207,6 @@ describe("DualStakingRewards contract", function () {
         rewardsDistributionAddress,
         mockRewardsDistributionAddress.address
       );
-    });
-
-    it("should set start emission on constructor", async () => {
-      const startEmissionTimestamp = await stakingRewards.startEmission();
-      assert.equal(startEmissionTimestamp, startEmission);
     });
   });
 
@@ -365,13 +355,19 @@ describe("DualStakingRewards contract", function () {
 
     describe("when updated", () => {
       it("should equal last emission time", async () => {
-        await stakingRewards
+        const tx = await stakingRewards
           .connect(mockRewardsDistributionAddress)
           .notifyRewardAmount(toUnit("1"), toUnit("1"));
 
+        const weeksPassed = BigNumber.from(
+          (await provider.getBlock(tx.blockNumber)).timestamp
+        )
+          .div(DAY * 7)
+          .add(1)
+          .mul(DAY * 7);
         const lastTimeReward = await stakingRewards.lastTimeRewardApplicable();
 
-        assert.equal(startEmission, lastTimeReward.toString());
+        assert.equal(weeksPassed.toString(), lastTimeReward.toString());
       });
     });
   });
@@ -490,7 +486,7 @@ describe("DualStakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);
 
-      await fastForward(DAY * 1);
+      await fastForward(DAY * 7);
 
       const rewardPerToken = await stakingRewards.rewardPerToken();
 
@@ -726,8 +722,8 @@ describe("DualStakingRewards contract", function () {
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
-      assert.bnGt(earned[0], toUnit("999.999"));
-      assert.bnGt(earned[1], toUnit("999.999"));
+      assert.bnGt(earned[0], toUnit("499.999"));
+      assert.bnGt(earned[1], toUnit("599.999"));
     });
 
     it("should be same after emission hit + 1 day", async () => {
@@ -778,7 +774,7 @@ describe("DualStakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);
 
-      await fastForward(DAY * 1);
+      await fastForward(DAY * 7);
 
       const earned = await stakingRewards.earned(deployerAccount.address);
 
@@ -822,7 +818,7 @@ describe("DualStakingRewards contract", function () {
 
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
-      await fastForward(DAY * 1);
+      await fastForward(DAY * 7);
 
       await stakingRewards.connect(owner).stake(totalToStake);
 
@@ -926,7 +922,7 @@ describe("DualStakingRewards contract", function () {
 
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
-      await fastForward(DAY * 22);
+      await fastForward(DAY * 28);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
 
       assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(98).div(100));
@@ -975,7 +971,7 @@ describe("DualStakingRewards contract", function () {
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(3).div(4));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(3).div(4));
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 5);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1014,7 +1010,7 @@ describe("DualStakingRewards contract", function () {
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(1).div(2));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(1).div(2));
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 5);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1054,7 +1050,7 @@ describe("DualStakingRewards contract", function () {
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(1).div(4));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(1).div(4));
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 5);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1083,13 +1079,13 @@ describe("DualStakingRewards contract", function () {
 
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 4);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
       console.log(deployerEarned[0].toString(), deployerEarned[1].toString());
       assert.bnEqual(deployerEarned[0], rewardValue0.mul(0).div(4));
       assert.bnEqual(deployerEarned[1], rewardValue1.mul(0).div(4));
 
-      await fastForward(DAY * 7);
+      await fastForward(DAY * 1);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1196,7 +1192,7 @@ describe("DualStakingRewards contract", function () {
   describe("getReward()", () => {
     const seventyDays = DAY * 70;
 
-    it("rewards balance should remain unchanged if getting reward BEFORE end of program", async () => {
+    it("rewards balance should change if getting reward BEFORE end of program", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute0 = toUnit("5000");
       const totalToDistribute1 = toUnit("6000");
@@ -1244,25 +1240,25 @@ describe("DualStakingRewards contract", function () {
         deployerAccount.address
       );
 
-      assert.isAbove(
+      assert.equal(
         parseInt(postEarnedBal[0].toString()),
         parseInt(initialEarnedBal[0].toString())
       );
-      assert.isAbove(
+      assert.equal(
         parseInt(postEarnedBal[1].toString()),
         parseInt(initialEarnedBal[1].toString())
       );
-      assert.equal(
+      assert.isAbove(
         parseInt(postReward0Bal.toString()),
         parseInt(initialReward0Bal.toString())
       );
-      assert.equal(
+      assert.isAbove(
         parseInt(postReward1Bal.toString()),
         parseInt(initialReward1Bal.toString())
       );
     });
 
-    it("rewards balance should remain unchanged if getting reward BEFORE end of program", async () => {
+    it("rewards balance should changed if getting reward BEFORE end of program", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute0 = toUnit("5000");
       const totalToDistribute1 = toUnit("6000");
@@ -1315,19 +1311,19 @@ describe("DualStakingRewards contract", function () {
         `post reward bal is ${postReward0Bal.toString()}, ${postReward1Bal.toString()}`
       );
 
-      assert.isAbove(
+      assert.equal(
         parseInt(postEarnedBal[0].toString()),
         parseInt(initialEarnedBal[0].toString())
       );
-      assert.isAbove(
+      assert.equal(
         parseInt(postEarnedBal[1].toString()),
         parseInt(initialEarnedBal[1].toString())
       );
-      assert.equal(
+      assert.isAbove(
         parseInt(postReward0Bal.toString()),
         parseInt(initialReward0Bal.toString())
       );
-      assert.equal(
+      assert.isAbove(
         parseInt(postReward1Bal.toString()),
         parseInt(initialReward1Bal.toString())
       );
@@ -1440,6 +1436,7 @@ describe("DualStakingRewards contract", function () {
         "Previous rewards period must be complete before changing the duration for the new period"
       );
     });
+
     it("should update when setting setRewardsDuration after the period has finished", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute0 = toUnit("5000");
@@ -1463,7 +1460,7 @@ describe("DualStakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute0, totalToDistribute1);
 
-      await fastForward(DAY * 31);
+      await fastForward(DAY * 35);
 
       await expect(
         stakingRewards.connect(owner).setRewardsDuration(seventyDays)
@@ -1502,7 +1499,7 @@ describe("DualStakingRewards contract", function () {
 
       await fastForward(DAY * 4);
       await stakingRewards.connect(deployerAccount).getReward();
-      await fastForward(DAY * 27);
+      await fastForward(DAY * 31);
 
       // New Rewards period much lower
       await rewardsToken0Owner.transfer(
@@ -1526,28 +1523,6 @@ describe("DualStakingRewards contract", function () {
 
       await fastForward(DAY * 71);
       await stakingRewards.connect(deployerAccount).getReward();
-    });
-  });
-
-  describe("setStartEmission()", () => {
-    it("should change the start emission", async () => {
-      let newStartEmission = ((await currentTime()) + 1000).toString();
-
-      await stakingRewards.connect(owner).setStartEmission(newStartEmission);
-
-      await expect(
-        stakingRewards.connect(owner).setStartEmission(newStartEmission)
-      ).to.emit(stakingRewards, "StartEmissionUpdated");
-
-      assert.equal(await stakingRewards.startEmission(), newStartEmission);
-    });
-    it("should revert when setting setRewardsDuration before the period has finished", async () => {
-      let newStartEmission = ((await currentTime()) - 1000).toString();
-
-      await assert.revert(
-        stakingRewards.connect(owner).setStartEmission(newStartEmission),
-        "Start emission must be in the future"
-      );
     });
   });
 
@@ -1585,7 +1560,7 @@ describe("DualStakingRewards contract", function () {
         .reverted;
     });
 
-    it("should set rewards to 0 if withdrawing BEFORE end of mining program", async () => {
+    it("rewards should remain unchanged if withdrawing BEFORE end of mining program", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute0 = toUnit("5000");
       const totalToDistribute1 = toUnit("6000");
@@ -1615,8 +1590,8 @@ describe("DualStakingRewards contract", function () {
       const deployerRewards = await stakingRewards.rewards(
         deployerAccount.address
       );
-      assert.equal(BigNumber.from(0), deployerRewards[0].toString());
-      assert.equal(BigNumber.from(0), deployerRewards[1].toString());
+      assert.bnLt(BigNumber.from(0), deployerRewards[0]);
+      assert.bnLt(BigNumber.from(0), deployerRewards[1]);
     });
 
     it("rewards should remain unchanged if withdrawing AFTER end of mining program", async () => {
@@ -1767,8 +1742,7 @@ describe("DualStakingRewards contract", function () {
         mockRewardsDistributionAddress.address,
         rewardsToken0.address,
         rewardsToken1.address,
-        STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
-        startEmission
+        STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
       );
 
       await localStakingRewards
@@ -1869,7 +1843,7 @@ describe("DualStakingRewards contract", function () {
       await fastForward(DAY * 7);
 
       const earned1 = await stakingRewards.earned(deployerAccount.address);
-      assert.bnGt(earned1[0], toUnit("2143.33"));
+      assert.bnGt(earned1[0], toUnit("1874.99"));
       assert.bnGt(earned1[1], toUnit("1499.99"));
     });
 
@@ -1884,10 +1858,7 @@ describe("DualStakingRewards contract", function () {
       const month = DAY * 30;
 
       await stakingRewards.connect(owner).setRewardsDuration(rewardsDuration);
-
-      await stakingRewards
-        .connect(owner)
-        .setStartEmission((await currentTime()) + 1000);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
       const rewardValue0 = toUnit(5000);
       const rewardValue1 = toUnit(6000);
@@ -1897,19 +1868,13 @@ describe("DualStakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);
 
-      await stakingRewards.connect(deployerAccount).stake(totalToStake);
-
       await fastForward(month);
 
       const rewardRate0 = await stakingRewards.rewardRate();
       const earned0 = await stakingRewards.earned(deployerAccount.address);
 
-      await stakingRewards
-        .connect(owner)
-        .setStartEmission((await currentTime()) + 1000);
-
       await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue0);
-      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue0);
+      await rewardsToken1Owner.transfer(stakingRewards.address, rewardValue1);
       await stakingRewards
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);

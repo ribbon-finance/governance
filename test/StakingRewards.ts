@@ -41,8 +41,7 @@ describe("StakingRewards contract", function () {
     stakingTokenOwner: Contract,
     externalRewardsToken: Contract,
     externalRewardsTokenOwner: Contract,
-    stakingRewards: Contract,
-    startEmission: string;
+    stakingRewards: Contract;
 
   addSnapshotBeforeRestoreAfterEach();
 
@@ -78,16 +77,13 @@ describe("StakingRewards contract", function () {
       EXTERNAL_TOKEN_PARAMS.ADDRESS
     );
 
-    startEmission = ((await currentTime()) + 1000).toString();
-
     // Get staking rewards contract
     RibbonStakingRewards = await ethers.getContractFactory("StakingRewards");
     stakingRewards = await RibbonStakingRewards.deploy(
       owner.address,
       mockRewardsDistributionAddress.address,
       rewardsToken.address,
-      STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
-      startEmission
+      STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
     );
 
     await owner.sendTransaction({
@@ -153,7 +149,6 @@ describe("StakingRewards contract", function () {
         "setPaused",
         "setRewardsDistribution",
         "setRewardsDuration",
-        "setStartEmission",
         "recoverERC20",
       ],
     });
@@ -174,16 +169,12 @@ describe("StakingRewards contract", function () {
     });
 
     it("should set rewards distribution address on constructor", async () => {
-      const rewardsDistributionAddress = await stakingRewards.rewardsDistribution();
+      const rewardsDistributionAddress =
+        await stakingRewards.rewardsDistribution();
       assert.equal(
         rewardsDistributionAddress,
         mockRewardsDistributionAddress.address
       );
-    });
-
-    it("should set start emission on constructor", async () => {
-      const startEmissionTimestamp = await stakingRewards.startEmission();
-      assert.equal(startEmissionTimestamp, startEmission);
     });
   });
 
@@ -328,13 +319,19 @@ describe("StakingRewards contract", function () {
 
     describe("when updated", () => {
       it("should equal last emission time", async () => {
-        await stakingRewards
+        const tx = await stakingRewards
           .connect(mockRewardsDistributionAddress)
           .notifyRewardAmount(toUnit("1"));
 
+        const weeksPassed = BigNumber.from(
+          (await provider.getBlock(tx.blockNumber)).timestamp
+        )
+          .div(DAY * 7)
+          .add(1)
+          .mul(DAY * 7);
         const lastTimeReward = await stakingRewards.lastTimeRewardApplicable();
 
-        assert.equal(startEmission, lastTimeReward.toString());
+        assert.equal(weeksPassed.toString(), lastTimeReward.toString());
       });
     });
   });
@@ -1037,7 +1034,7 @@ describe("StakingRewards contract", function () {
   describe("getReward()", () => {
     const seventyDays = DAY * 70;
 
-    it("rewards balance should remain unchanged if getting reward BEFORE end of program", async () => {
+    it("rewards balance should change if getting reward BEFORE end of program", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute = toUnit("5000");
 
@@ -1074,17 +1071,17 @@ describe("StakingRewards contract", function () {
         deployerAccount.address
       );
 
-      assert.isAbove(
+      assert.equal(
         parseInt(postEarnedBal.toString()),
         parseInt(initialEarnedBal.toString())
       );
-      assert.equal(
+      assert.isAbove(
         parseInt(postRewardBal.toString()),
         parseInt(initialRewardBal.toString())
       );
     });
 
-    it("rewards balance should remain unchanged if getting reward BEFORE end of program", async () => {
+    it("rewards balance should changed if getting reward BEFORE end of program", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute = toUnit("5000");
 
@@ -1122,11 +1119,11 @@ describe("StakingRewards contract", function () {
       console.log(`post earned bal is ${postEarnedBal.toString()}`);
       console.log(`post reward bal is ${postRewardBal.toString()}`);
 
-      assert.isAbove(
+      assert.equal(
         parseInt(postEarnedBal.toString()),
         parseInt(initialEarnedBal.toString())
       );
-      assert.equal(
+      assert.isAbove(
         parseInt(postRewardBal.toString()),
         parseInt(initialRewardBal.toString())
       );
@@ -1290,28 +1287,6 @@ describe("StakingRewards contract", function () {
     });
   });
 
-  describe("setStartEmission()", () => {
-    it("should change the start emission", async () => {
-      let newStartEmission = ((await currentTime()) + 1000).toString();
-
-      await stakingRewards.connect(owner).setStartEmission(newStartEmission);
-
-      await expect(
-        stakingRewards.connect(owner).setStartEmission(newStartEmission)
-      ).to.emit(stakingRewards, "StartEmissionUpdated");
-
-      assert.equal(await stakingRewards.startEmission(), newStartEmission);
-    });
-    it("should revert when setting setRewardsDuration before the period has finished", async () => {
-      let newStartEmission = ((await currentTime()) - 1000).toString();
-
-      await assert.revert(
-        stakingRewards.connect(owner).setStartEmission(newStartEmission),
-        "Start emission must be in the future"
-      );
-    });
-  });
-
   describe("getRewardForDuration()", () => {
     it("should increase rewards token balance", async () => {
       const totalToDistribute = toUnit("5000");
@@ -1339,7 +1314,7 @@ describe("StakingRewards contract", function () {
         .reverted;
     });
 
-    it("should set rewards to 0 if withdrawing BEFORE end of mining program", async () => {
+    it("rewards should remain unchanged if withdrawing BEFORE end of mining program", async () => {
       const totalToStake = toUnit("100");
       const totalToDistribute = toUnit("5000");
       await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
@@ -1361,9 +1336,9 @@ describe("StakingRewards contract", function () {
 
       await stakingRewards.connect(deployerAccount).withdraw(totalToStake);
 
-      assert.equal(
+      assert.bnLt(
         BigNumber.from(0),
-        (await stakingRewards.rewards(deployerAccount.address)).toString()
+        await stakingRewards.rewards(deployerAccount.address)
       );
     });
 
@@ -1494,8 +1469,7 @@ describe("StakingRewards contract", function () {
         owner.address,
         mockRewardsDistributionAddress.address,
         rewardsToken.address,
-        STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN,
-        startEmission
+        STAKING_REWARDS_rETHTHETA_PARAMS.STAKING_TOKEN
       );
 
       await localStakingRewards
