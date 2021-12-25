@@ -31,10 +31,6 @@ contract StakingRewards is
   uint256 public lastUpdateTime;
   uint256 public rewardPerTokenStored;
 
-  // timestamp dictating at what time of week to release rewards
-  // (ex: 1619226000 is Sat Apr 24 2021 01:00:00 GMT+0000 which will release as 1 am every saturday)
-  uint256 public startEmission;
-
   mapping(address => uint256) public userRewardPerTokenPaid;
   mapping(address => uint256) public rewards;
 
@@ -47,8 +43,7 @@ contract StakingRewards is
     address _owner,
     address _rewardsDistribution,
     address _rewardsToken,
-    address _stakingToken,
-    uint256 _startEmission
+    address _stakingToken
   ) Owned(_owner) {
     require(_owner != address(0), "Owner must be non-zero address");
     require(
@@ -63,15 +58,10 @@ contract StakingRewards is
       _rewardsDistribution != address(0),
       "Rewards Distributor must be non-zero address"
     );
-    require(
-      _startEmission > block.timestamp,
-      "Start Emission must be in the future"
-    );
 
     rewardsToken = IERC20(_rewardsToken);
     stakingToken = IERC20(_stakingToken);
     rewardsDistribution = _rewardsDistribution;
-    startEmission = _startEmission;
   }
 
   /* ========== VIEWS ========== */
@@ -86,11 +76,7 @@ contract StakingRewards is
 
   // The minimum between periodFinish and the last instance of the current startEmission release time
   function lastTimeRewardApplicable() public view override returns (uint256) {
-    return
-      Math.min(
-        _numWeeksPassed(block.timestamp).mul(1 weeks).add(startEmission),
-        periodFinish
-      );
+    return Math.min(_weeksPassed(), periodFinish);
   }
 
   function rewardPerToken() public view override returns (uint256) {
@@ -149,16 +135,12 @@ contract StakingRewards is
     require(amount > 0, "Cannot withdraw 0");
     _totalSupply = _totalSupply.sub(amount);
     _balances[msg.sender] = _balances[msg.sender].sub(amount);
-    if (block.timestamp < periodFinish.add(1 days)) {
-      rewards[msg.sender] = 0;
-    }
     stakingToken.safeTransfer(msg.sender, amount);
     emit Withdrawn(msg.sender, amount);
   }
 
   function getReward() public override nonReentrant updateReward(msg.sender) {
-    uint256 reward =
-      block.timestamp >= periodFinish.add(1 days) ? rewards[msg.sender] : 0;
+    uint256 reward = rewards[msg.sender];
     if (reward > 0) {
       rewards[msg.sender] = 0;
       rewardsToken.safeTransfer(
@@ -174,11 +156,8 @@ contract StakingRewards is
     getReward();
   }
 
-  function _numWeeksPassed(uint256 time) internal view returns (uint256) {
-    if (time < startEmission) {
-      return 0;
-    }
-    return time.sub(startEmission).div(1 weeks).add(1);
+  function _weeksPassed() internal view returns (uint256) {
+    return block.timestamp.div(1 weeks).add(1).mul(1 weeks);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -207,8 +186,8 @@ contract StakingRewards is
       "Provided reward too high"
     );
 
-    periodFinish = startEmission.add(rewardsDuration);
-    lastUpdateTime = lastTimeRewardApplicable();
+    periodFinish = _weeksPassed().add(rewardsDuration);
+    lastUpdateTime = _weeksPassed();
     emit RewardAdded(reward);
   }
 
@@ -234,15 +213,6 @@ contract StakingRewards is
     emit RewardsDurationUpdated(rewardsDuration);
   }
 
-  function setStartEmission(uint256 _startEmission) external onlyOwner {
-    require(
-      block.timestamp < _startEmission,
-      "Start emission must be in the future"
-    );
-    startEmission = _startEmission;
-    emit StartEmissionUpdated(startEmission);
-  }
-
   /* ========== MODIFIERS ========== */
 
   modifier updateReward(address account) {
@@ -262,6 +232,5 @@ contract StakingRewards is
   event Withdrawn(address indexed user, uint256 amount);
   event RewardPaid(address indexed user, uint256 reward);
   event RewardsDurationUpdated(uint256 newDuration);
-  event StartEmissionUpdated(uint256 StartEmissionUpdated);
   event Recovered(address token, uint256 amount);
 }
