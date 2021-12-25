@@ -471,7 +471,7 @@ contract IncentivisedVotingLockup is
       _newShares = _value.mul(totalShares).div(_totalRBN);
     }
 
-    require(_newShares > 0 || _action == LockAction.INCREASE_LOCK_TIME, "!(new shares > 0)")
+    require(_newShares > 0 || _action == LockAction.INCREASE_LOCK_TIME, "!(new shares > 0)");
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     newLocked.amount = newLocked.amount + StableMath.toInt112(int256(_value));
