@@ -680,12 +680,6 @@ describe("IncentivisedVotingLockup", () => {
         expect(await votingLockup.smartWalletChecker()).eq(
           smartWalletWhitelist.address
         );
-        await expect(tx1)
-          .to.emit(votingLockup, "CommitSmartWalletChecker")
-          .withArgs(smartWalletWhitelist.address);
-        await expect(tx2)
-          .to.emit(votingLockup, "ApplySmartWalletChecker")
-          .withArgs(smartWalletWhitelist.address);
       });
 
       it("fails when trying to lock when not on whitelist", async () => {

@@ -59,9 +59,6 @@ contract IncentivisedVotingLockup is
     uint256 amtDelegationRemoved
   );
 
-  event CommitSmartWalletChecker(address indexed checker);
-  event ApplySmartWalletChecker(address indexed checker);
-
   // RBN Redeemer contract
   address public rbnRedeemer;
 
@@ -224,7 +221,6 @@ contract IncentivisedVotingLockup is
    */
   function commitSmartWalletChecker(address _addr) external onlyOwner {
     futureSmartWalletChecker = _addr;
-    emit CommitSmartWalletChecker(_addr);
   }
 
   /**
@@ -232,7 +228,6 @@ contract IncentivisedVotingLockup is
    */
   function applySmartWalletChecker() external onlyOwner {
     smartWalletChecker = futureSmartWalletChecker;
-    emit ApplySmartWalletChecker(futureSmartWalletChecker);
   }
 
   /**
@@ -471,7 +466,7 @@ contract IncentivisedVotingLockup is
       _newShares = _value.mul(totalShares).div(_totalRBN);
     }
 
-    require(_newShares > 0 || _action == LockAction.INCREASE_LOCK_TIME, "!(new shares > 0)");
+    require(_newShares > 0 || _action == LockAction.INCREASE_LOCK_TIME, "new shares < 1");
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     newLocked.amount = newLocked.amount + StableMath.toInt112(int256(_value));
