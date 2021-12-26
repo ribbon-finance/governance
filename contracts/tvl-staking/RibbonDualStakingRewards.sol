@@ -220,7 +220,7 @@ contract DualStakingRewards is
   }
 
   function _weeksPassed() internal view returns (uint256) {
-    return block.timestamp.div(1 weeks).add(1).mul(1 weeks);
+    return block.timestamp.div(1 weeks).mul(1 weeks);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -233,11 +233,11 @@ contract DualStakingRewards is
   {
     Rewards memory _rewardRate;
     uint256 _rewardsDuration = rewardsDuration;
-    if (_weeksPassed() >= periodFinish) {
+    if (block.timestamp >= periodFinish) {
       _rewardRate.token0 = reward0.div(_rewardsDuration).toUint128();
       _rewardRate.token1 = reward1.div(_rewardsDuration).toUint128();
     } else {
-      uint256 remaining = periodFinish.sub(_weeksPassed());
+      uint256 remaining = periodFinish.sub(block.timestamp);
       _rewardRate = rewardRate;
       _rewardRate.token0 = reward0
         .add(remaining.mul(_rewardRate.token0))
