@@ -319,6 +319,5 @@ contract DualStakingRewards is
   event Withdrawn(address indexed user, uint256 amount);
   event RewardPaid(address indexed token, address indexed user, uint256 reward);
   event RewardsDurationUpdated(uint256 newDuration);
-  event StartEmissionUpdated(uint256 StartEmissionUpdated);
   event Recovered(address token, uint256 amount);
 }
