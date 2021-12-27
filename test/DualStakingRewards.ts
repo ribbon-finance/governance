@@ -970,7 +970,7 @@ describe("DualStakingRewards contract", function () {
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(3).div(4));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(3).div(4));
 
-      await fastForward(DAY * 5);
+      await fastForward(DAY * 2);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1009,7 +1009,7 @@ describe("DualStakingRewards contract", function () {
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(1).div(2));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(1).div(2));
 
-      await fastForward(DAY * 5);
+      await fastForward(DAY * 2);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1049,7 +1049,7 @@ describe("DualStakingRewards contract", function () {
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(1).div(4));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(1).div(4));
 
-      await fastForward(DAY * 5);
+      await fastForward(DAY * 2);
 
       const newDeployerEarned = await stakingRewards.earned(
         deployerAccount.address
@@ -1074,15 +1074,15 @@ describe("DualStakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);
 
-      await fastForward(DAY * 22);
+      await fastForward(DAY * 18);
 
       await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
-      await fastForward(DAY * 4);
+      await fastForward(DAY * 1);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
       console.log(deployerEarned[0].toString(), deployerEarned[1].toString());
-      assert.bnEqual(deployerEarned[0], rewardValue0.mul(0).div(4));
-      assert.bnEqual(deployerEarned[1], rewardValue1.mul(0).div(4));
+      assert.bnEqual(deployerEarned[0], BigNumber.from(0));
+      assert.bnEqual(deployerEarned[1], BigNumber.from(0));
 
       await fastForward(DAY * 1);
 
@@ -1589,8 +1589,8 @@ describe("DualStakingRewards contract", function () {
       const deployerRewards = await stakingRewards.rewards(
         deployerAccount.address
       );
-      assert.bnGt(deployerRewards[0], BigNumber.from(0));
-      assert.bnGt(deployerRewards[1], BigNumber.from(0));
+      assert.bnLt(BigNumber.from(0), deployerRewards[0]);
+      assert.bnLt(BigNumber.from(0), deployerRewards[1]);
     });
 
     it("rewards should remain unchanged if withdrawing AFTER end of mining program", async () => {
