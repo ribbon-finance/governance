@@ -1521,5 +1521,43 @@ describe("StakingRewards contract", function () {
         "Provided reward too high"
       );
     });
+
+    it("Should create monthly staking periods", async () => {
+      const totalToStake = toUnit("100");
+      await stakingTokenOwner.transfer(deployerAccount.address, totalToStake);
+      await stakingToken
+        .connect(deployerAccount)
+        .approve(stakingRewards.address, totalToStake);
+
+      const rewardsDuration = DAY * 26;
+      const month = DAY * 30;
+
+      await stakingRewards.connect(owner).setRewardsDuration(rewardsDuration);
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
+
+      const rewardValue = toUnit(5000);
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(month);
+
+      const rewardRate0 = await stakingRewards.rewardRate();
+      const earned0 = await stakingRewards.earned(deployerAccount.address);
+
+      await rewardsTokenOwner.transfer(stakingRewards.address, rewardValue);
+      await stakingRewards
+        .connect(mockRewardsDistributionAddress)
+        .notifyRewardAmount(rewardValue);
+
+      await fastForward(month);
+
+      const rewardRate1 = await stakingRewards.rewardRate();
+      const earned1 = await stakingRewards.earned(deployerAccount.address);
+
+      assert.bnEqual(rewardRate0, rewardRate1);
+      assert.bnEqual(earned1.sub(earned0), earned0);
+    });
   });
 });
