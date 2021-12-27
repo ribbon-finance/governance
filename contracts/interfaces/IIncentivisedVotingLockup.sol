@@ -9,7 +9,7 @@ abstract contract IIncentivisedVotingLockup {
     returns (
       int128 bias,
       int128 slope,
-      uint256 ts
+      uint128 ts
     );
 
   function createLock(uint256 _value, uint256 _unlockTime) external virtual;
