@@ -157,7 +157,7 @@ describe("IncentivisedVotingLockup", () => {
     });
     describe("before any stakes are made", () => {
       it("returns balances", async () => {
-        expect(await votingLockup.getCurrentVotes(sa.default.address)).eq(
+        expect(await votingLockup.balanceOf(sa.default.address)).eq(
           BN.from(0)
         );
         expect(await votingLockup.getPriorVotes(sa.default.address, 1)).eq(
@@ -668,10 +668,10 @@ describe("IncentivisedVotingLockup", () => {
       });
 
       it("sets smart wallet whitelist and applies it", async () => {
-        await votingLockup
+        const tx1 = await votingLockup
           .connect(sa.fundManager.signer)
           .commitSmartWalletChecker(smartWalletWhitelist.address);
-        await votingLockup
+        const tx2 = await votingLockup
           .connect(sa.fundManager.signer)
           .applySmartWalletChecker();
         expect(await votingLockup.futureSmartWalletChecker()).eq(
@@ -788,6 +788,12 @@ describe("IncentivisedVotingLockup", () => {
       );
     });
 
+    it("reverts on setting new redeemer from non-owner", async () => {
+      await expect(
+        votingLockup.connect(alice.signer).setRBNRedeemer(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
     it("seizes rbn", async () => {
       amountToSeize = simpleToExactAmount(500, DEFAULT_DECIMALS);
 
@@ -900,6 +906,13 @@ describe("IncentivisedVotingLockup", () => {
       expect(davidAfter.senderStakingTokenBalance).eq(
         davidBefore.senderStakingTokenBalance.add(davidToWithdraw)
       );
+    });
+
+    it("sets new rbn redeemer contract", async () => {
+      await votingLockup
+        .connect(sa.fundManager.signer)
+        .setRBNRedeemer(ZERO_ADDRESS);
+      await expect(await votingLockup.rbnRedeemer()).eq(ZERO_ADDRESS);
     });
   });
 
@@ -1418,8 +1431,8 @@ describe("IncentivisedVotingLockup", () => {
         .approve(votingLockup.address, amount.mul(5));
 
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
-      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
-      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
       /**
        * BEGIN PERIOD 1
@@ -1446,7 +1459,7 @@ describe("IncentivisedVotingLockup", () => {
       await increaseTime(ONE_HOUR);
       await advanceBlock();
       assertBNClosePercent(
-        await votingLockup.getCurrentVotes(alice.address),
+        await votingLockup.balanceOf(alice.address),
         amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.mul(2))),
         tolerance
       );
@@ -1455,7 +1468,7 @@ describe("IncentivisedVotingLockup", () => {
         amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.mul(2))),
         tolerance
       );
-      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
       let t0 = await getTimestamp();
       let dt = BN.from(0);
 
@@ -1482,13 +1495,13 @@ describe("IncentivisedVotingLockup", () => {
           tolerance
         );
         assertBNClosePercent(
-          await votingLockup.getCurrentVotes(alice.address),
+          await votingLockup.balanceOf(alice.address),
           amount
             .div(MAXTIME)
             .mul(maximum(ONE_WEEK.sub(ONE_HOUR.mul(2)).sub(dt), BN.from(0))),
           tolerance
         );
-        expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+        expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
         stages["alice_in_0"].push([
           BN.from((await latestBlock()).number),
           await getTimestamp(),
@@ -1497,7 +1510,7 @@ describe("IncentivisedVotingLockup", () => {
 
       await increaseTime(ONE_HOUR);
 
-      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
       await votingLockup.connect(alice.signer).withdraw();
 
       stages["alice_withdraw"] = [
@@ -1505,8 +1518,8 @@ describe("IncentivisedVotingLockup", () => {
         await getTimestamp(),
       ];
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
-      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
-      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
@@ -1531,11 +1544,11 @@ describe("IncentivisedVotingLockup", () => {
         tolerance
       );
       assertBNClosePercent(
-        await votingLockup.getCurrentVotes(alice.address),
+        await votingLockup.balanceOf(alice.address),
         amount.div(MAXTIME).mul(2).mul(ONE_WEEK),
         tolerance
       );
-      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
       await votingLockup
         .connect(bob.signer)
@@ -1551,12 +1564,12 @@ describe("IncentivisedVotingLockup", () => {
         tolerance
       );
       assertBNClosePercent(
-        await votingLockup.getCurrentVotes(alice.address),
+        await votingLockup.balanceOf(alice.address),
         amount.div(MAXTIME).mul(2).mul(ONE_WEEK),
         tolerance
       );
       assertBNClosePercent(
-        await votingLockup.getCurrentVotes(bob.address),
+        await votingLockup.balanceOf(bob.address),
         amount.div(MAXTIME).mul(ONE_WEEK),
         tolerance
       );
@@ -1609,7 +1622,7 @@ describe("IncentivisedVotingLockup", () => {
         await getTimestamp(),
       ];
       w_total = await votingLockup.totalSupply();
-      w_alice = await votingLockup.getCurrentVotes(alice.address);
+      w_alice = await votingLockup.balanceOf(alice.address);
       expect(w_alice).eq(w_total);
 
       assertBNClosePercent(
@@ -1617,7 +1630,7 @@ describe("IncentivisedVotingLockup", () => {
         amount.div(MAXTIME).mul(ONE_WEEK.sub(ONE_HOUR.mul(2))),
         tolerance
       );
-      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
       await increaseTime(ONE_HOUR);
       await advanceBlock();
@@ -1630,7 +1643,7 @@ describe("IncentivisedVotingLockup", () => {
         }
         dt = (await getTimestamp()).sub(t0);
         w_total = await votingLockup.totalSupply();
-        w_alice = await votingLockup.getCurrentVotes(alice.address);
+        w_alice = await votingLockup.balanceOf(alice.address);
         expect(w_total).eq(w_alice);
         assertBNClosePercent(
           w_total,
@@ -1644,7 +1657,7 @@ describe("IncentivisedVotingLockup", () => {
             ),
           "0.04"
         );
-        expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+        expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
         stages["alice_in_2"].push([
           BN.from((await latestBlock()).number),
           await getTimestamp(),
@@ -1667,8 +1680,8 @@ describe("IncentivisedVotingLockup", () => {
       ];
 
       expect(await votingLockup.totalSupply()).eq(BN.from(0));
-      expect(await votingLockup.getCurrentVotes(alice.address)).eq(BN.from(0));
-      expect(await votingLockup.getCurrentVotes(bob.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(alice.address)).eq(BN.from(0));
+      expect(await votingLockup.balanceOf(bob.address)).eq(BN.from(0));
 
       /**
        * END OF INTERACTION
@@ -1871,7 +1884,7 @@ describe("IncentivisedVotingLockup", () => {
         .connect(sa.fundManager.signer)
         .transfer(alice.address, simpleToExactAmount(1, 22));
     });
-    
+
     it('fits gas budget for createLock', async() => {
       const tx = await votingLockup
           .connect(alice.signer)
