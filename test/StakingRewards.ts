@@ -327,7 +327,6 @@ describe("StakingRewards contract", function () {
           (await provider.getBlock(tx.blockNumber)).timestamp
         )
           .div(DAY * 7)
-          .add(1)
           .mul(DAY * 7);
         const lastTimeReward = await stakingRewards.lastTimeRewardApplicable();
 
