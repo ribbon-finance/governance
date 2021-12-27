@@ -1907,6 +1907,28 @@ describe("DualStakingRewards contract", function () {
       assert.bnEqual(rewardRate0[1], rewardRate1[1]);
       assert.bnEqual(earned1[0].sub(earned0[0]), earned0[0]);
       assert.bnEqual(earned1[1].sub(earned0[1]), earned0[1]);
+
+      const rewardsToken0Balance = await rewardsToken0.balanceOf(
+        deployerAccount.address
+      );
+      const rewardsToken1Balance = await rewardsToken1.balanceOf(
+        deployerAccount.address
+      );
+
+      await stakingRewards.connect(deployerAccount).getReward();
+
+      assert.bnEqual(
+        (await rewardsToken0.balanceOf(deployerAccount.address)).sub(
+          rewardsToken0Balance
+        ),
+        earned1[0]
+      );
+      assert.bnEqual(
+        (await rewardsToken1.balanceOf(deployerAccount.address)).sub(
+          rewardsToken1Balance
+        ),
+        earned1[1]
+      );
     });
   });
 });

@@ -1558,6 +1558,19 @@ describe("StakingRewards contract", function () {
 
       assert.bnEqual(rewardRate0, rewardRate1);
       assert.bnEqual(earned1.sub(earned0), earned0);
+
+      const rewardsTokenBalance = await rewardsToken.balanceOf(
+        deployerAccount.address
+      );
+
+      await stakingRewards.connect(deployerAccount).getReward();
+
+      assert.bnEqual(
+        (await rewardsToken.balanceOf(deployerAccount.address)).sub(
+          rewardsTokenBalance
+        ),
+        earned1
+      );
     });
   });
 });
