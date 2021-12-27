@@ -911,8 +911,6 @@ describe("DualStakingRewards contract", function () {
         .connect(deployerAccount)
         .approve(stakingRewards.address, totalToStake);
 
-      await stakingRewards.connect(deployerAccount).stake(totalToStake);
-
       const rewardValue0 = toUnit(5000);
       const rewardValue1 = toUnit(6000);
       await rewardsToken0Owner.transfer(stakingRewards.address, rewardValue0);
@@ -920,6 +918,8 @@ describe("DualStakingRewards contract", function () {
       await stakingRewards
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);
+
+      await stakingRewards.connect(deployerAccount).stake(totalToStake);
 
       await fastForward(DAY * 28);
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
@@ -964,8 +964,8 @@ describe("DualStakingRewards contract", function () {
 
       console.log(deployerEarned[0].toString(), deployerEarned[1].toString());
 
-      assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(270).div(400));
-      assertBNGreaterThan(deployerEarned[1], rewardValue1.mul(270).div(400));
+      assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(298).div(400));
+      assertBNGreaterThan(deployerEarned[1], rewardValue1.mul(298).div(400));
 
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(3).div(4));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(3).div(4));
@@ -1003,8 +1003,8 @@ describe("DualStakingRewards contract", function () {
       let deployerEarned = await stakingRewards.earned(deployerAccount.address);
 
       console.log(deployerEarned[0].toString(), deployerEarned[1].toString());
-      assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(80).div(200));
-      assertBNGreaterThan(deployerEarned[1], rewardValue1.mul(80).div(200));
+      assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(98).div(200));
+      assertBNGreaterThan(deployerEarned[1], rewardValue1.mul(98).div(200));
 
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(1).div(2));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(1).div(2));
@@ -1043,8 +1043,8 @@ describe("DualStakingRewards contract", function () {
 
       console.log(deployerEarned[0].toString(), deployerEarned[1].toString());
 
-      assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(80).div(400));
-      assertBNGreaterThan(deployerEarned[1], rewardValue1.mul(80).div(400));
+      assertBNGreaterThan(deployerEarned[0], rewardValue0.mul(98).div(400));
+      assertBNGreaterThan(deployerEarned[1], rewardValue1.mul(98).div(400));
 
       assertBNLessThan(deployerEarned[0], rewardValue0.mul(1).div(4));
       assertBNLessThan(deployerEarned[1], rewardValue1.mul(1).div(4));
@@ -1459,7 +1459,7 @@ describe("DualStakingRewards contract", function () {
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(totalToDistribute0, totalToDistribute1);
 
-      await fastForward(DAY * 35);
+      await fastForward(DAY * 31);
 
       await expect(
         stakingRewards.connect(owner).setRewardsDuration(seventyDays)
@@ -1498,7 +1498,7 @@ describe("DualStakingRewards contract", function () {
 
       await fastForward(DAY * 4);
       await stakingRewards.connect(deployerAccount).getReward();
-      await fastForward(DAY * 31);
+      await fastForward(DAY * 27);
 
       // New Rewards period much lower
       await rewardsToken0Owner.transfer(
@@ -1589,8 +1589,8 @@ describe("DualStakingRewards contract", function () {
       const deployerRewards = await stakingRewards.rewards(
         deployerAccount.address
       );
-      assert.bnLt(BigNumber.from(0), deployerRewards[0]);
-      assert.bnLt(BigNumber.from(0), deployerRewards[1]);
+      assert.bnGt(deployerRewards[0], BigNumber.from(0));
+      assert.bnGt(deployerRewards[1], BigNumber.from(0));
     });
 
     it("rewards should remain unchanged if withdrawing AFTER end of mining program", async () => {
@@ -1774,43 +1774,43 @@ describe("DualStakingRewards contract", function () {
     it("Reverts if the provided reward is greater than the balance, plus rolled-over balance", async () => {
       const rewardValue0 = toUnit(1000);
       const rewardValue1 = toUnit(2000);
-      const rewardsToken0Balance0 = await rewardsToken0.balanceOf(
+      let rewardsToken0Balance = await rewardsToken0.balanceOf(
         localStakingRewards.address
       );
-      if (rewardValue0 > rewardsToken0Balance0) {
+      if (rewardValue0.gt(rewardsToken0Balance)) {
         await rewardsToken0Owner.transfer(
           localStakingRewards.address,
-          rewardValue0.sub(rewardsToken0Balance0)
+          rewardValue0.sub(rewardsToken0Balance)
         );
       }
-      const rewardsToken1Balance0 = await rewardsToken1.balanceOf(
+      let rewardsToken1Balance = await rewardsToken1.balanceOf(
         localStakingRewards.address
       );
-      if (rewardValue1 > rewardsToken1Balance0) {
+      if (rewardValue1.gt(rewardsToken1Balance)) {
         await rewardsToken1Owner.transfer(
           localStakingRewards.address,
-          rewardValue1.sub(rewardsToken1Balance0)
+          rewardValue1.sub(rewardsToken1Balance)
         );
       }
       localStakingRewards
         .connect(mockRewardsDistributionAddress)
         .notifyRewardAmount(rewardValue0, rewardValue1);
-      const rewardsToken0Balance1 = await rewardsToken0.balanceOf(
+      rewardsToken0Balance = await rewardsToken0.balanceOf(
         localStakingRewards.address
       );
-      if (rewardValue0 > rewardsToken0Balance1) {
+      if (rewardValue0.gt(rewardsToken0Balance)) {
         await rewardsToken0Owner.transfer(
           localStakingRewards.address,
-          rewardValue0.sub(rewardsToken0Balance1)
+          rewardValue0.sub(rewardsToken0Balance)
         );
       }
-      const rewardsToken1Balance1 = await rewardsToken1.balanceOf(
+      rewardsToken1Balance = await rewardsToken1.balanceOf(
         localStakingRewards.address
       );
-      if (rewardValue1 > rewardsToken1Balance1) {
+      if (rewardValue1.gt(rewardsToken1Balance)) {
         await rewardsToken1Owner.transfer(
           localStakingRewards.address,
-          rewardValue1.sub(rewardsToken1Balance1)
+          rewardValue1.sub(rewardsToken1Balance)
         );
       }
       // Now take into account any leftover quantity.
