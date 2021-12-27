@@ -98,7 +98,7 @@ contract DualStakingRewards is
 
   // The minimum between periodFinish and the last instance of the current startEmission release time
   function lastTimeRewardApplicable() public view override returns (uint256) {
-    return Math.min(_numWeeksPassed().mul(1 weeks), periodFinish);
+    return Math.min(_numWeeksPassed(), periodFinish);
   }
 
   function rewardPerToken() public view override returns (uint256, uint256) {
@@ -220,7 +220,7 @@ contract DualStakingRewards is
   }
 
   function _numWeeksPassed() internal view returns (uint256) {
-    return block.timestamp.div(1 weeks);
+    return block.timestamp.div(1 weeks).mul(1 weeks);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -265,7 +265,7 @@ contract DualStakingRewards is
     );
 
     rewardRate = _rewardRate;
-    uint256 timestamp = _numWeeksPassed().mul(1 weeks);
+    uint256 timestamp = _numWeeksPassed();
     periodFinish = timestamp.add(rewardsDuration);
     lastUpdateTime = timestamp;
     emit RewardAdded(address(rewardsToken0), reward0);

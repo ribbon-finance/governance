@@ -76,11 +76,12 @@ contract StakingRewards is
 
   // The minimum between periodFinish and the last instance of the current startEmission release time
   function lastTimeRewardApplicable() public view override returns (uint256) {
-    return Math.min(_weeksPassed(), periodFinish);
+    return Math.min(_numWeeksPassed(), periodFinish);
   }
 
   function rewardPerToken() public view override returns (uint256) {
-    if (_totalSupply == 0) {
+    uint256 totalSupply_ = _totalSupply;
+    if (totalSupply_ == 0) {
       return rewardPerTokenStored;
     }
 
@@ -90,7 +91,7 @@ contract StakingRewards is
           .sub(lastUpdateTime)
           .mul(rewardRate)
           .mul(1e18)
-          .div(_totalSupply)
+          .div(totalSupply_)
       );
   }
 
@@ -156,8 +157,8 @@ contract StakingRewards is
     getReward();
   }
 
-  function _weeksPassed() internal view returns (uint256) {
-    return block.timestamp.div(1 weeks).add(1).mul(1 weeks);
+  function _numWeeksPassed() internal view returns (uint256) {
+    return block.timestamp.div(1 weeks).mul(1 weeks);
   }
 
   /* ========== RESTRICTED FUNCTIONS ========== */
@@ -168,26 +169,28 @@ contract StakingRewards is
     onlyRewardsDistribution
     updateReward(address(0))
   {
+    uint256 _rewardRate;
     if (block.timestamp >= periodFinish) {
-      rewardRate = reward.div(rewardsDuration);
+      _rewardRate = reward.div(rewardsDuration);
     } else {
       uint256 remaining = periodFinish.sub(block.timestamp);
       uint256 leftover = remaining.mul(rewardRate);
-      rewardRate = reward.add(leftover).div(rewardsDuration);
+      _rewardRate = reward.add(leftover).div(rewardsDuration);
     }
 
     // Ensure the provided reward amount is not more than the balance in the contract.
     // This keeps the reward rate in the right range, preventing overflows due to
     // very high values of rewardRate in the earned and rewardsPerToken functions;
     // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-    uint256 balance = rewardsToken.balanceOf(address(this));
     require(
-      rewardRate <= balance.div(rewardsDuration),
+      _rewardRate <= rewardsToken.balanceOf(address(this)).div(rewardsDuration),
       "Provided reward too high"
     );
 
-    periodFinish = _weeksPassed().add(rewardsDuration);
-    lastUpdateTime = _weeksPassed();
+    rewardRate = _rewardRate;
+    uint256 timestamp = _numWeeksPassed();
+    periodFinish = timestamp.add(rewardsDuration);
+    lastUpdateTime = timestamp;
     emit RewardAdded(reward);
   }
 
