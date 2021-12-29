@@ -8,6 +8,7 @@ import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {ISmartWalletChecker} from "../interfaces/ISmartWalletChecker.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {StableMath} from "../libraries/StableMath.sol";
 import {Root} from "../libraries/Root.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -18,16 +19,12 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * @author Voting Weight tracking & Decay
  *             -> Curve Finance (MIT) - forked & ported to Solidity
  *             -> https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy
- *         osolmaz - Research & Reward distributions
- *         alsco77 - Solidity implementation
- * @notice Lockup MTA, receive vMTA (voting weight that decays over time), and earn
- *         rewards based on staticWeight
+ * @notice Lockup RBN, receive sRBN (voting weight that decays over time), and earn
+ *         RBN
  * @dev    Supports:
  *            1) Tracking MTA Locked up (LockedBalance)
- *            2) Pull Based Reward allocations based on Lockup (Static Balance)
- *            3) Decaying voting weight lookup through CheckpointedERC20 (balanceOf)
- *            5) Migration of points to v2 (used as multiplier in future) ***** (rewardsPaid)
- *            6) Closure of contract (expire)
+ *            2) Decaying voting weight lookup through CheckpointedERC20 (balanceOf)
+ *            3) Delegation
  */
 contract IncentivisedVotingLockup is
   IIncentivisedVotingLockup,
@@ -74,7 +71,7 @@ contract IncentivisedVotingLockup is
   IERC20 public stakingToken;
   uint256 private constant WEEK = 7 days;
   uint256 public constant MAXTIME = 4 * 365 days; // 4 years
-  uint256 public END;
+  uint256 public END = block.timestamp + MAXTIME;
 
   /** Lockup */
   uint256 public globalEpoch;
@@ -173,8 +170,6 @@ contract IncentivisedVotingLockup is
     transferOwnership(_owner);
 
     rbnRedeemer = _rbnRedeemer;
-
-    END = block.timestamp + MAXTIME;
   }
 
   /**
@@ -184,7 +179,7 @@ contract IncentivisedVotingLockup is
   function checkIsWhitelisted(address _addr) internal view {
     address checker = smartWalletChecker;
     require(
-      _addr == tx.origin ||
+      (_addr == tx.origin && !Address.isContract(_addr)) ||
         (checker != address(0) && ISmartWalletChecker(checker).check(_addr)),
       "Smart contract depositors not allowed"
     );
@@ -210,6 +205,14 @@ contract IncentivisedVotingLockup is
     require(msg.sender == redeemer, "Must be rbn redeemer contract");
     stakingToken.safeTransfer(redeemer, _amount);
     totalLocked -= _amount;
+  }
+
+  /**
+   * @dev Set rbn redeemer
+   * @param _rbnRedeemer new rbn redeemer
+   */
+  function setRBNRedeemer(address _rbnRedeemer) external onlyOwner {
+    rbnRedeemer = _rbnRedeemer;
   }
 
   /**
@@ -241,7 +244,7 @@ contract IncentivisedVotingLockup is
     returns (
       int128 bias,
       int128 slope,
-      uint256 ts
+      uint128 ts
     )
   {
     uint256 uepoch = userPointEpoch[_addr];
@@ -462,6 +465,8 @@ contract IncentivisedVotingLockup is
     } else {
       _newShares = _value.mul(totalShares).div(_totalRBN);
     }
+
+    require(_newShares > 0 || _action == LockAction.INCREASE_LOCK_TIME, "new shares < 1");
 
     // Adding to existing lock, or if a lock is expired - creating a new one
     newLocked.amount = newLocked.amount + StableMath.toInt112(int256(_value));
@@ -736,7 +741,7 @@ contract IncentivisedVotingLockup is
 
     // If we are not delegating to zero address (cancelling delegation)
     if (delegatee != address(0)) {
-      delegatorBalance = getCurrentVotes(delegator);
+      delegatorBalance = balanceOf(delegator);
       boostExpiry = locked[delegator].end;
     }
 
@@ -929,9 +934,9 @@ contract IncentivisedVotingLockup is
     // the delegated slope, the delegated bias, and update the nextExpiry
     _boost[_delegator][currCP] = Boost({
       delegatedSlope: isCancelDelegation ? int128(0) : addrBoost.delegatedSlope + _slope,
-      delegatedBias: uint128(isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias),
+      delegatedBias: uint256(isCancelDelegation ? 0 : addrBoost.delegatedBias + _bias),
       receivedSlope: addrBoost.receivedSlope,
-      receivedBias: uint128(addrBoost.receivedBias),
+      receivedBias: uint256(addrBoost.receivedBias),
       nextExpiry: uint32(isCancelDelegation ? 0 : _nextExpiry),
       fromBlock: uint32(currCP == _nCheckpoints ? _blk : addrBoost.fromBlock),
       fromTimestamp: uint32(currCP == _nCheckpoints ? _ts : addrBoost.fromTimestamp)
@@ -1067,8 +1072,8 @@ contract IncentivisedVotingLockup is
       int128,
       uint256,
       int128,
-      uint128,
-      uint128
+      uint32,
+      uint32
     )
   {
     require(_block <= block.number, "sRBN::getPriorVotes: not yet determined");
@@ -1201,10 +1206,11 @@ contract IncentivisedVotingLockup is
 
   /**
    * @dev Gets current user voting weight (aka effectiveStake)
+   * @dev Does not include delegations
    * @param _owner User for which to return the balance
    * @return uint96 Balance of user
    */
-  function getCurrentVotes(address _owner) public view returns (uint96) {
+  function balanceOf(address _owner) public view returns (uint96) {
     uint256 epoch = userPointEpoch[_owner];
     if (epoch == 0) {
       return 0;
@@ -1223,6 +1229,7 @@ contract IncentivisedVotingLockup is
 
   /**
    * @dev Gets current user voting weight (aka effectiveStake) for a specific block
+   * @dev Does not include delegations
    * @param _owner User for which to return the balance
    * @param _blockNumber Block number to check
    * @return uint96 Balance of user
@@ -1282,6 +1289,7 @@ contract IncentivisedVotingLockup is
   /**
    * @dev Gets a users votingWeight at a given blockNumber
    * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+   * @dev Includes delegations
    * @param _owner User for which to return the balance
    * @param _blockNumber Block at which to calculate balance
    * @return uint96 Balance of user
