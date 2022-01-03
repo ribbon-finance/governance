@@ -79,11 +79,6 @@ const AIRDROP_SCRIPT_PARAMS = {
 // FOR MAINNET
 const VOTINGLOCKUP_PARAMS = {
   OWNER: beneficiary,
-  REDEEMER: "",
-};
-
-const REDEEMER_PARAMS = {
-  OWNER: beneficiary,
 };
 
 // FOR TESTING
@@ -107,5 +102,4 @@ module.exports = {
   EXTERNAL_TOKEN_PARAMS,
   AIRDROP_SCRIPT_PARAMS,
   VOTINGLOCKUP_PARAMS,
-  REDEEMER_PARAMS,
 };
