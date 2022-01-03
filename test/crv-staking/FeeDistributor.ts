@@ -17,12 +17,10 @@ chai.use(solidity);
 
 describe("Fee Distributor", () => {
   let RibbonToken: ContractFactory;
-  let IncentivisedVotingLockup: ContractFactory;
-  let Redeemer: ContractFactory;
+  let VotingEscrow: ContractFactory;
   let FeeDistributor: ContractFactory;
 
   let mta: Contract,
-    redeemer: Contract,
     feeDistributor: Contract,
     votingLockup: Contract,
     sa: StandardAccounts;
@@ -46,19 +44,14 @@ describe("Fee Distributor", () => {
 
     await mta.connect(sa.fundManager.signer).setTransfersAllowed(true);
 
-    // Get redeemer contract
-    Redeemer = await ethers.getContractFactory("Redeemer");
-    redeemer = await Redeemer.deploy(sa.fundManager.address, 1);
-
-    await redeemer.deployed();
-
-    IncentivisedVotingLockup = await ethers.getContractFactory(
-      "IncentivisedVotingLockup"
+    VotingEscrow = await ethers.getContractFactory(
+      "VotingEscrow"
     );
-    votingLockup = await IncentivisedVotingLockup.deploy(
+    votingLockup = await VotingEscrow.deploy(
       mta.address,
-      sa.fundManager.address,
-      redeemer.address
+      "Vote-escrowed CRV",
+      "veRBN",
+      "veRBN_1.0.0"
     );
 
     await votingLockup.deployed();
