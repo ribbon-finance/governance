@@ -49,7 +49,7 @@ describe("Fee Distributor", () => {
     );
     votingLockup = await VotingEscrow.deploy(
       mta.address,
-      "Vote-escrowed CRV",
+      "Vote-escrowed RBN",
       "veRBN",
       sa.fundManager.address
     );
