@@ -30,9 +30,8 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
 
   // Contract factories
   const RibbonToken = await ethers.getContractFactory("RibbonToken");
-  const Redeemer = await ethers.getContractFactory("Redeemer");
   const StakedRibbon = await ethers.getContractFactory(
-    "IncentivisedVotingLockup"
+    "VotingEscrow"
   );
   const GovernorBravoDelegate = await ethers.getContractFactory(
     "GovernorBravoDelegate"
@@ -44,12 +43,11 @@ export async function governanceFixture(): Promise<GovernanceFixture> {
 
   const rbn = await RibbonToken.deploy("Ribbon", "RBN", 100, admin.address);
 
-  const redeemer = await Redeemer.deploy(admin.address, "9000");
-
   const sRBN = await StakedRibbon.deploy(
     rbn.address,
-    admin.address,
-    redeemer.address
+    "Vote-escrowed RBN",
+    "veRBN",
+    admin.address
   );
 
   const governorBravoDelegate = await GovernorBravoDelegate.deploy();
