@@ -33,7 +33,7 @@ describe("GovernorBravo", () => {
 
   it("sRBN", async () => {
     const balance = await sRBN["balanceOf(address)"](wallet.address);
-    const totalSupply = await sRBN.totalSupply();
+    const totalSupply = await sRBN["totalSupply()"];
     expect(balance).to.be.eq(totalSupply);
   });
 
