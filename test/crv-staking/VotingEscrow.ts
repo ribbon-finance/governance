@@ -31,18 +31,12 @@ import { Account } from "../../types";
 
 chai.use(solidity);
 
-describe("IncentivisedVotingLockup", () => {
+describe("VotingEscrow", () => {
   let RibbonToken: ContractFactory;
-  let IncentivisedVotingLockup: ContractFactory;
-  let Redeemer: ContractFactory;
-  let TestWrapperSC: ContractFactory;
-  let SmartWalletWhitelist: ContractFactory;
+  let VotingEscrow: ContractFactory;
 
   let mta: Contract,
-    redeemer: Contract,
     votingLockup: Contract,
-    testWrapperSC: Contract,
-    smartWalletWhitelist: Contract,
     sa: StandardAccounts;
 
   before("Init contract", async () => {
@@ -62,40 +56,17 @@ describe("IncentivisedVotingLockup", () => {
 
     await mta.connect(sa.fundManager.signer).setTransfersAllowed(true);
 
-    // Get redeemer contract
-    Redeemer = await ethers.getContractFactory("Redeemer");
-    redeemer = await Redeemer.deploy(sa.fundManager.address, "9000");
-
-    await redeemer.deployed();
-
-    SmartWalletWhitelist = await ethers.getContractFactory(
-      "SmartWalletWhitelist"
-    );
-    smartWalletWhitelist = await SmartWalletWhitelist.deploy(
-      sa.fundManager.address,
-      sa.dummy1.address
-    );
-
-    await smartWalletWhitelist.deployed();
-
-    IncentivisedVotingLockup = await ethers.getContractFactory(
-      "IncentivisedVotingLockup"
+    VotingEscrow = await ethers.getContractFactory(
+      "VotingEscrow"
     );
     votingLockup = await IncentivisedVotingLockup.deploy(
       mta.address,
-      sa.fundManager.address,
-      redeemer.address
+      "Vote-escrowed CRV",
+      "veRBN",
+      "veRBN_1.0.0"
     );
 
     await votingLockup.deployed();
-
-    //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
-    await redeemer
-      .connect(sa.fundManager.signer)
-      .setVotingEscrowContract(votingLockup.address);
-
-    TestWrapperSC = await ethers.getContractFactory("TestWrapperSC");
-    testWrapperSC = await TestWrapperSC.deploy(votingLockup.address);
   });
 
   const goToNextUnixWeekStart = async () => {
@@ -123,14 +94,6 @@ describe("IncentivisedVotingLockup", () => {
       sa.fundManager.address,
       redeemer.address
     );
-
-    testWrapperSC = await TestWrapperSC.deploy(votingLockup.address);
-
-    //await mta.connect(sa.fundManager.address).setMinter(votingLockup.address);
-
-    await redeemer
-      .connect(sa.fundManager.signer)
-      .setVotingEscrowContract(votingLockup.address);
 
     await votingLockup.deployed();
     await mta.approve(
