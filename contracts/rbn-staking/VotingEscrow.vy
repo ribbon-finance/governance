@@ -543,7 +543,7 @@ def balanceOf(addr: address, _t: uint256 = block.timestamp) -> uint256:
 
 @external
 @view
-def balanceOfAt(addr: address, _block: uint256) -> uint256:
+def getPriorVotes(addr: address, _block: uint256) -> uint256:
     """
     @notice Measure voting power of `addr` at block height `_block`
     @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
@@ -658,14 +658,3 @@ def totalSupplyAt(_block: uint256) -> uint256:
     # Now dt contains info on how far are we beyond point
 
     return self.supply_at(point, point.ts + dt)
-
-
-# Dummy methods for compatibility with Aragon
-
-@external
-def changeController(_newController: address):
-    """
-    @dev Dummy method required for Aragon compatibility
-    """
-    assert msg.sender == self.controller
-    self.controller = _newController
