@@ -51,7 +51,7 @@ describe("Fee Distributor", () => {
       mta.address,
       "Vote-escrowed CRV",
       "veRBN",
-      "veRBN_1.0.0"
+      sa.fundManager.address
     );
 
     await votingLockup.deployed();
