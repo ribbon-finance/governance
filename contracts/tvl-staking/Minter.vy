@@ -62,7 +62,7 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
 
     self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
     self.rate = 0
-    self.committed_rate = 0
+    self.committed_rate = -1
 
 @internal
 def _mint_for(gauge_addr: address, _for: address):
