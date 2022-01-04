@@ -36,7 +36,6 @@ INITIAL_RATE: constant(uint256) = 460_273 * 10 ** 18 / WEEK
 # weekly
 MAX_ABS_RATE: constant(uint256) = 2_000_000
 RATE_REDUCTION_TIME: constant(uint256) = WEEK
-RATE_DENOMINATOR: constant(uint256) = 10 ** 18
 INFLATION_DELAY: constant(uint256) = 86400
 
 start_epoch_time: public(uint256)
@@ -204,7 +203,7 @@ def commit_new_rate(_new_rate: uint256):
   """
   assert msg.sender == self.admin
   assert _new_rate <= MAX_ABS_RATE # prevent fatfinger
-  self.committed_rate = _new_rate * RATE_DENOMINATOR / WEEK
+  self.committed_rate = _new_rate * 10 ** 18 / WEEK
 
 
 @external
