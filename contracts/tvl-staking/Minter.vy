@@ -33,7 +33,7 @@ WEEK: constant(uint256) = 86400 * 7
 # 0.2% of total supply / month = 2M
 # 2M / 4.34524 WEEKS = 460,273 RBN
 INITIAL_RATE: constant(uint256) = 460_273 * 10 ** 18 / WEEK
-# weekly
+# Weekly
 MAX_ABS_RATE: constant(uint256) = 2_000_000
 RATE_REDUCTION_TIME: constant(uint256) = WEEK
 INFLATION_DELAY: constant(uint256) = 86400
