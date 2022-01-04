@@ -33,6 +33,7 @@ WEEK: constant(uint256) = 86400 * 7
 # 0.2% of total supply / month = 2M
 # 2M / 4.34524 WEEKS = 460,273 RBN
 INITIAL_RATE: constant(uint256) = 460_273 * 10 ** 18 / WEEK
+MAX_ABS_RATE: constant(uint256) = 2_000_000
 RATE_REDUCTION_TIME: constant(uint256) = WEEK
 RATE_DENOMINATOR: constant(uint256) = 10 ** 18
 INFLATION_DELAY: constant(uint256) = 86400
@@ -62,7 +63,7 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
 
     self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
     self.rate = 0
-    self.committed_rate = -1
+    self.committed_rate = MAX_UINT256
 
 @internal
 def _mint_for(gauge_addr: address, _for: address):
@@ -162,9 +163,9 @@ def _update_mining_parameters():
         _rate = INITIAL_RATE
     else:
         _committed_rate: uint256 = self.committed_rate
-        if _committed_rate > -1:
+        if _committed_rate != MAX_UINT256:
           _rate = _committed_rate * RATE_DENOMINATOR
-          self.committed_rate = -1
+          self.committed_rate = MAX_UINT256
         else:
           _rate = _rate * RATE_DENOMINATOR
 
@@ -203,7 +204,8 @@ def commit_new_rate(_new_rate: uint256):
           _new_rate should have no decimals (ex: if we want to reward 600_000 RBN over the course of a week, we pass in 600_000)
   """
   assert msg.sender == self.admin
-  self.committed_rate = _new_rate * RATE_DENOMINATOR
+  assert _new_rate <= MAX_ABS_RATE # prevent fatfinger
+  self.committed_rate = _new_rate * RATE_DENOMINATOR / WEEK
 
 
 @external
