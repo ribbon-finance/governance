@@ -162,9 +162,9 @@ def _update_mining_parameters():
         _rate = INITIAL_RATE
     else:
         _committed_rate: uint256 = self.committed_rate
-        if _committed_rate > 0:
+        if _committed_rate > -1:
           _rate = _committed_rate * RATE_DENOMINATOR
-          self.committed_rate = 0
+          self.committed_rate = -1
         else:
           _rate = _rate * RATE_DENOMINATOR
 
