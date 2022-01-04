@@ -23,6 +23,23 @@ event Minted:
     gauge: address
     minted: uint256
 
+event UpdateMiningParameters:
+    time: uint256
+    rate: uint256
+
+# General constants
+WEEK: constant(uint256) = 86400 * 7
+
+# 0.2% of total supply / month = 2M
+# 2M / 4.34524 WEEKS = 460,273 RBN
+INITIAL_RATE: constant(uint256) = 460_273 * 10 ** 18 / WEEK
+RATE_REDUCTION_TIME: constant(uint256) = WEEK
+RATE_DENOMINATOR: constant(uint256) = 10 ** 18
+INFLATION_DELAY: constant(uint256) = 86400
+
+start_epoch_time: public(uint256)
+rate: public(uint256)
+committed_rate: public(uint256)
 
 token: public(address)
 controller: public(address)
@@ -42,6 +59,10 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
     self.controller = _controller
     self.emergency_return = _emergency_return
     self.admin = _admin
+
+    self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
+    self.rate = 0
+    self.committed_rate = 0
 
 @internal
 def _mint_for(gauge_addr: address, _for: address):
@@ -126,6 +147,64 @@ def recover_balance(_coin: address) -> bool:
         assert convert(response, bool)
 
     return True
+
+@internal
+def _update_mining_parameters():
+    """
+    @dev Update mining rate and supply at the start of the epoch
+         Any modifying mining call must also call this
+    """
+    _rate: uint256 = self.rate
+
+    self.start_epoch_time += RATE_REDUCTION_TIME
+
+    if _rate == 0:
+        _rate = INITIAL_RATE
+    else:
+        _committed_rate: uint256 = self.committed_rate
+        if _committed_rate > 0:
+          _rate = _committed_rate * RATE_DENOMINATOR
+          self.committed_rate = 0
+        else:
+          _rate = _rate * RATE_DENOMINATOR
+
+    self.rate = _rate
+
+    log UpdateMiningParameters(block.timestamp, _rate)
+
+@external
+def update_mining_parameters():
+    """
+    @notice Update mining rate and supply at the start of the epoch
+    @dev Callable by any address, but only once per epoch
+         Total supply becomes slightly larger if this function is called late
+    """
+    assert block.timestamp >= self.start_epoch_time + RATE_REDUCTION_TIME  # dev: too soon!
+    self._update_mining_parameters()
+
+@external
+def future_epoch_time_write() -> uint256:
+    """
+    @notice Get timestamp of the next mining epoch start
+            while simultaneously updating mining parameters
+    @return Timestamp of the next epoch
+    """
+    _start_epoch_time: uint256 = self.start_epoch_time
+    if block.timestamp >= _start_epoch_time + RATE_REDUCTION_TIME:
+        self._update_mining_parameters()
+        return self.start_epoch_time + RATE_REDUCTION_TIME
+    else:
+        return _start_epoch_time + RATE_REDUCTION_TIME
+
+@external
+def commit_new_rate(_new_rate: uint256):
+  """
+  @notice Commit a new rate for the following week (we update by weeks).
+          _new_rate should have no decimals (ex: if we want to reward 600_000 RBN over the course of a week, we pass in 600_000)
+  """
+  assert msg.sender == self.admin
+  self.committed_rate = _new_rate * RATE_DENOMINATOR
+
 
 @external
 def change_emergency_return(_emergency_return: address):
