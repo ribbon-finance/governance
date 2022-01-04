@@ -164,10 +164,8 @@ def _update_mining_parameters():
     else:
         _committed_rate: uint256 = self.committed_rate
         if _committed_rate != MAX_UINT256:
-          _rate = _committed_rate * RATE_DENOMINATOR
+          _rate = _committed_rate
           self.committed_rate = MAX_UINT256
-        else:
-          _rate = _rate * RATE_DENOMINATOR
 
     self.rate = _rate
 
