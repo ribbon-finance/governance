@@ -12,6 +12,7 @@ interface LiquidityGauge:
 
 interface ERC20:
     def transfer(to: address, amount: uint256) -> bool: nonpayable
+    def balanceOf(account: address) -> uint256: nonpayable
 
 interface GaugeController:
     def gauge_types(addr: address) -> int128: view
