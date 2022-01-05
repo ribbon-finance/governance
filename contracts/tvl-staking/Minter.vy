@@ -201,7 +201,7 @@ def recover_balance(_coin: address) -> bool:
     @param _coin Token address
     @return bool success
     """
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin # dev: admin only
 
     amount: uint256 = ERC20(_coin).balanceOf(self)
     response: Bytes[32] = raw_call(
