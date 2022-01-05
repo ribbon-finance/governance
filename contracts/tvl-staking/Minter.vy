@@ -38,6 +38,7 @@ MAX_ABS_RATE: constant(uint256) = 10_000_000
 RATE_REDUCTION_TIME: constant(uint256) = WEEK
 INFLATION_DELAY: constant(uint256) = 86400
 
+mining_epoch: public(int128)
 start_epoch_time: public(uint256)
 rate: public(uint256)
 committed_rate: public(uint256)
@@ -63,6 +64,7 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
     self.admin = _admin
 
     self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
+    self.mining_epoch = -1
     self.rate = 0
     self.is_start = True
     self.committed_rate = MAX_UINT256
@@ -160,6 +162,7 @@ def _update_mining_parameters():
     _rate: uint256 = self.rate
 
     self.start_epoch_time += RATE_REDUCTION_TIME
+    self.mining_epoch += 1
 
     if _rate == 0 and self.is_start:
         _rate = INITIAL_RATE
@@ -183,6 +186,20 @@ def update_mining_parameters():
     """
     assert block.timestamp >= self.start_epoch_time + RATE_REDUCTION_TIME  # dev: too soon!
     self._update_mining_parameters()
+
+@external
+def start_epoch_time_write() -> uint256:
+    """
+    @notice Get timestamp of the current mining epoch start
+            while simultaneously updating mining parameters
+    @return Timestamp of the epoch
+    """
+    _start_epoch_time: uint256 = self.start_epoch_time
+    if block.timestamp >= _start_epoch_time + RATE_REDUCTION_TIME:
+        self._update_mining_parameters()
+        return self.start_epoch_time
+    else:
+        return _start_epoch_time
 
 @external
 def future_epoch_time_write() -> uint256:
