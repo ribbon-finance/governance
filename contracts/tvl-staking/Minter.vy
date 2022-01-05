@@ -69,6 +69,69 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
     self.is_start = True
     self.committed_rate = MAX_UINT256
 
+
+@internal
+def _update_mining_parameters():
+    """
+    @dev Update mining rate and supply at the start of the epoch
+         Any modifying mining call must also call this
+    """
+    _rate: uint256 = self.rate
+
+    self.start_epoch_time += RATE_REDUCTION_TIME
+    self.mining_epoch += 1
+
+    if _rate == 0 and self.is_start:
+        _rate = INITIAL_RATE
+        self.is_start = False
+    else:
+        _committed_rate: uint256 = self.committed_rate
+        if _committed_rate != MAX_UINT256:
+          _rate = _committed_rate
+          self.committed_rate = MAX_UINT256
+
+    self.rate = _rate
+
+    log UpdateMiningParameters(block.timestamp, _rate)
+
+@external
+def update_mining_parameters():
+    """
+    @notice Update mining rate and supply at the start of the epoch
+    @dev Callable by any address, but only once per epoch
+         Total supply becomes slightly larger if this function is called late
+    """
+    assert block.timestamp >= self.start_epoch_time + RATE_REDUCTION_TIME  # dev: too soon!
+    self._update_mining_parameters()
+
+@external
+def start_epoch_time_write() -> uint256:
+    """
+    @notice Get timestamp of the current mining epoch start
+            while simultaneously updating mining parameters
+    @return Timestamp of the epoch
+    """
+    _start_epoch_time: uint256 = self.start_epoch_time
+    if block.timestamp >= _start_epoch_time + RATE_REDUCTION_TIME:
+        self._update_mining_parameters()
+        return self.start_epoch_time
+    else:
+        return _start_epoch_time
+
+@external
+def future_epoch_time_write() -> uint256:
+    """
+    @notice Get timestamp of the next mining epoch start
+            while simultaneously updating mining parameters
+    @return Timestamp of the next epoch
+    """
+    _start_epoch_time: uint256 = self.start_epoch_time
+    if block.timestamp >= _start_epoch_time + RATE_REDUCTION_TIME:
+        self._update_mining_parameters()
+        return self.start_epoch_time + RATE_REDUCTION_TIME
+    else:
+        return _start_epoch_time + RATE_REDUCTION_TIME
+
 @internal
 def _mint_for(gauge_addr: address, _for: address):
     assert GaugeController(self.controller).gauge_types(gauge_addr) >= 0  # dev: gauge is not added
@@ -154,68 +217,6 @@ def recover_balance(_coin: address) -> bool:
         assert convert(response, bool)
 
     return True
-
-@internal
-def _update_mining_parameters():
-    """
-    @dev Update mining rate and supply at the start of the epoch
-         Any modifying mining call must also call this
-    """
-    _rate: uint256 = self.rate
-
-    self.start_epoch_time += RATE_REDUCTION_TIME
-    self.mining_epoch += 1
-
-    if _rate == 0 and self.is_start:
-        _rate = INITIAL_RATE
-        self.is_start = False
-    else:
-        _committed_rate: uint256 = self.committed_rate
-        if _committed_rate != MAX_UINT256:
-          _rate = _committed_rate
-          self.committed_rate = MAX_UINT256
-
-    self.rate = _rate
-
-    log UpdateMiningParameters(block.timestamp, _rate)
-
-@external
-def update_mining_parameters():
-    """
-    @notice Update mining rate and supply at the start of the epoch
-    @dev Callable by any address, but only once per epoch
-         Total supply becomes slightly larger if this function is called late
-    """
-    assert block.timestamp >= self.start_epoch_time + RATE_REDUCTION_TIME  # dev: too soon!
-    self._update_mining_parameters()
-
-@external
-def start_epoch_time_write() -> uint256:
-    """
-    @notice Get timestamp of the current mining epoch start
-            while simultaneously updating mining parameters
-    @return Timestamp of the epoch
-    """
-    _start_epoch_time: uint256 = self.start_epoch_time
-    if block.timestamp >= _start_epoch_time + RATE_REDUCTION_TIME:
-        self._update_mining_parameters()
-        return self.start_epoch_time
-    else:
-        return _start_epoch_time
-
-@external
-def future_epoch_time_write() -> uint256:
-    """
-    @notice Get timestamp of the next mining epoch start
-            while simultaneously updating mining parameters
-    @return Timestamp of the next epoch
-    """
-    _start_epoch_time: uint256 = self.start_epoch_time
-    if block.timestamp >= _start_epoch_time + RATE_REDUCTION_TIME:
-        self._update_mining_parameters()
-        return self.start_epoch_time + RATE_REDUCTION_TIME
-    else:
-        return _start_epoch_time + RATE_REDUCTION_TIME
 
 @external
 def commit_new_rate(_new_rate: uint256):
