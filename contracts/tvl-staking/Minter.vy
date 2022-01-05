@@ -79,6 +79,8 @@ def _mint_for(gauge_addr: address, _for: address):
 
     if to_mint != 0:
         ERC20(self.token).transfer(_for, to_mint)
+        if block.timestamp >= self.start_epoch_time + RATE_REDUCTION_TIME:
+          self._update_mining_parameters()
         self.minted[_for][gauge_addr] = total_mint
 
         log Minted(_for, gauge_addr, total_mint)
@@ -221,17 +223,17 @@ def commit_new_rate(_new_rate: uint256):
   @notice Commit a new rate for the following week (we update by weeks).
           _new_rate should have no decimals (ex: if we want to reward 600_000 RBN over the course of a week, we pass in 600_000)
   """
-  assert msg.sender == self.admin
-  assert _new_rate <= MAX_ABS_RATE # prevent fatfinger
+  assert msg.sender == self.admin # dev: admin only
+  assert _new_rate <= MAX_ABS_RATE # dev: preventing fatfinger
   self.committed_rate = _new_rate * 10 ** 18 / WEEK
 
 
 @external
 def change_emergency_return(_emergency_return: address):
-  assert msg.sender == self.admin
+  assert msg.sender == self.admin # dev: admin only
   self.emergency_return = _emergency_return
 
 @external
 def change_admin(_admin: address):
-  assert msg.sender == self.admin
+  assert msg.sender == self.admin # dev: admin only
   self.admin = _admin
