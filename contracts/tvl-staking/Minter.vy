@@ -1,4 +1,4 @@
-# @version 0.2.7
+# @version 0.2.8
 """
 @title Token Minter
 @author Curve Finance
@@ -41,7 +41,7 @@ INFLATION_DELAY: constant(uint256) = 86400
 start_epoch_time: public(uint256)
 rate: public(uint256)
 committed_rate: public(uint256)
-is_start: private(bool)
+is_start: public(bool)
 
 token: public(address)
 controller: public(address)
@@ -64,7 +64,7 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
 
     self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
     self.rate = 0
-    self.is_start = true
+    self.is_start = True
     self.committed_rate = MAX_UINT256
 
 @internal
@@ -163,7 +163,7 @@ def _update_mining_parameters():
 
     if _rate == 0 and self.is_start:
         _rate = INITIAL_RATE
-        self.is_start = false
+        self.is_start = False
     else:
         _committed_rate: uint256 = self.committed_rate
         if _committed_rate != MAX_UINT256:
