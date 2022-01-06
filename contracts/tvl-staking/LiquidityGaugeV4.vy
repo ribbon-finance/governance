@@ -24,8 +24,6 @@ interface Minter:
     def minted(user: address, gauge: address) -> uint256: view
     def future_epoch_time_write() -> uint256: nonpayable
     def rate() -> uint256: view
-    def rates(epoch: int128) -> uint256: view
-
 
 interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
