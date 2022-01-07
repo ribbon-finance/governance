@@ -9,54 +9,52 @@ async function main() {
   const network = hre.network.name;
 
   // We get the contract to deploy
-  const FeeDistributor = await hre.ethers.getContractFactory(
-    "FeeDistributor",
+  const GaugeController = await hre.ethers.getContractFactory(
+    "GaugeController",
     deployer
   );
-
-  const voting_escrow =
-    network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
-      : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
-
-  const start_time = await getTimestamp();
 
   const token =
     network === "kovan"
       ? TEST_RIBBONOMICS_DIR.TOKEN
       : MAIN_RIBBONOMICS_DIR.TOKEN;
 
-  const o_admin =
+  const voting_escrow =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
+      : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
+
+  const veboost_proxy =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.VEBOOSTPROXY
+      : MAIN_RIBBONOMICS_DIR.VEBOOSTPROXY;
+
+  const admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
-  const e_admin =
-    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.E_ADMIN;
-
-  console.log("voting_escrow", voting_escrow);
-  console.log("start_time", start_time);
   console.log("token", token);
+  console.log("voting_escrow", voting_escrow);
+  console.log("veboost_proxy", veboost_proxy);
   console.log("o_admin", o_admin);
-  console.log("e_admin", e_admin);
 
-  const feeDistributor = await FeeDistributor.deploy(
-    voting_escrow,
-    start_time,
+  const gaugeController = await GaugeController.deploy(
     token,
-    o_admin,
-    e_admin,
+    voting_escrow,
+    veboost_proxy,
+    admin,
   );
 
-  await feeDistributor.deployed();
+  await gaugeController.deployed();
 
   console.log(
-    `\nRibbon fee distributor contract is deployed at ${feeDistributor.address}, verify with https://etherscan.io/proxyContractChecker?a=${feeDistributor.address}\n`
+    `\nRibbon gauge controller contract is deployed at ${gaugeController.address}, verify with https://etherscan.io/proxyContractChecker?a=${gaugeController.address}\n`
   );
 
   await feeDistributor.deployTransaction.wait(5);
 
   await hre.run("verify:verify", {
-    address: feeDistributor.address,
-    constructorArguments: [voting_escrow, start_time, token, o_admin, e_admin],
+    address: gaugeController.address,
+    constructorArguments: [token, voting_escrow, veboost_proxy, admin],
   });
 }
 
