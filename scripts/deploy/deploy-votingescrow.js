@@ -30,11 +30,6 @@ async function main() {
   console.log("symbol", symbol);
   console.log("owner", owner);
 
-  const tt = await ethers.getContractAt(
-    "RibbonToken",
-    stakingToken
-  );
-
   const votingEscrow = await VotingEscrow.deploy(
     stakingToken,
     name,
