@@ -49,6 +49,19 @@ async function main() {
 
   await votingEscrowDelegation.deployTransaction.wait(5);
 
+  const veboost_proxy =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.VEBOOSTPROXY
+      : MAIN_RIBBONOMICS_DIR.VEBOOSTPROXY;
+
+  const veboostproxy = await ethers.getContractAt(
+    "DelegationProxy",
+    veboost_proxy
+  );
+
+  // add as delegation
+  await veboostproxy["set_delegation(address)"](votingEscrowDelegation.address)
+
   await hre.run("verify:verify", {
     address: votingEscrowDelegation.address,
     constructorArguments: [name, symbol, base_uri, voting_escrow, admin],
