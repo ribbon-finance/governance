@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const { DELEGATIONPROXY_PARAMS } = require("../../params");
+const { MAIN_RIBBONOMICS_DIR, TEST_RIBBONOMICS_DIR } = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 
@@ -15,19 +15,19 @@ async function main() {
 
   const delegation =
     network === "kovan"
-      ? "0x0000000000000000000000000000000000000000"
-      : DELEGATIONPROXY_PARAMS.DELEGATION;
+      ? TEST_RIBBONOMICS_DIR.DELEGATION
+      : MAIN_RIBBONOMICS_DIR.DELEGATION;
 
   const voting_escrow =
     network === "kovan"
-      ? "0x7Ef22e238E663022bBCE210632468ca9ae83A12C"
-      : DELEGATIONPROXY_PARAMS.VOTINGESCROW;
+      ? TEST_RIBBONOMICS_DIR.VOTINGESCROW;
+      : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
 
   const o_admin =
-    network === "kovan" ? deployer.address : DELEGATIONPROXY_PARAMS.O_ADMIN;
+    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
   const e_admin =
-    network === "kovan" ? deployer.address : DELEGATIONPROXY_PARAMS.E_ADMIN;
+    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.E_ADMIN;
 
   console.log("delegation", delegation);
   console.log("voting_escrow", voting_escrow);
