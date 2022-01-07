@@ -13,6 +13,16 @@ async function main() {
     deployer
   );
 
+  const gauge_type =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.GAUGETYPE
+      : MAIN_RIBBONOMICS_DIR.GAUGETYPE;
+
+  const gauge_controller =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.GAUGECONTROLLER;
+      : MAIN_RIBBONOMICS_DIR.GAUGECONTROLLER;
+
   const vaults =
     network === "kovan"
       ? TEST_RIBBONOMICS_DIR.VAULTS
@@ -29,6 +39,11 @@ async function main() {
   console.log("minter", name);
   console.log("admin", symbol);
 
+  const gaugeController = await ethers.getContractAt(
+    "GaugeController",
+    gauge_controller
+  );
+
   for (let vault in vaults) {
       const liquidityGauge = await LiquidityGauge.deploy(
         vaults[vault],
@@ -43,6 +58,9 @@ async function main() {
       );
 
       await liquidityGauge.deployTransaction.wait(5);
+
+      // add_gauge()
+      await gaugeController["add_gauge(address, string)"](liquidityGauge.address, gauge_type)
 
       await hre.run("verify:verify", {
         address: liquidityGauge.address,

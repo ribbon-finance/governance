@@ -92,6 +92,7 @@ const MAIN_RIBBONOMICS_DIR = {
   VOTINGESCROW: "",
   VEBOOSTPROXY: "",
   GAUGECONTROLLER: "",
+  GAUGETYPE: "Liquidity",
   MINTER: "",
   TOKEN: "0x6123B0049F904d730dB3C36a31167D9d4121fA6B",
   O_ADMIN: beneficiary,
@@ -103,6 +104,13 @@ const MAIN_RIBBONOMICS_DIR = {
     ETH: "0x25751853Eab4D0eB3652B5eB6ecB102A2789644B",
     WBTC: "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
   },
+  LIQUIDITYGAUGES: {
+    RYVUSDC: "",
+    AAVE: "",
+    STETH: "",
+    ETH: "",
+    WBTC: "",
+  },
 };
 
 const TEST_RIBBONOMICS_DIR = {
@@ -110,9 +118,17 @@ const TEST_RIBBONOMICS_DIR = {
   VOTINGESCROW: "0x7Ef22e238E663022bBCE210632468ca9ae83A12C",
   VEBOOSTPROXY: "",
   GAUGECONTROLLER: "",
+  GAUGETYPE: "Liquidity",
   MINTER: "",
   TOKEN: "0x80ba81056ba048c82b7b01eb8bffe342fde1998d",
   VAULTS: {
+    RYVUSDC: "",
+    AAVE: "",
+    STETH: "",
+    ETH: "",
+    WBTC: "",
+  },
+  LIQUIDITYGAUGES: {
     RYVUSDC: "",
     AAVE: "",
     STETH: "",
