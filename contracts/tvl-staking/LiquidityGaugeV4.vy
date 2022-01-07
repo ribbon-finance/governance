@@ -15,6 +15,7 @@ interface Controller:
     def period_timestamp(p: int128) -> uint256: view
     def gauge_relative_weight(addr: address, time: uint256) -> uint256: view
     def voting_escrow() -> address: view
+    def veboost_proxy() -> address: view
     def checkpoint(): nonpayable
     def checkpoint_gauge(addr: address): nonpayable
 
