@@ -50,7 +50,7 @@ async function main() {
     `\nRibbon gauge controller contract is deployed at ${gaugeController.address}, verify with https://etherscan.io/proxyContractChecker?a=${gaugeController.address}\n`
   );
 
-  await feeDistributor.deployTransaction.wait(5);
+  await gaugeController.deployTransaction.wait(5);
 
   await hre.run("verify:verify", {
     address: gaugeController.address,
