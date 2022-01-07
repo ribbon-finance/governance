@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const { DELEGATIONPROXY_PARAMS, AIRDROP_PARAMS } = require("../../params");
+const { DELEGATIONPROXY_PARAMS } = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 
@@ -16,7 +16,7 @@ async function main() {
   const delegation =
     network === "kovan"
       ? "0x0000000000000000000000000000000000000000"
-      : "0x0000000000000000000000000000000000000000";
+      : DELEGATIONPROXY_PARAMS.DELEGATION;
 
   const voting_escrow =
     network === "kovan"
@@ -24,10 +24,10 @@ async function main() {
       : DELEGATIONPROXY_PARAMS.VOTINGESCROW;
 
   const o_admin =
-    network === "kovan" ? deployer.address : DELEGATIONPROXY_PARAMS.OWNER;
+    network === "kovan" ? deployer.address : DELEGATIONPROXY_PARAMS.O_ADMIN;
 
   const e_admin =
-    network === "kovan" ? deployer.address : DELEGATIONPROXY_PARAMS.OWNER;
+    network === "kovan" ? deployer.address : DELEGATIONPROXY_PARAMS.E_ADMIN;
 
   console.log("delegation", delegation);
   console.log("voting_escrow", voting_escrow);
