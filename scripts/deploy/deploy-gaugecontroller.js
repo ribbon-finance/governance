@@ -52,6 +52,20 @@ async function main() {
 
   await gaugeController.deployTransaction.wait(5);
 
+  // add_type()
+
+  const controller = await ethers.getContractAt(
+    "GaugeController",
+    gaugeController.address
+  );
+
+  const gauge_type =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.GAUGETYPE
+      : MAIN_RIBBONOMICS_DIR.GAUGETYPE;
+
+  await controller["add_type(string)"](gauge_type)
+
   await hre.run("verify:verify", {
     address: gaugeController.address,
     constructorArguments: [token, voting_escrow, veboost_proxy, admin],
