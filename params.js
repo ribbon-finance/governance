@@ -4,6 +4,7 @@ const { BigNumber } = ethers;
 const isTest = process.env.CI;
 const TEST_BENEFICIARY = "0x73BCEb1Cd57C711feaC4224D062b0F6ff338501e";
 const DAO_MULTISIG = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674";
+const VOTING_ESCROW = "";
 const beneficiary = isTest ? TEST_BENEFICIARY : DAO_MULTISIG;
 
 // FOR MAINNET
@@ -92,9 +93,19 @@ const EXTERNAL_TOKEN_PARAMS = {
 const VOTINGLOCKUP_PARAMS = {
   OWNER: beneficiary,
 };
+
 const DELEGATIONPROXY_PARAMS = {
-  VOTINGESCROW: "",
-  OWNER: beneficiary,
+  DELEGATION: "0x0000000000000000000000000000000000000000",
+  VOTINGESCROW: VOTING_ESCROW,
+  O_ADMIN: beneficiary,
+  E_ADMIN: beneficiary,
+};
+
+const FEEDISTRIBUTOR_PARAMS = {
+  VOTINGESCROW: VOTING_ESCROW,
+  RBN: RBN,
+  O_ADMIN: beneficiary,
+  E_ADMIN: beneficiary,
 };
 
 
