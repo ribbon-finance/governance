@@ -2,7 +2,6 @@ const hre = require("hardhat");
 const { MAIN_RIBBONOMICS_DIR, TEST_RIBBONOMICS_DIR } = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
-const { getTimestamp } = require("test/utils/time");
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
@@ -35,7 +34,7 @@ async function main() {
   console.log("token", token);
   console.log("voting_escrow", voting_escrow);
   console.log("veboost_proxy", veboost_proxy);
-  console.log("o_admin", o_admin);
+  console.log("admin", admin);
 
   const gaugeController = await GaugeController.deploy(
     token,
@@ -65,6 +64,10 @@ async function main() {
       : MAIN_RIBBONOMICS_DIR.GAUGETYPE;
 
   await controller["add_type(string)"](gauge_type)
+
+  console.log(
+    `\nAdded type ${gauge_type}\n`
+  );
 
   await hre.run("verify:verify", {
     address: gaugeController.address,

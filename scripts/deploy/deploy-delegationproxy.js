@@ -20,7 +20,7 @@ async function main() {
 
   const voting_escrow =
     network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.VOTINGESCROW;
+      ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
       : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
 
   const o_admin =
