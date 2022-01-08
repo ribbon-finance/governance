@@ -13,14 +13,14 @@ async function main() {
     deployer
   );
 
-  const gauge_type =
+  const gauge_type_idx =
     network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.GAUGETYPE
-      : MAIN_RIBBONOMICS_DIR.GAUGETYPE;
+      ? TEST_RIBBONOMICS_DIR.GAUGETYPEIDX
+      : MAIN_RIBBONOMICS_DIR.GAUGETYPEIDX;
 
   const gauge_controller =
     network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.GAUGECONTROLLER;
+      ? TEST_RIBBONOMICS_DIR.GAUGECONTROLLER
       : MAIN_RIBBONOMICS_DIR.GAUGECONTROLLER;
 
   const vaults =
@@ -36,8 +36,8 @@ async function main() {
   const admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
-  console.log("minter", name);
-  console.log("admin", symbol);
+  console.log("minter", minter);
+  console.log("admin", admin);
 
   const gaugeController = await ethers.getContractAt(
     "GaugeController",
@@ -60,12 +60,16 @@ async function main() {
       await liquidityGauge.deployTransaction.wait(5);
 
       // add_gauge()
-      await gaugeController["add_gauge(address, string)"](liquidityGauge.address, gauge_type)
+      await gaugeController["add_gauge(address,int128)"](liquidityGauge.address, gauge_type_idx)
 
-      await hre.run("verify:verify", {
-        address: liquidityGauge.address,
-        constructorArguments: [vaults[vault], minter, admin],
-      });
+      console.log(
+        `\nAdded gauge for vault ${vault} to controller\n`
+      );
+
+      // await hre.run("verify:verify", {
+      //   address: liquidityGauge.address,
+      //   constructorArguments: [vaults[vault], minter, admin],
+      // });
   }
 }
 

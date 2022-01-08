@@ -2,7 +2,7 @@ const hre = require("hardhat");
 const { MAIN_RIBBONOMICS_DIR, TEST_RIBBONOMICS_DIR } = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
-const { getTimestamp } = require("test/utils/time");
+const { getTimestamp } = require("../../test/utils/time");
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
@@ -33,7 +33,7 @@ async function main() {
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.E_ADMIN;
 
   console.log("voting_escrow", voting_escrow);
-  console.log("start_time", start_time);
+  console.log("start_time", start_time.toString());
   console.log("token", token);
   console.log("o_admin", o_admin);
   console.log("e_admin", e_admin);

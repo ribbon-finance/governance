@@ -20,7 +20,7 @@ async function main() {
 
   const gauge_controller =
     network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.GAUGECONTROLLER;
+      ? TEST_RIBBONOMICS_DIR.GAUGECONTROLLER
       : MAIN_RIBBONOMICS_DIR.GAUGECONTROLLER;
 
   const o_admin =
