@@ -323,7 +323,7 @@ def _checkpoint(addr: address):
             w: uint256 = Controller(_controller).gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
 
             if _working_supply > 0:
-                if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
+                if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time and rate != new_rate:
                     # If we went across one or multiple epochs, apply the rate
                     # of the first epoch until it ends, and then the rate of
                     # the last epoch.
@@ -333,7 +333,7 @@ def _checkpoint(addr: address):
                     rate = new_rate
                     _integrate_inv_supply += rate * w * (week_time - prev_future_epoch) / _working_supply
                 else:
-                    _integrate_inv_supply += rate * w * dt / _working_supply
+                    _integrate_inv_supply += new_rate * w * dt / _working_supply
                 # On precisions of the calculation
                 # rate ~= 10e18
                 # last_weight > 0.01 * 1e18 = 1e16 (if pool weight is 1%)
