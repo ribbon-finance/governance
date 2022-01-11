@@ -63,7 +63,7 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.GAUGETYPE
       : MAIN_RIBBONOMICS_DIR.GAUGETYPE;
 
-  await controller["add_type(string)"](gauge_type)
+  await controller["add_type(string, uint256)"](gauge_type, BigNumber.from(10).pow(18)) // 10 ** 18 weight (100%)
 
   console.log(
     `\nAdded type ${gauge_type}\n`
