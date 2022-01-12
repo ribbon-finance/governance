@@ -1,4 +1,4 @@
-# @version 0.2.7
+# @version 0.2.8
 """
 @title Voting Escrow
 @author Curve Finance
@@ -339,7 +339,7 @@ def _checkpoint(addr: address, old_locked: LockedBalance, new_locked: LockedBala
 
 
 @internal
-def _deposit_for(_addr: address, _value: uint256, unlock_time: uint256, locked_balance: LockedBalance, type: int128):
+def _deposit_for(_from: address, _addr: address, _value: uint256, unlock_time: uint256, locked_balance: LockedBalance, type: int128):
     """
     @notice Deposit and lock tokens for a user
     @param _addr User's wallet address
@@ -365,11 +365,10 @@ def _deposit_for(_addr: address, _value: uint256, unlock_time: uint256, locked_b
     self._checkpoint(_addr, old_locked, _locked)
 
     if _value != 0:
-        assert ERC20(self.token).transferFrom(_addr, self, _value)
+        assert ERC20(self.token).transferFrom(_from, self, _value)
 
     log Deposit(_addr, _value, _locked.end, type, block.timestamp)
     log Supply(supply_before, supply_before + _value)
-
 
 @external
 def checkpoint():
@@ -377,7 +376,6 @@ def checkpoint():
     @notice Record global data to checkpoint
     """
     self._checkpoint(ZERO_ADDRESS, empty(LockedBalance), empty(LockedBalance))
-
 
 @external
 @nonreentrant('lock')
@@ -395,8 +393,7 @@ def deposit_for(_addr: address, _value: uint256):
     assert _locked.amount > 0, "No existing lock found"
     assert _locked.end > block.timestamp, "Cannot add to expired lock. Withdraw"
 
-    self._deposit_for(_addr, _value, 0, self.locked[_addr], DEPOSIT_FOR_TYPE)
-
+    self._deposit_for(msg.sender, _addr, _value, 0, self.locked[_addr], DEPOSIT_FOR_TYPE)
 
 @external
 @nonreentrant('lock')
@@ -415,7 +412,7 @@ def create_lock(_value: uint256, _unlock_time: uint256):
     assert unlock_time > block.timestamp, "Can only lock until time in the future"
     assert unlock_time <= block.timestamp + MAXTIME, "Voting lock can be 4 years max"
 
-    self._deposit_for(msg.sender, _value, unlock_time, _locked, CREATE_LOCK_TYPE)
+    self._deposit_for(msg.sender, msg.sender, _value, unlock_time, _locked, CREATE_LOCK_TYPE)
 
 
 @external
@@ -433,7 +430,7 @@ def increase_amount(_value: uint256):
     assert _locked.amount > 0, "No existing lock found"
     assert _locked.end > block.timestamp, "Cannot add to expired lock. Withdraw"
 
-    self._deposit_for(msg.sender, _value, 0, _locked, INCREASE_LOCK_AMOUNT)
+    self._deposit_for(msg.sender, msg.sender, _value, 0, _locked, INCREASE_LOCK_AMOUNT)
 
 
 @external
@@ -452,7 +449,7 @@ def increase_unlock_time(_unlock_time: uint256):
     assert unlock_time > _locked.end, "Can only increase lock duration"
     assert unlock_time <= block.timestamp + MAXTIME, "Voting lock can be 4 years max"
 
-    self._deposit_for(msg.sender, 0, unlock_time, _locked, INCREASE_UNLOCK_TIME)
+    self._deposit_for(msg.sender, msg.sender, 0, unlock_time, _locked, INCREASE_UNLOCK_TIME)
 
 
 @external
