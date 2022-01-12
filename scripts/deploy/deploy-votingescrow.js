@@ -1,5 +1,5 @@
 const hre = require("hardhat");
-const { VOTINGLOCKUP_PARAMS, AIRDROP_PARAMS } = require("../../params");
+const { MAIN_RIBBONOMICS_DIR, TEST_RIBBONOMICS_DIR } = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 
@@ -15,25 +15,20 @@ async function main() {
 
   const stakingToken =
     network === "kovan"
-      ? "0x80ba81056ba048c82b7b01eb8bffe342fde1998d"
-      : AIRDROP_PARAMS.TOKEN_ADDRESS;
+      ? TEST_RIBBONOMICS_DIR.TOKEN
+      : MAIN_RIBBONOMICS_DIR.TOKEN;
 
   const name = "Vote-escrowed RBN"
 
   const symbol = "veRBN"
 
   const owner =
-    network === "kovan" ? deployer.address : VOTINGLOCKUP_PARAMS.OWNER;
+    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
   console.log("stakingToken", stakingToken);
   console.log("name", name);
   console.log("symbol", symbol);
   console.log("owner", owner);
-
-  const tt = await ethers.getContractAt(
-    "RibbonToken",
-    stakingToken
-  );
 
   const votingEscrow = await VotingEscrow.deploy(
     stakingToken,
