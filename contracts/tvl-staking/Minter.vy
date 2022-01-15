@@ -35,7 +35,7 @@ WEEK: constant(uint256) = 86400 * 7
 INITIAL_RATE: constant(uint256) = 460_273 * 10 ** 18 / WEEK
 # Weekly
 MAX_ABS_RATE: constant(uint256) = 10_000_000
-RATE_REDUCTION_TIME: constant(uint256) = WEEK
+RATE_REDUCTION_TIME: constant(uint256) = WEEK * 2
 INFLATION_DELAY: constant(uint256) = 86400
 
 mining_epoch: public(int128)
