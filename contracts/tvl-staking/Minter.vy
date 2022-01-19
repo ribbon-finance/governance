@@ -261,7 +261,7 @@ def apply_transfer_emergency_return():
     """
     assert msg.sender == self.admin  # dev: admin only
     _emergency_return: address = self.future_emergency_return
-    assert _emergency_return != ZERO_ADDRESS  # dev: admin not set
+    assert _emergency_return != ZERO_ADDRESS  # dev: emergency return not set
     self.emergency_return = _emergency_return
     log ApplyEmergencyReturn(_emergency_return)
 
