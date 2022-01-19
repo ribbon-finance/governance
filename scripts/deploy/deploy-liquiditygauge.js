@@ -71,6 +71,9 @@ async function main() {
       //   constructorArguments: [vaults[vault], minter, admin],
       // });
   }
+
+  await gaugeController["commit_transfer_ownership(address)"](MAIN_RIBBONOMICS_DIR.O_ADMIN)
+  await gaugeController["apply_transfer_ownership()"]()
 }
 
 // We recommend this pattern to be able to use async/await everywhere

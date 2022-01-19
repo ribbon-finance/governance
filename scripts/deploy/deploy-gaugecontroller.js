@@ -28,8 +28,8 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.VEBOOSTPROXY
       : MAIN_RIBBONOMICS_DIR.VEBOOSTPROXY;
 
-  const admin =
-    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
+  const admin = deployer.address
+    //network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
   console.log("token", token);
   console.log("voting_escrow", voting_escrow);

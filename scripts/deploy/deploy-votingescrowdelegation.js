@@ -24,8 +24,8 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
       : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
 
-  const admin =
-    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
+  const admin = deployer.address
+    //network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
   console.log("name", name);
   console.log("symbol", symbol);
@@ -61,6 +61,8 @@ async function main() {
 
   // add as delegation
   await veboostproxy["set_delegation(address)"](votingEscrowDelegation.address)
+  await gaugeController["commit_transfer_ownership(address)"](MAIN_RIBBONOMICS_DIR.O_ADMIN)
+  await gaugeController["apply_transfer_ownership()"]()
 
   await hre.run("verify:verify", {
     address: votingEscrowDelegation.address,
