@@ -251,7 +251,7 @@ def commit_transfer_emergency_return(addr: address):
     @param addr Address to have emergency ret. transferred to
     """
     assert msg.sender == self.admin  # dev: admin only
-    self.future_emergency_return = emergency_return
+    self.future_emergency_return = addr
     log CommitEmergencyReturn(addr)
 
 @external
@@ -263,7 +263,7 @@ def apply_transfer_emergency_return():
     _emergency_return: address = self.future_emergency_return
     assert _emergency_return != ZERO_ADDRESS  # dev: admin not set
     self.emergency_return = _emergency_return
-    log ApplyEmergencyReturn(_admin)
+    log ApplyEmergencyReturn(_emergency_return)
 
 @external
 def commit_transfer_ownership(addr: address):

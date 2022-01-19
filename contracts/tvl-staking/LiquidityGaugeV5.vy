@@ -161,7 +161,7 @@ def __init__(_lp_token: address, _minter: address, _admin: address):
     controller: address = Minter(_minter).controller()
 
     MINTER = _minter
-    RBN_TOKEN = crv_token
+    RBN_TOKEN = rbn_token
     CONTROLLER = controller
     VOTING_ESCROW = Controller(controller).voting_escrow()
     VEBOOST_PROXY = Controller(controller).veboost_proxy()
