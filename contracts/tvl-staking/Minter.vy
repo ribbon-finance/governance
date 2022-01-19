@@ -47,7 +47,7 @@ WEEK: constant(uint256) = 86400 * 7
 # 250K RBN / WEEK
 INITIAL_RATE: constant(uint256) = 250_000 * 10 ** 18 / WEEK
 # Weekly
-MAX_ABS_RATE: constant(uint256) = 10_000_000
+MAX_ABS_RATE: constant(uint256) = 10_000_000 * 10 ** 18
 RATE_REDUCTION_TIME: constant(uint256) = WEEK * 2
 INFLATION_DELAY: constant(uint256) = 86400
 
