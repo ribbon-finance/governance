@@ -1,4 +1,4 @@
-# @version 0.3.0
+# @version 0.3.1
 """
 @title Token Minter
 @author Curve Finance
@@ -17,7 +17,6 @@ interface ERC20:
 interface GaugeController:
     def gauge_types(addr: address) -> int128: view
 
-
 event Minted:
     recipient: indexed(address)
     gauge: address
@@ -27,12 +26,26 @@ event UpdateMiningParameters:
     time: uint256
     rate: uint256
 
+event CommitNextEmission:
+    rate: uint256
+
+event CommitEmergencyReturn:
+    admin: address
+
+event ApplyEmergencyReturn:
+    admin: address
+
+event CommitOwnership:
+    admin: address
+
+event ApplyOwnership:
+    admin: address
+
 # General constants
 WEEK: constant(uint256) = 86400 * 7
 
-# 0.2% of total supply / month = 2M
-# 2M / 4.34524 WEEKS = 460,273 RBN
-INITIAL_RATE: constant(uint256) = 460_273 * 10 ** 18 / WEEK
+# 250K RBN / WEEK
+INITIAL_RATE: constant(uint256) = 250_000 * 10 ** 18 / WEEK
 # Weekly
 MAX_ABS_RATE: constant(uint256) = 10_000_000
 RATE_REDUCTION_TIME: constant(uint256) = WEEK * 2
@@ -53,8 +66,10 @@ minted: public(HashMap[address, HashMap[address, uint256]])
 # minter -> user -> can mint?
 allowed_to_mint_for: public(HashMap[address, HashMap[address, bool]])
 
+future_emergency_return: public(address)
 emergency_return: public(address)
-admin: public(address)
+admin: public(address)  # Can and will be a smart contract
+future_admin: public(address)  # Can and will be a smart contract
 
 @external
 def __init__(_token: address, _controller: address, _emergency_return: address, _admin: address):
@@ -65,7 +80,6 @@ def __init__(_token: address, _controller: address, _emergency_return: address, 
 
     self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
     self.mining_epoch = -1
-    self.rate = 0
     self.is_start = True
     self.committed_rate = MAX_UINT256
 
@@ -219,22 +233,55 @@ def recover_balance(_coin: address) -> bool:
     return True
 
 @external
-def commit_new_rate(_new_rate: uint256):
+def commit_next_emission(_rate_per_week: uint256):
   """
   @notice Commit a new rate for the following week (we update by weeks).
-          _new_rate should have no decimals (ex: if we want to reward 600_000 RBN over the course of a week, we pass in 600_000)
+          _rate_per_week should have no decimals (ex: if we want to reward 600_000 RBN over the course of a week, we pass in 600_000 * 10 ** 18)
   """
   assert msg.sender == self.admin # dev: admin only
-  assert _new_rate <= MAX_ABS_RATE # dev: preventing fatfinger
-  self.committed_rate = _new_rate * 10 ** 18 / WEEK
-
-
-@external
-def change_emergency_return(_emergency_return: address):
-  assert msg.sender == self.admin # dev: admin only
-  self.emergency_return = _emergency_return
+  assert _rate_per_week <= MAX_ABS_RATE # dev: preventing fatfinger
+  new_rate: uint256 = _rate_per_week / WEEK
+  self.committed_rate = new_rate
+  log CommitNextEmission(new_rate)
 
 @external
-def change_admin(_admin: address):
-  assert msg.sender == self.admin # dev: admin only
-  self.admin = _admin
+def commit_transfer_emergency_return(addr: address):
+    """
+    @notice Update emergency ret. of Minter to `addr`
+    @param addr Address to have emergency ret. transferred to
+    """
+    assert msg.sender == self.admin  # dev: admin only
+    self.future_emergency_return = emergency_return
+    log CommitEmergencyReturn(addr)
+
+@external
+def apply_transfer_emergency_return():
+    """
+    @notice Apply pending emergency ret. update
+    """
+    assert msg.sender == self.admin  # dev: admin only
+    _emergency_return: address = self.future_emergency_return
+    assert _emergency_return != ZERO_ADDRESS  # dev: admin not set
+    self.emergency_return = _emergency_return
+    log ApplyEmergencyReturn(_admin)
+
+@external
+def commit_transfer_ownership(addr: address):
+    """
+    @notice Transfer ownership of GaugeController to `addr`
+    @param addr Address to have ownership transferred to
+    """
+    assert msg.sender == self.admin  # dev: admin only
+    self.future_admin = addr
+    log CommitOwnership(addr)
+
+@external
+def apply_transfer_ownership():
+    """
+    @notice Apply pending ownership transfer
+    """
+    assert msg.sender == self.admin  # dev: admin only
+    _admin: address = self.future_admin
+    assert _admin != ZERO_ADDRESS  # dev: admin not set
+    self.admin = _admin
+    log ApplyOwnership(_admin)

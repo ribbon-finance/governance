@@ -64,7 +64,7 @@ module.exports = {
     timeout: 200000,
   },
   vyper: {
-    version: "0.3.0",
+    version: "0.3.1",
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
