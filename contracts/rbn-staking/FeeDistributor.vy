@@ -1,4 +1,4 @@
-# @version 0.2.8
+# @version 0.3.1
 """
 @title Curve Fee Distribution
 @author Curve Finance
@@ -186,7 +186,7 @@ def ve_for_at(_user: address, _timestamp: uint256) -> uint256:
     max_user_epoch: uint256 = VotingEscrow(ve).user_point_epoch(_user)
     epoch: uint256 = self._find_timestamp_user_epoch(ve, _user, _timestamp, max_user_epoch)
     pt: Point = VotingEscrow(ve).user_point_history(_user, epoch)
-    return convert(max(pt.bias - pt.slope * convert(_timestamp - pt.ts, int128), 0), uint256)
+    return max(convert(pt.bias - pt.slope * convert(_timestamp - pt.ts, int128), uint256), 0)
 
 
 @internal
@@ -207,7 +207,7 @@ def _checkpoint_total_supply():
                 # If the point is at 0 epoch, it can actually be earlier than the first deposit
                 # Then make dt 0
                 dt = convert(t - pt.ts, int128)
-            self.ve_supply[t] = convert(max(pt.bias - pt.slope * dt, 0), uint256)
+            self.ve_supply[t] = max(convert(pt.bias - pt.slope * dt, uint256), 0)
         t += WEEK
 
     self.time_cursor = t
@@ -276,7 +276,7 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
             # Calc
             # + i * 2 is for rounding errors
             dt: int128 = convert(week_cursor - old_user_point.ts, int128)
-            balance_of: uint256 = convert(max(old_user_point.bias - dt * old_user_point.slope, 0), uint256)
+            balance_of: uint256 = max(convert(old_user_point.bias - dt * old_user_point.slope, uint256), 0)
             if balance_of == 0 and user_epoch > max_user_epoch:
                 break
             if balance_of > 0:

@@ -1,6 +1,6 @@
 # @version 0.3.1
 """
-@title Liquidity Gauge v4
+@title Liquidity Gauge v5
 @author Curve Finance
 @license MIT
 """
@@ -36,6 +36,8 @@ interface VotingEscrowBoost:
 interface ERC20Extended:
     def symbol() -> String[26]: view
 
+interface ERC1271:
+  def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
 
 event Deposit:
     provider: indexed(address)
@@ -77,26 +79,33 @@ struct Reward:
     last_update: uint256
     integral: uint256
 
+  # keccak256("isValidSignature(bytes32,bytes)")[:4] << 224
+ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
+EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+VERSION: constant(String[8]) = "v5.0.0"
 
 MAX_REWARDS: constant(uint256) = 8
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 WEEK: constant(uint256) = 604800
 
-minter: public(address)
-crv_token: public(address)
-controller: public(address)
-voting_escrow: public(address)
-veboost_proxy: public(address)
+MINTER: immutable(address)
+RBN_TOKEN: immutable(address)
+CONTROLLER: immutable(address)
+VOTING_ESCROW: immutable(address)
+VEBOOST_PROXY: immutable(address)
 
-lp_token: public(address)
+NAME: immutable(String[64])
+SYMBOL: immutable(String[32])
+DOMAIN_SEPARATOR: immutable(bytes32)
+LP_TOKEN: immutable(address)
+nonces: public(HashMap[address, uint256])
+
 future_epoch_time: public(uint256)
 
 balanceOf: public(HashMap[address, uint256])
 totalSupply: public(uint256)
 allowance: public(HashMap[address, HashMap[address, uint256]])
-
-name: public(String[64])
-symbol: public(String[32])
 
 working_balances: public(HashMap[address, uint256])
 working_supply: public(uint256)
@@ -148,36 +157,28 @@ def __init__(_lp_token: address, _minter: address, _admin: address):
     @param _admin Admin who can kill the gauge
     """
 
-    crv_token: address = Minter(_minter).token()
+    rbn_token: address = Minter(_minter).token()
     controller: address = Minter(_minter).controller()
 
-    self.lp_token = _lp_token
-    self.minter = _minter
+    MINTER = _minter
+    RBN_TOKEN = rbn_token
+    CONTROLLER = controller
+    VOTING_ESCROW = Controller(controller).voting_escrow()
+    VEBOOST_PROXY = Controller(controller).veboost_proxy()
+
+    lp_symbol: String[26] = ERC20Extended(_lp_token).symbol()
+    name: String[64] = concat("Ribbon.fi ", lp_symbol, " Gauge Deposit")
+    NAME = name
+    SYMBOL = concat(lp_symbol, "-gauge")
+    DOMAIN_SEPARATOR = keccak256(
+        _abi_encode(EIP712_TYPEHASH, keccak256(name), keccak256(VERSION), chain.id, self)
+    )
+    LP_TOKEN = _lp_token
+
     self.admin = _admin
-    self.crv_token = crv_token
-    self.controller = controller
-    self.voting_escrow = Controller(controller).voting_escrow()
-    self.veboost_proxy = Controller(controller).veboost_proxy()
-
-    symbol: String[26] = ERC20Extended(_lp_token).symbol()
-    self.name = concat("Ribbon.fi ", symbol, " Gauge Deposit")
-    self.symbol = concat(symbol, "-gauge")
-
     self.period_timestamp[0] = block.timestamp
     self.inflation_rate = Minter(_minter).rate()
     self.future_epoch_time = Minter(_minter).future_epoch_time_write()
-
-
-@view
-@external
-def decimals() -> uint256:
-    """
-    @notice Get the number of decimals for this token
-    @dev Implemented as a view method to reduce gas costs
-    @return uint256 decimal places
-    """
-    return 18
-
 
 @view
 @external
@@ -196,8 +197,8 @@ def _update_liquidity_limit(addr: address, l: uint256, L: uint256):
     @param L Total amount of liquidity (LP tokens)
     """
     # To be called after totalSupply is updated
-    voting_balance: uint256 = VotingEscrowBoost(self.veboost_proxy).adjusted_balance_of(addr)
-    voting_total: uint256 = ERC20(self.voting_escrow).totalSupply()
+    voting_balance: uint256 = VotingEscrowBoost(VEBOOST_PROXY).adjusted_balance_of(addr)
+    voting_total: uint256 = ERC20(VOTING_ESCROW).totalSupply()
 
     lim: uint256 = l * TOKENLESS_PRODUCTION / 100
     if voting_total > 0:
@@ -287,9 +288,8 @@ def _checkpoint(addr: address):
     prev_future_epoch: uint256 = self.future_epoch_time
 
     if block.timestamp >= prev_future_epoch:
-      _minter: address = self.minter
-      self.future_epoch_time = Minter(_minter).future_epoch_time_write()
-      new_rate = Minter(_minter).rate()
+      self.future_epoch_time = Minter(MINTER).future_epoch_time_write()
+      new_rate = Minter(MINTER).rate()
       self.inflation_rate = new_rate
 
     if self.is_killed:
@@ -300,13 +300,13 @@ def _checkpoint(addr: address):
     # Update integral of 1/supply
     if block.timestamp > _period_time:
         _working_supply: uint256 = self.working_supply
-        Controller(self.controller).checkpoint_gauge(self)
+        Controller(CONTROLLER).checkpoint_gauge(self)
         prev_week_time: uint256 = _period_time
         week_time: uint256 = min((_period_time + WEEK) / WEEK * WEEK, block.timestamp)
 
         for i in range(500):
             dt: uint256 = week_time - prev_week_time
-            w: uint256 = Controller(self.controller).gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
+            w: uint256 = Controller(CONTROLLER).gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
 
             if _working_supply > 0:
                 if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time and rate != new_rate:
@@ -351,7 +351,7 @@ def user_checkpoint(addr: address) -> bool:
     @param addr User address
     @return bool success
     """
-    assert msg.sender in [addr, self.minter]  # dev: unauthorized
+    assert msg.sender in [addr, MINTER]  # dev: unauthorized
     self._checkpoint(addr)
     self._update_liquidity_limit(addr, self.balanceOf[addr], self.totalSupply)
     return True
@@ -365,7 +365,7 @@ def claimable_tokens(addr: address) -> uint256:
     @return uint256 number of claimable tokens per user
     """
     self._checkpoint(addr)
-    return self.integrate_fraction[addr] - Minter(self.minter).minted(addr, self)
+    return self.integrate_fraction[addr] - Minter(MINTER).minted(addr, self)
 
 
 @view
@@ -434,14 +434,13 @@ def kick(addr: address):
     @dev Only if either they had another voting event, or their voting escrow lock expired
     @param addr Address to kick
     """
-    _voting_escrow: address = self.voting_escrow
     t_last: uint256 = self.integrate_checkpoint_of[addr]
-    t_ve: uint256 = VotingEscrow(_voting_escrow).user_point_history__ts(
-        addr, VotingEscrow(_voting_escrow).user_point_epoch(addr)
+    t_ve: uint256 = VotingEscrow(VOTING_ESCROW).user_point_history__ts(
+        addr, VotingEscrow(VOTING_ESCROW).user_point_epoch(addr)
     )
     _balance: uint256 = self.balanceOf[addr]
 
-    assert ERC20(_voting_escrow).balanceOf(addr) == 0 or t_ve > t_last # dev: kick not allowed
+    assert ERC20(VOTING_ESCROW).balanceOf(addr) == 0 or t_ve > t_last # dev: kick not allowed
     assert self.working_balances[addr] > _balance * TOKENLESS_PRODUCTION / 100  # dev: kick not needed
 
     self._checkpoint(addr)
@@ -473,7 +472,7 @@ def deposit(_value: uint256, _addr: address = msg.sender, _claim_rewards: bool =
 
         self._update_liquidity_limit(_addr, new_balance, total_supply)
 
-        ERC20(self.lp_token).transferFrom(msg.sender, self, _value)
+        ERC20(LP_TOKEN).transferFrom(msg.sender, self, _value)
 
     log Deposit(_addr, _value)
     log Transfer(ZERO_ADDRESS, _addr, _value)
@@ -502,7 +501,7 @@ def withdraw(_value: uint256, _claim_rewards: bool = False):
 
         self._update_liquidity_limit(msg.sender, new_balance, total_supply)
 
-        ERC20(self.lp_token).transfer(msg.sender, _value)
+        ERC20(LP_TOKEN).transfer(msg.sender, _value)
 
     log Withdraw(msg.sender, _value)
     log Transfer(msg.sender, ZERO_ADDRESS, _value)
@@ -583,6 +582,50 @@ def approve(_spender : address, _value : uint256) -> bool:
 
     return True
 
+@external
+def permit(
+  _owner: address,
+  _spender: address,
+  _value: uint256,
+  _deadline: uint256,
+  _v: uint8,
+  _r: bytes32,
+  _s: bytes32
+) -> bool:
+  """
+  @notice Approves spender by owner's signature to expend owner's tokens.
+      See https://eips.ethereum.org/EIPS/eip-2612.
+  @dev Inspired by https://github.com/yearn/yearn-vaults/blob/main/contracts/Vault.vy#L753-L793
+  @dev Supports smart contract wallets which implement ERC1271
+      https://eips.ethereum.org/EIPS/eip-1271
+  @param _owner The address which is a source of funds and has signed the Permit.
+  @param _spender The address which is allowed to spend the funds.
+  @param _value The amount of tokens to be spent.
+  @param _deadline The timestamp after which the Permit is no longer valid.
+  @param _v The bytes[64] of the valid secp256k1 signature of permit by owner
+  @param _r The bytes[0:32] of the valid secp256k1 signature of permit by owner
+  @param _s The bytes[32:64] of the valid secp256k1 signature of permit by owner
+  @return True, if transaction completes successfully
+  """
+  assert _owner != ZERO_ADDRESS
+  assert block.timestamp <= _deadline
+  nonce: uint256 = self.nonces[_owner]
+  digest: bytes32 = keccak256(
+      concat(
+          b"\x19\x01",
+          DOMAIN_SEPARATOR,
+          keccak256(_abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
+      )
+  )
+  if _owner.is_contract:
+      sig: Bytes[65] = concat(_abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
+      assert ERC1271(_owner).isValidSignature(digest, sig) == ERC1271_MAGIC_VAL
+  else:
+      assert ecrecover(digest, convert(_v, uint256), convert(_r, uint256), convert(_s, uint256)) == _owner
+  self.allowance[_owner][_spender] = _value
+  self.nonces[_owner] = nonce + 1
+  log Approval(_owner, _spender, _value)
+  return True
 
 @external
 def increaseAllowance(_spender: address, _added_value: uint256) -> bool:
@@ -713,3 +756,93 @@ def accept_transfer_ownership():
 
     self.admin = _admin
     log ApplyOwnership(_admin)
+
+@view
+@external
+def name() -> String[64]:
+  """
+  @notice Get the name for this gauge token
+  """
+  return NAME
+
+@view
+@external
+def symbol() -> String[32]:
+  """
+  @notice Get the symbol for this gauge token
+  """
+  return SYMBOL
+
+@view
+@external
+def decimals() -> uint256:
+  """
+  @notice Get the number of decimals for this token
+  @dev Implemented as a view method to reduce gas costs
+  @return uint256 decimal places
+  """
+  return 18
+
+@view
+@external
+def minter() -> address:
+  """
+  @notice Query the minter
+  """
+  return MINTER
+
+@view
+@external
+def rbn_token() -> address:
+  """
+  @notice Query the crv token
+  """
+  return RBN_TOKEN
+
+@view
+@external
+def controller() -> address:
+  """
+  @notice Query the controller
+  """
+  return CONTROLLER
+
+@view
+@external
+def voting_escrow() -> address:
+  """
+  @notice Query the voting escrow
+  """
+  return VOTING_ESCROW
+
+@view
+@external
+def veboost_proxy() -> address:
+  """
+  @notice Query the veboost proxy
+  """
+  return VEBOOST_PROXY
+
+@view
+@external
+def lp_token() -> address:
+  """
+  @notice Query the lp token used for this gauge
+  """
+  return LP_TOKEN
+
+@view
+@external
+def version() -> String[8]:
+  """
+  @notice Get the version of this gauge
+  """
+  return VERSION
+
+@view
+@external
+def DOMAIN_SEPARATOR() -> bytes32:
+  """
+  @notice Domain separator for this contract
+  """
+  return DOMAIN_SEPARATOR
