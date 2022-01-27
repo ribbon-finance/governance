@@ -35,6 +35,9 @@ event CommitOwnership:
 event ApplyOwnership:
     admin: address
 
+event VotingEnabled:
+    voting_enabled: bool
+
 event AddType:
     name: String[64]
     type_id: int128
@@ -109,6 +112,7 @@ time_total: public(uint256)  # last scheduled time
 points_type_weight: public(HashMap[int128, HashMap[uint256, uint256]])  # type_id -> time -> type weight
 time_type_weight: public(uint256[1000000000])  # type_id -> last scheduled time (next week)
 
+voting_enabled: bool # whether veRBN holders can currently vote on gauge weights
 
 @external
 def __init__(_token: address, _voting_escrow: address, _veboost_proxy: address, _admin: address):
@@ -151,6 +155,16 @@ def apply_transfer_ownership():
     assert _admin != ZERO_ADDRESS  # dev: admin not set
     self.admin = _admin
     log ApplyOwnership(_admin)
+
+
+@external
+def set_voting_enabled(_voting_enabled: bool):
+  """
+  @notice Toggle voting enabled
+  """
+  assert msg.sender == self.admin  # dev: admin only
+  self.voting_enabled = _voting_enabled
+  log VotingEnabled(_voting_enabled)
 
 
 @external
@@ -493,6 +507,7 @@ def vote_for_gauge_weights(_gauge_addr: address, _user_weight: uint256):
     @param _gauge_addr Gauge which `msg.sender` votes for
     @param _user_weight Weight for a gauge in bps (units of 0.01%). Minimal is 0.01%. Ignored if 0
     """
+    assert self.voting_enabled, "Voting disabled"
     escrow: address = self.voting_escrow
     slope: uint256 = convert(VotingEscrow(escrow).get_last_user_slope(msg.sender), uint256)
     lock_end: uint256 = VotingEscrow(escrow).locked__end(msg.sender)
