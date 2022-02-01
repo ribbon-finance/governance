@@ -8,5 +8,5 @@ pragma experimental ABIEncoderV2;
  * @dev Implements the `LiquidityGauge` interface.
  */
 interface ILiquidityGauge {
-    function LP_TOKEN() external view returns (address);
+    function lp_token() external view returns (address);
 }
