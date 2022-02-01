@@ -47,6 +47,11 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
     IAggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
 
   /**
+   * @notice Chainlink ETH/ETH price feed.
+   */
+  address public constant ETH_ETH_PRICE_FEED = address(1);
+
+  /**
    * @dev The administrator of this `MasterPriceOracle`.
    */
   address public admin;
@@ -145,7 +150,7 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
 
     if (baseCurrency == FeedBaseCurrency.ETH) {
       // If ETH or stETH vault gauge
-      if (address(feed) == address(1)) {
+      if (address(feed) == ETH_ETH_PRICE_FEED) {
         return rVaultToAssetExchangeRate;
       }
 
