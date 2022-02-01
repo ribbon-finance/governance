@@ -1,6 +1,7 @@
 import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import hre from "hardhat";
+import { network } from "hardhat";
 import { ensureOnlyExpectedMutativeFunctions } from "../helpers";
 import { assert, addSnapshotBeforeRestoreAfterEach } from "../common";
 import {
