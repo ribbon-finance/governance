@@ -11,7 +11,7 @@ import "../interfaces/Compound/ICErc20.sol";
 import "../interfaces/Compound/IAggregatorV3Interface.sol";
 import "../interfaces/Compound/ILiquidityGauge.sol";
 import "../interfaces/Compound/IRibbonVault.sol";
-
+import "hardhat/console.sol";
 /**
  * @title VaultPriceOracle
  * @notice Returns prices from Chainlink.
@@ -117,15 +117,13 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
      * @dev Internal function returning the price in ETH of `underlying`.
      */
     function _price(address underlying) internal view returns (uint) {
-        // Return 1e18 for WETH
-        if (underlying == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) return 1e18;
-
         // Get token/ETH price from Chainlink
         IAggregatorV3Interface feed = priceFeeds[underlying];
         require(address(feed) != address(0), "No Chainlink price feed found for this underlying ERC20 token.");
         FeedBaseCurrency baseCurrency = feedBaseCurrencies[underlying];
 
         IRibbonVault vault = IRibbonVault(ILiquidityGauge(underlying).lp_token());
+        console.log("address(vault) is %s", address(vault));
         uint256 rVaultDecimals = vault.decimals();
         uint256 rVaultToAssetExchangeRate = vault.pricePerShare(); // (ex: rETH-THETA -> ETH, rBTC-THETA -> BTC)
 
@@ -137,6 +135,11 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
         // rETH-THETA-gauge -> rETH-THETA -> ETH
 
         if (baseCurrency == FeedBaseCurrency.ETH) {
+            // If ETH or stETH vault gauge
+            if (address(feed) == address(1)) {
+              return rVaultToAssetExchangeRate;
+            }
+
             (, int256 tokenEthPrice, , , ) = feed.latestRoundData();
             return tokenEthPrice >= 0 ? uint256(tokenEthPrice).mul(rVaultToAssetExchangeRate).div(rVaultDecimals) : 0;
         } else if (baseCurrency == FeedBaseCurrency.USD) {
