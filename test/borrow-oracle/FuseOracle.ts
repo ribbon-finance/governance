@@ -11,6 +11,7 @@ import {
   assertBNGreaterThan,
   assertBNLessThan,
 } from "../utils";
+import { wmul } from "../utils/math";
 import { expect } from "chai";
 
 const { ethers } = hre;
@@ -21,11 +22,23 @@ const { formatEther } = require("@ethersproject/units");
 // Asset symbol => [gauge, underlying/eth oracle]
 // ex: rBTC-THETA => [rBTC-THETA-gauge address, BTC/ETH oracle]
 const vaults: any = {
-  "rETH-THETA": ["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241", "0x0000000000000000000000000000000000000001"],
-  "rstETH-THETA": ["0xAF23AdB205169A5DF1dB7321BF1A8D7DeA2F8ABd", "0x0000000000000000000000000000000000000001"],
-  "rBTC-THETA": ["0xe53851c18e01ca5f8537246f37fb7de048619892", "0xdeb288F737066589598e9214E782fa5A8eD689e8"],
-  "rAAVE-THETA": ["0x12Dc10F72a64ce07d2b3D41420f2276f8c560919", "0x6Df09E975c830ECae5bd4eD9d90f3A95a4f88012"],
-}
+  "rETH-THETA": [
+    "0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241",
+    "0x0000000000000000000000000000000000000001",
+  ],
+  "rstETH-THETA": [
+    "0xAF23AdB205169A5DF1dB7321BF1A8D7DeA2F8ABd",
+    "0x0000000000000000000000000000000000000001",
+  ],
+  "rBTC-THETA": [
+    "0xe53851c18e01ca5f8537246f37fb7de048619892",
+    "0xdeb288F737066589598e9214E782fa5A8eD689e8",
+  ],
+  "rAAVE-THETA": [
+    "0x12Dc10F72a64ce07d2b3D41420f2276f8c560919",
+    "0x6Df09E975c830ECae5bd4eD9d90f3A95a4f88012",
+  ],
+};
 
 // Tests taken from https://github.com/Synthetixio/synthetix/blob/master/test/contracts/StakingRewards.js
 describe("VaultPriceOracle", function () {
@@ -35,19 +48,16 @@ describe("VaultPriceOracle", function () {
   let account3: SignerWithAddress;
 
   let vaultPriceOracle: Contract,
-      oracles: Array<Contract>,
-      liquidityGauges: Array<Contract>,
-      ribbonVaults: Array<Contract>,
-      cTokens: Array<Contract>,
-      oracleOwner: Contract;
+    oracles: Array<Contract>,
+    liquidityGauges: Array<Contract>,
+    ribbonVaults: Array<Contract>,
+    cTokens: Array<Contract>,
+    oracleOwner: Contract;
 
   addSnapshotBeforeRestoreAfterEach();
 
   before(async () => {
-    [
-      owner,
-      account3,
-    ] = await ethers.getSigners();
+    [owner, account3] = await ethers.getSigners();
 
     // Reset block
     await network.provider.request({
@@ -69,10 +79,7 @@ describe("VaultPriceOracle", function () {
     ribbonVaults = [];
     cTokens = [];
 
-    vaultPriceOracle = await VaultPriceOracle.deploy(
-      owner.address,
-      true
-    );
+    vaultPriceOracle = await VaultPriceOracle.deploy(owner.address, true);
 
     await vaultPriceOracle.deployed();
 
@@ -100,12 +107,12 @@ describe("VaultPriceOracle", function () {
       let cToken = await CToken.deploy();
       await cToken.deployed();
 
-      await cToken.setUnderlying(gauge.address)
+      await cToken.setUnderlying(gauge.address);
 
-      liquidityGauges.push(gauge)
-      oracles.push(oracle)
-      ribbonVaults.push(ribbonVault)
-      cTokens.push(cToken)
+      liquidityGauges.push(gauge);
+      oracles.push(oracle);
+      ribbonVaults.push(ribbonVault);
+      cTokens.push(cToken);
     }
   });
 
@@ -113,10 +120,7 @@ describe("VaultPriceOracle", function () {
     ensureOnlyExpectedMutativeFunctions({
       abi: (await hre.artifacts.readArtifact("VaultPriceOracle")).abi,
       ignoreParents: [],
-      expected: [
-        "changeAdmin",
-        "setPriceFeeds",
-      ],
+      expected: ["changeAdmin", "setPriceFeeds"],
     });
   });
 
@@ -145,21 +149,33 @@ describe("VaultPriceOracle", function () {
 
     it("only admin address can call setPriceFeeds", async () => {
       assert.revert(
-        vaultPriceOracle.setPriceFeeds(["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241"], ["0x6df09e975c830ecae5bd4ed9d90f3a95a4f88012"], 0),
+        vaultPriceOracle.setPriceFeeds(
+          ["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241"],
+          ["0x6df09e975c830ecae5bd4ed9d90f3a95a4f88012"],
+          0
+        ),
         "Sender is not the admin."
       );
     });
 
     it("cannot overwrite oracle when overwrite false", async () => {
       let vaultPriceOracle = await VaultPriceOracle.deploy(
-            owner.address,
-            false
-          );
+        owner.address,
+        false
+      );
 
-      vaultPriceOracle.setPriceFeeds(["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241"], ["0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"], 0);
+      vaultPriceOracle.setPriceFeeds(
+        ["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241"],
+        ["0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"],
+        0
+      );
 
       assert.revert(
-        vaultPriceOracle.setPriceFeeds(["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241"], ["0x6df09e975c830ecae5bd4ed9d90f3a95a4f88012"], 0),
+        vaultPriceOracle.setPriceFeeds(
+          ["0x78b6dd0cD4697f9a62851323BeA8a3b3Bf213241"],
+          ["0x6df09e975c830ecae5bd4ed9d90f3a95a4f88012"],
+          0
+        ),
         "Admin cannot overwrite existing assignments of price feeds to underlying tokens."
       );
     });
@@ -169,14 +185,24 @@ describe("VaultPriceOracle", function () {
     beforeEach(async () => {
       for (let vault in vaults) {
         // gauge, oracle for underlying asset of vault token of gauge, 0 for eth denominated price feed
-        await vaultPriceOracle.setPriceFeeds([vaults[vault][0]], [vaults[vault][1]], 0);
+        await vaultPriceOracle.setPriceFeeds(
+          [vaults[vault][0]],
+          [vaults[vault][1]],
+          0
+        );
       }
     });
 
     it("should set price feeds", async () => {
       for (let vault in vaults) {
-        assert.equal(await vaultPriceOracle.priceFeeds(vaults[vault][0]), vaults[vault][1])
-        assert.bnEqual(await vaultPriceOracle.feedBaseCurrencies(vaults[vault][0]), 0)
+        assert.equal(
+          await vaultPriceOracle.priceFeeds(vaults[vault][0]),
+          vaults[vault][1]
+        );
+        assert.bnEqual(
+          await vaultPriceOracle.feedBaseCurrencies(vaults[vault][0]),
+          0
+        );
       }
     });
 
@@ -188,15 +214,29 @@ describe("VaultPriceOracle", function () {
         let rVaultDecimals = await ribbonVaults[i].decimals();
         let rVaultToAssetExchangeRate = await ribbonVaults[i].pricePerShare(); // (ex: rETH-THETA -> ETH, rBTC-THETA -> BTC)
         let actualPrice = rVaultToAssetExchangeRate;
-        if(oracles[i].address != "0x0000000000000000000000000000000000000001"){
-          let [, price, , , ] = await oracles[i].latestRoundData()
+        if (
+          oracles[i].address != "0x0000000000000000000000000000000000000001"
+        ) {
+          let [, price, , ,] = await oracles[i].latestRoundData();
           tokenEthPrice = price;
-          actualPrice = parseInt(tokenEthPrice.toString()) > 0 ? tokenEthPrice.mul(rVaultToAssetExchangeRate).div(rVaultDecimals): 0;
+          actualPrice =
+            parseInt(tokenEthPrice.toString()) > 0
+              ? wmul(
+                  tokenEthPrice,
+                  rVaultToAssetExchangeRate.mul(
+                    BigNumber.from(10).pow(
+                      BigNumber.from(18).sub(rVaultDecimals)
+                    )
+                  )
+                )
+              : 0;
         }
 
-        let chainlinkPrice = await vaultPriceOracle.price(liquidityGauges[i].address);
+        let chainlinkPrice = await vaultPriceOracle.price(
+          liquidityGauges[i].address
+        );
         console.log(`${v[i]} underlying price per token is ${chainlinkPrice}`);
-        assert.bnEqual(actualPrice, chainlinkPrice)
+        assert.bnEqual(actualPrice, chainlinkPrice);
       }
     });
 
@@ -208,15 +248,32 @@ describe("VaultPriceOracle", function () {
         let rVaultDecimals = await ribbonVaults[i].decimals();
         let rVaultToAssetExchangeRate = await ribbonVaults[i].pricePerShare(); // (ex: rETH-THETA -> ETH, rBTC-THETA -> BTC)
         let actualPrice = rVaultToAssetExchangeRate;
-        if(oracles[i].address != "0x0000000000000000000000000000000000000001"){
-          let [, price, , , ] = await oracles[i].latestRoundData()
+        if (
+          oracles[i].address != "0x0000000000000000000000000000000000000001"
+        ) {
+          let [, price, , ,] = await oracles[i].latestRoundData();
           tokenEthPrice = price;
-          actualPrice = parseInt(tokenEthPrice.toString()) > 0 ? tokenEthPrice.mul(rVaultToAssetExchangeRate).div(rVaultDecimals): 0;
+          actualPrice =
+            parseInt(tokenEthPrice.toString()) > 0
+              ? wmul(
+                  tokenEthPrice,
+                  rVaultToAssetExchangeRate.mul(
+                    BigNumber.from(10).pow(
+                      BigNumber.from(18).sub(rVaultDecimals)
+                    )
+                  )
+                )
+              : 0;
         }
 
-        let chainlinkPrice = await vaultPriceOracle.getUnderlyingPrice(cTokens[i].address);
+        console.log(tokenEthPrice.toString());
+        console.log(rVaultToAssetExchangeRate.toString());
+
+        let chainlinkPrice = await vaultPriceOracle.getUnderlyingPrice(
+          cTokens[i].address
+        );
         console.log(`${v[i]} underlying price per token is ${chainlinkPrice}`);
-        assert.bnEqual(actualPrice, chainlinkPrice)
+        assert.bnEqual(actualPrice, chainlinkPrice);
       }
     });
   });
