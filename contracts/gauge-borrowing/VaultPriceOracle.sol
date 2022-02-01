@@ -47,12 +47,6 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
     IAggregatorV3Interface(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
 
   /**
-   * @notice Chainlink BTC/ETH price feed contracts.
-   */
-  IAggregatorV3Interface public constant BTC_ETH_PRICE_FEED =
-    IAggregatorV3Interface(0xdeb288F737066589598e9214E782fa5A8eD689e8);
-
-  /**
    * @dev The administrator of this `MasterPriceOracle`.
    */
   address public admin;
@@ -155,7 +149,8 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
         return rVaultToAssetExchangeRate;
       }
 
-      (, int256 tokenEthPrice, , , ) = feed.latestRoundData();
+      int256 tokenEthPrice = _feedPrice(feed);
+
       return
         tokenEthPrice >= 0
           ? DSMath.wmul(
@@ -164,16 +159,40 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
           )
           : 0;
     } else if (baseCurrency == FeedBaseCurrency.USD) {
-      (, int256 ethUsdPrice, , , ) = ETH_USD_PRICE_FEED.latestRoundData();
+      int256 ethUsdPrice = _feedPrice(ETH_USD_PRICE_FEED);
       if (ethUsdPrice <= 0) return 0;
-      (, int256 tokenUsdPrice, , , ) = feed.latestRoundData();
+      int256 tokenUsdPrice = _feedPrice(feed);
       if (tokenUsdPrice < 0) return 0;
+
       uint256 tokenUsdPriceInAsset = DSMath.wmul(
         uint256(tokenUsdPrice).mul(10**(18 - feed.decimals())),
         rVaultToAssetExchangeRate.mul(10**(18 - rVaultDecimals))
       );
       return tokenUsdPriceInAsset.div(uint256(ethUsdPrice));
     }
+
+    return 0;
+  }
+
+  /**
+   * @dev Returns the chainlink oracle price from the feed
+   */
+  function _feedPrice(IAggregatorV3Interface feed)
+    internal
+    view
+    returns (int256)
+  {
+    (
+      uint80 roundID,
+      int256 price,
+      ,
+      uint256 timeStamp,
+      uint80 answeredInRound
+    ) = feed.latestRoundData();
+
+    require(answeredInRound >= roundID, "Stale oracle price");
+    require(timeStamp != 0, "!timeStamp");
+    return price;
   }
 
   /**
