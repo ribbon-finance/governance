@@ -235,7 +235,7 @@ describe("VaultPriceOracle", function () {
         let chainlinkPrice = await vaultPriceOracle.price(
           liquidityGauges[i].address
         );
-        console.log(`${v[i]} underlying price per token is ${chainlinkPrice}`);
+        // console.log(`${v[i]} underlying price per token is ${chainlinkPrice}`);
         assert.bnEqual(actualPrice, chainlinkPrice);
       }
     });
@@ -272,7 +272,7 @@ describe("VaultPriceOracle", function () {
         let chainlinkPrice = await vaultPriceOracle.getUnderlyingPrice(
           cTokens[i].address
         );
-        console.log(`${v[i]} underlying price per token is ${chainlinkPrice}`);
+        // console.log(`${v[i]} underlying price per token is ${chainlinkPrice}`);
         assert.bnEqual(actualPrice, chainlinkPrice);
       }
     });
