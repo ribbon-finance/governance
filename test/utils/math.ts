@@ -1,5 +1,6 @@
 import { BigNumber as BN } from "ethers"
 import { ratioScale, DEFAULT_DECIMALS } from "./constants"
+import { parseEther } from "@ethersproject/units";
 
 export { BN }
 
@@ -105,3 +106,10 @@ export const sqrt = (value: BN | number): BN => {
     }
     return y
 }
+
+export const wmul = (x: BN, y: BN) => {
+  return x
+    .mul(y)
+    .add(parseEther("1").div(BN.from("2")))
+    .div(parseEther("1"));
+};
