@@ -92,8 +92,8 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
 
     /**
      * @dev Admin-only function to set price feeds.
-     * @param underlyings Underlying token addresses for which to set price feeds.
-     * @param feeds The Chainlink price feed contract addresses for each of `underlyings`.
+     * @param underlyings Underlying token addresses for which to set price feeds. (gauge token)
+     * @param feeds The Chainlink price feed contract addresses for each of `underlyings`. (underlying of gauge's vault token)
      * @param baseCurrency The currency in which `feeds` are based.
      */
     function setPriceFeeds(address[] memory underlyings, IAggregatorV3Interface[] memory feeds, FeedBaseCurrency baseCurrency) external onlyAdmin {
@@ -125,7 +125,7 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
         require(address(feed) != address(0), "No Chainlink price feed found for this underlying ERC20 token.");
         FeedBaseCurrency baseCurrency = feedBaseCurrencies[underlying];
 
-        IRibbonVault vault = IRibbonVault(ILiquidityGauge(underlying).LP_TOKEN());
+        IRibbonVault vault = IRibbonVault(ILiquidityGauge(underlying).lp_token());
         uint256 rVaultDecimals = vault.decimals();
         uint256 rVaultToAssetExchangeRate = vault.pricePerShare(); // (ex: rETH-THETA -> ETH, rBTC-THETA -> BTC)
 
