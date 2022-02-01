@@ -48,6 +48,19 @@ describe("VaultPriceOracle", function () {
       account3,
     ] = await ethers.getSigners();
 
+    // Reset block
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: 14119000,
+          },
+        },
+      ],
+    });
+
     VaultPriceOracle = await ethers.getContractFactory("VaultPriceOracle");
     CToken = await ethers.getContractFactory("CToken");
     oracles = [];
