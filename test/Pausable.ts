@@ -9,7 +9,7 @@ import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Transaction } from "@ethersproject/transactions";
 
-describe("Pausable contract", function () {
+describe.skip("Pausable contract", function () {
   let TestablePausable: ContractFactory;
   let deployerAccount: SignerWithAddress;
   let account1: SignerWithAddress;
