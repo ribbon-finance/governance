@@ -266,9 +266,6 @@ describe("VaultPriceOracle", function () {
               : 0;
         }
 
-        console.log(tokenEthPrice.toString());
-        console.log(rVaultToAssetExchangeRate.toString());
-
         let chainlinkPrice = await vaultPriceOracle.getUnderlyingPrice(
           cTokens[i].address
         );
