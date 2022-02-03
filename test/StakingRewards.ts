@@ -24,7 +24,7 @@ const {
 const { formatEther } = require("@ethersproject/units");
 
 // Tests taken from https://github.com/Synthetixio/synthetix/blob/master/test/contracts/StakingRewards.js
-describe("StakingRewards contract", function () {
+describe.skip("StakingRewards contract", function () {
   let RibbonToken: ContractFactory;
   let RibbonStakingRewards: ContractFactory;
   let deployerAccount: SignerWithAddress;
