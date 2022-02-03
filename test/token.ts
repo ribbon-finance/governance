@@ -6,7 +6,7 @@ const { formatBytes32String } = ethers.utils;
 
 const { TOKEN_PARAMS } = require("../params");
 
-describe("RibbonToken contract", function () {
+describe.skip("RibbonToken contract", function () {
   let RibbonToken: ContractFactory;
   let ribbonToken: Contract;
   let owner: SignerWithAddress;

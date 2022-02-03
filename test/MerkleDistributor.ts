@@ -13,7 +13,7 @@ import { TOKEN_PARAMS } from "../params";
 const ONE_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-describe("MerkleDistributor contract", function () {
+describe.skip("MerkleDistributor contract", function () {
   let TestERC20: ContractFactory;
   let Distributor: ContractFactory;
   let token: Contract;

@@ -8,7 +8,7 @@ const { expect } = require("chai");
 
 let ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-describe("Owned contract", function () {
+describe.skip("Owned contract", function () {
   let Owned: Contract;
   let deployerAccount: SignerWithAddress;
   let account1: SignerWithAddress;
