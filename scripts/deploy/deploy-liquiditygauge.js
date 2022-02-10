@@ -9,7 +9,7 @@ async function main() {
 
   // We get the contract to deploy
   const LiquidityGauge = await hre.ethers.getContractFactory(
-    "LiquidityGaugeV4",
+    "LiquidityGaugeV5",
     deployer
   );
 

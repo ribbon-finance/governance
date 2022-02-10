@@ -64,6 +64,9 @@ event CommitOwnership:
 event ApplyOwnership:
     admin: address
 
+event FundsUnlocked:
+    funds_unlocked: bool
+
 event Deposit:
     provider: indexed(address)
     value: uint256
@@ -107,6 +110,8 @@ smart_wallet_checker: public(address)
 
 admin: public(address)  # Can and will be a smart contract
 future_admin: public(address)
+
+is_unlocked: public(bool)
 
 
 @external
@@ -171,6 +176,14 @@ def apply_smart_wallet_checker():
     assert msg.sender == self.admin
     self.smart_wallet_checker = self.future_smart_wallet_checker
 
+@external
+def set_funds_unlocked(_funds_unlocked: bool):
+  """
+  @notice Toggle fund lock
+  """
+  assert msg.sender == self.admin  # dev: admin only
+  self.is_unlocked = _funds_unlocked
+  log FundsUnlocked(_funds_unlocked)
 
 @internal
 def assert_not_contract(addr: address):
@@ -460,7 +473,7 @@ def withdraw():
     @dev Only possible if the lock has expired
     """
     _locked: LockedBalance = self.locked[msg.sender]
-    assert block.timestamp >= _locked.end, "The lock didn't expire"
+    assert block.timestamp >= _locked.end or self.is_unlocked, "The lock didn't expire and funds are not unlocked"
     value: uint256 = convert(_locked.amount, uint256)
 
     old_locked: LockedBalance = _locked
