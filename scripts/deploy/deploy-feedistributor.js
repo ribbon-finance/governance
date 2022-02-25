@@ -19,6 +19,11 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
       : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
 
+  const verbn_rewards =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.VERBNREWARDS
+      : MAIN_RIBBONOMICS_DIR.VERBNREWARDS;
+
   const start_time = await getTimestamp();
 
   const token =
@@ -33,6 +38,7 @@ async function main() {
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.E_ADMIN;
 
   console.log("voting_escrow", voting_escrow);
+  console.log("verbn_rewards", verbn_rewards);
   console.log("start_time", start_time.toString());
   console.log("token", token);
   console.log("o_admin", o_admin);
@@ -40,6 +46,7 @@ async function main() {
 
   const feeDistributor = await FeeDistributor.deploy(
     voting_escrow,
+    verbn_rewards,
     start_time,
     token,
     o_admin,
@@ -54,9 +61,17 @@ async function main() {
 
   await feeDistributor.deployTransaction.wait(5);
 
+  const veRBNRewards = await ethers.getContractAt(
+    "VeRBNRewards",
+    verbn_rewards
+  );
+
+  await veRBNRewards.addToWhitelist(feeDistributor.address, true)
+  console.log("Added fee distributor to veRBN Rewards whitelist!")
+
   await hre.run("verify:verify", {
     address: feeDistributor.address,
-    constructorArguments: [voting_escrow, start_time, token, o_admin, e_admin],
+    constructorArguments: [voting_escrow, verbn_rewards, start_time, token, o_admin, e_admin],
   });
 }
 
