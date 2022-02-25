@@ -15,6 +15,8 @@ interface VotingEscrow:
     def point_history(loc: uint256) -> Point: view
     def checkpoint(): nonpayable
 
+interface VeRBNRewards:
+    def getRewardFor(addr: address, lock: bool) -> bool: nonpayable
 
 event CommitAdmin:
     admin: address
@@ -55,6 +57,7 @@ last_token_time: public(uint256)
 tokens_per_week: public(uint256[1000000000000000])
 
 voting_escrow: public(address)
+verbn_penalty_rewards: public(address)
 token: public(address)
 total_received: public(uint256)
 token_last_balance: public(uint256)
@@ -71,6 +74,7 @@ is_killed: public(bool)
 @external
 def __init__(
     _voting_escrow: address,
+    _verbn_penalty_rewards: address,
     _start_time: uint256,
     _token: address,
     _admin: address,
@@ -79,6 +83,7 @@ def __init__(
     """
     @notice Contract constructor
     @param _voting_escrow VotingEscrow contract address
+    @param _verbn_penalty_rewards VeRBN penalty rewards contract address
     @param _start_time Epoch time for fee distribution to start
     @param _token Fee token address (3CRV)
     @param _admin Admin address
@@ -91,6 +96,7 @@ def __init__(
     self.time_cursor = t
     self.token = _token
     self.voting_escrow = _voting_escrow
+    self.verbn_penalty_rewards = _verbn_penalty_rewards
     self.admin = _admin
     self.emergency_return = _emergency_return
 
@@ -295,7 +301,7 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
 
 @external
 @nonreentrant('lock')
-def claim(_addr: address = msg.sender) -> uint256:
+def claim(_addr: address = msg.sender, _claimPRewards: bool = False, _lock: bool = False) -> uint256:
     """
     @notice Claim fees for `_addr`
     @dev Each call to claim look at a maximum of 50 user veCRV points.
@@ -324,6 +330,12 @@ def claim(_addr: address = msg.sender) -> uint256:
         token: address = self.token
         assert ERC20(token).transfer(_addr, amount)
         self.token_last_balance -= amount
+
+    if _claimPRewards:
+      lock: bool = _lock
+      if _addr != msg.sender:
+        lock = False
+      VeRBNRewards(self.verbn_penalty_rewards).getRewardFor(_addr, lock)
 
     return amount
 
