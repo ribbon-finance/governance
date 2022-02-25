@@ -50,7 +50,7 @@ async function main() {
   );
 
   await votingEscrow["set_reward_pool(address)"](veRBNRewards)
-  consol.log("Reward pool in voting escrow set!")
+  console.log("Reward pool in voting escrow set")
 
   await hre.run("verify:verify", {
     address: veRBNRewards.address,
