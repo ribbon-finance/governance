@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.11;
+pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IVotingEscrow is IERC20 {
@@ -8,9 +8,9 @@ interface IVotingEscrow is IERC20 {
         uint256 end;
     }
 
-    function balanceOf(address) external view returns (uint256);
+    function balanceOf(address) external view override returns (uint256);
 
-    function totalSupply() external view returns (uint256);
+    function totalSupply() external view override returns (uint256);
 
     function locked__end(address) external view returns (uint256);
 
