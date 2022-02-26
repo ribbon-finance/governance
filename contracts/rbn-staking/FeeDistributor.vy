@@ -188,6 +188,16 @@ def ve_for_at(_user: address, _timestamp: uint256) -> uint256:
     pt: Point = VotingEscrow(ve).user_point_history(_user, epoch)
     return convert(max(pt.bias - pt.slope * convert(_timestamp - pt.ts, int128), 0), uint256)
 
+@view
+@external
+def claimable(addr: address = msg.sender) -> uint256:
+    """
+    @notice Get the claimable revenue (approximation)
+    @param addr Address to query balance for
+    @return uint256 Claimable revenue
+    """
+    claimable: uint256 = self._claim(_addr, self.voting_escrow,  self.last_token_time / WEEK * WEEK)
+    return claimable
 
 @internal
 def _checkpoint_total_supply():
@@ -225,7 +235,7 @@ def checkpoint_total_supply():
 
 
 @internal
-def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
+def _claim(addr: address, ve: address, _last_token_time: uint256, _is_write: bool = False) -> uint256:
     # Minimal user_epoch is 0 (if user had no point)
     user_epoch: uint256 = 0
     to_distribute: uint256 = 0
@@ -285,10 +295,11 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
             week_cursor += WEEK
 
     user_epoch = min(max_user_epoch, user_epoch - 1)
-    self.user_epoch_of[addr] = user_epoch
-    self.time_cursor_of[addr] = week_cursor
 
-    log Claimed(addr, to_distribute, user_epoch, max_user_epoch)
+    if _is_write:
+      self.user_epoch_of[addr] = user_epoch
+      self.time_cursor_of[addr] = week_cursor
+      log Claimed(addr, to_distribute, user_epoch, max_user_epoch)
 
     return to_distribute
 
@@ -319,7 +330,7 @@ def claim(_addr: address = msg.sender) -> uint256:
 
     last_token_time = last_token_time / WEEK * WEEK
 
-    amount: uint256 = self._claim(_addr, self.voting_escrow, last_token_time)
+    amount: uint256 = self._claim(_addr, self.voting_escrow, last_token_time, True)
     if amount != 0:
         token: address = self.token
         assert ERC20(token).transfer(_addr, amount)
@@ -360,7 +371,7 @@ def claim_many(_receivers: address[20]) -> bool:
         if addr == ZERO_ADDRESS:
             break
 
-        amount: uint256 = self._claim(addr, voting_escrow, last_token_time)
+        amount: uint256 = self._claim(addr, voting_escrow, last_token_time, True)
         if amount != 0:
             assert ERC20(token).transfer(addr, amount)
             total += amount
