@@ -42,7 +42,12 @@ interface ERC20:
     def symbol() -> String[32]: view
     def transfer(to: address, amount: uint256) -> bool: nonpayable
     def transferFrom(spender: address, to: address, amount: uint256) -> bool: nonpayable
+    def approve(spender: address, amount: uint256) -> bool: nonpayable
 
+
+interface IVeRBNRewards:
+    def updateReward(_account: address) -> bool: nonpayable
+    def donate(_amount: uint256) -> bool: nonpayable
 
 # Interface for checking whether address belongs to a whitelisted
 # type of a smart wallet.
@@ -68,6 +73,7 @@ event FundsUnlocked:
     funds_unlocked: bool
 
 event Deposit:
+    deposit_from: indexed(address)
     provider: indexed(address)
     value: uint256
     locktime: indexed(uint256)
@@ -113,6 +119,7 @@ future_admin: public(address)
 
 is_unlocked: public(bool)
 
+reward_pool: public(address)
 
 @external
 def __init__(token_addr: address, _name: String[64], _symbol: String[32], _admin: address):
@@ -134,6 +141,12 @@ def __init__(token_addr: address, _name: String[64], _symbol: String[32], _admin
 
     self.name = _name
     self.symbol = _symbol
+
+@external
+def set_reward_pool(addr: address):
+  assert msg.sender == self.admin or self.reward_pool == ZERO_ADDRESS # dev: admin only
+  assert addr != ZERO_ADDRESS
+  self.reward_pool = addr
 
 @external
 def commit_transfer_ownership(addr: address):
@@ -355,6 +368,7 @@ def _checkpoint(addr: address, old_locked: LockedBalance, new_locked: LockedBala
 def _deposit_for(_from: address, _addr: address, _value: uint256, unlock_time: uint256, locked_balance: LockedBalance, type: int128):
     """
     @notice Deposit and lock tokens for a user
+    @param _from Address to take funds from
     @param _addr User's wallet address
     @param _value Amount to deposit
     @param unlock_time New time when to unlock the tokens, or 0 if unchanged
@@ -362,6 +376,7 @@ def _deposit_for(_from: address, _addr: address, _value: uint256, unlock_time: u
     """
     _locked: LockedBalance = locked_balance
     supply_before: uint256 = self.supply
+    IVeRBNRewards(self.reward_pool).updateReward(_addr) # Reward pool snapshot
 
     self.supply = supply_before + _value
     old_locked: LockedBalance = _locked
@@ -380,7 +395,7 @@ def _deposit_for(_from: address, _addr: address, _value: uint256, unlock_time: u
     if _value != 0:
         assert ERC20(self.token).transferFrom(_from, self, _value)
 
-    log Deposit(_addr, _value, _locked.end, type, block.timestamp)
+    log Deposit(_from, _addr, _value, _locked.end, type, block.timestamp)
     log Supply(supply_before, supply_before + _value)
 
 @external
@@ -473,7 +488,8 @@ def withdraw():
     @dev Only possible if the lock has expired
     """
     _locked: LockedBalance = self.locked[msg.sender]
-    assert block.timestamp >= _locked.end or self.is_unlocked, "The lock didn't expire and funds are not unlocked"
+    _unlocked: bool = self.is_unlocked
+    assert block.timestamp >= _locked.end or _unlocked, "The lock didn't expire and funds are not unlocked"
     value: uint256 = convert(_locked.amount, uint256)
 
     old_locked: LockedBalance = _locked
@@ -490,9 +506,47 @@ def withdraw():
 
     assert ERC20(self.token).transfer(msg.sender, value)
 
+    if not _unlocked:
+      IVeRBNRewards(self.reward_pool).updateReward(msg.sender) # Reward pool snapshot
+
     log Withdraw(msg.sender, value, block.timestamp)
     log Supply(supply_before, supply_before - value)
 
+@external
+@nonreentrant('lock')
+def force_withdraw():
+  """
+  @notice Withdraw all tokens for `msg.sender`
+  @dev Will pay a penalty based on time.
+  With a 2 years lock on withdraw, you pay 75% penalty during the first 6 months.
+  penalty decrease linearly to zero starting when time left is under 1.5 years.
+  """
+  assert(self.is_unlocked == False)
+  _locked: LockedBalance = self.locked[msg.sender]
+  assert block.timestamp < _locked.end, "lock expired"
+
+  time_left: uint256 = _locked.end - block.timestamp
+  penalty_ratio: uint256 = min(MULTIPLIER * 3 / 4,  MULTIPLIER * time_left / MAXTIME)
+  value: uint256 = convert(_locked.amount, uint256)
+  IVeRBNRewards(self.reward_pool).updateReward(msg.sender) # Reward pool snapshot
+  old_locked: LockedBalance = _locked
+  _locked.end = 0
+  _locked.amount = 0
+  self.locked[msg.sender] = _locked
+  supply_before: uint256 = self.supply
+  self.supply = supply_before - value
+  # old_locked can have either expired <= timestamp or zero end
+  # _locked has only 0 end
+  # Both can have >= 0 amount
+  self._checkpoint(msg.sender, old_locked, _locked)
+
+  penalty: uint256 = value * penalty_ratio / MULTIPLIER
+  assert ERC20(self.token).transfer(msg.sender, value - penalty)
+  if penalty != 0:
+      assert ERC20(self.token).approve(self.reward_pool, penalty)
+      IVeRBNRewards(self.reward_pool).donate(penalty)
+  log Withdraw(msg.sender, value, block.timestamp)
+  log Supply(supply_before, supply_before - value)
 
 # The following ERC20/minime-compatible methods are not real balanceOf and supply!
 # They measure the weights for the purpose of voting, so they don't represent
