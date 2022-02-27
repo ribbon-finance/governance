@@ -5,7 +5,7 @@ const { BigNumber } = ethers;
 const { getTimestamp } = require("../../test/utils/time");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -50,7 +50,7 @@ async function main() {
     start_time,
     token,
     o_admin,
-    e_admin,
+    e_admin
   );
 
   await feeDistributor.deployed();
@@ -66,12 +66,19 @@ async function main() {
     verbn_rewards
   );
 
-  await veRBNRewards.addToWhitelist(feeDistributor.address, true)
-  console.log("Added fee distributor to veRBN Rewards whitelist!")
+  await veRBNRewards.addToWhitelist(feeDistributor.address, true);
+  console.log("Added fee distributor to veRBN Rewards whitelist!");
 
   await hre.run("verify:verify", {
     address: feeDistributor.address,
-    constructorArguments: [voting_escrow, verbn_rewards, start_time, token, o_admin, e_admin],
+    constructorArguments: [
+      voting_escrow,
+      verbn_rewards,
+      start_time,
+      token,
+      o_admin,
+      e_admin,
+    ],
   });
 }
 

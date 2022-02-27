@@ -4,7 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -33,24 +33,23 @@ async function main() {
   const veRBNRewards = await VeRBNRewards.deploy(
     votingEscrow,
     rewardToken,
-    owner,
+    owner
   );
 
   await veRBNRewards.deployed();
 
   console.log(
-    `\nRibbon veRBN penalty contract is deployed at ${veRBNRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${votingEscrow.address}\n`
+    `\nRibbon veRBN penalty contract is deployed at ${veRBNRewards.address}, verify with https://etherscan.io/proxyContractChecker?a=${veRBNRewards.address}\n`
   );
 
   await veRBNRewards.deployTransaction.wait(5);
 
-  const votingEscrow = await ethers.getContractAt(
-    "VotingEscrow",
-    votingEscrow
-  );
+  const votingEscrowContract = await ethers
+    .getContractAt("VotingEscrow", votingEscrow)
+    .connect(deployer);
 
-  await votingEscrow["set_reward_pool(address)"](veRBNRewards)
-  console.log("Reward pool in voting escrow set")
+  await votingEscrowContract["set_reward_pool(address)"](veRBNRewards.address);
+  console.log("Reward pool in voting escrow set");
 
   await hre.run("verify:verify", {
     address: veRBNRewards.address,

@@ -4,7 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -39,37 +39,38 @@ async function main() {
   console.log("minter", minter);
   console.log("admin", admin);
 
-  const gaugeController = await ethers.getContractAt(
-    "GaugeController",
-    gauge_controller
-  );
+  const gaugeController = (
+    await ethers.getContractAt("GaugeController", gauge_controller)
+  ).connect(deployer);
 
   for (let vault in vaults) {
-      const liquidityGauge = await LiquidityGauge.deploy(
-        vaults[vault],
-        minter,
-        admin
-      );
+    const liquidityGauge = await LiquidityGauge.deploy(
+      vaults[vault],
+      minter,
+      admin
+    );
 
-      await liquidityGauge.deployed();
+    await liquidityGauge.deployed();
 
-      console.log(
-        `\nRibbon liquidity gauge contract for vault ${vault} is deployed at ${liquidityGauge.address}, verify with https://etherscan.io/proxyContractChecker?a=${liquidityGauge.address}\n`
-      );
+    console.log(
+      `\nRibbon liquidity gauge contract for vault ${vault} is deployed at ${liquidityGauge.address}, verify with https://etherscan.io/proxyContractChecker?a=${liquidityGauge.address}\n`
+    );
 
-      await liquidityGauge.deployTransaction.wait(5);
+    await liquidityGauge.deployTransaction.wait(5);
 
-      // add_gauge()
-      await gaugeController["add_gauge(address,int128)"](liquidityGauge.address, gauge_type_idx)
+    // add_gauge()
+    await gaugeController["add_gauge(address,int128,uint256)"](
+      liquidityGauge.address,
+      gauge_type_idx,
+      MAIN_RIBBONOMICS_DIR.VAULTS_GAUGE_WEIGHT[vault]
+    );
 
-      console.log(
-        `\nAdded gauge for vault ${vault} to controller\n`
-      );
+    console.log(`\nAdded gauge for vault ${vault} to controller\n`);
 
-      // await hre.run("verify:verify", {
-      //   address: liquidityGauge.address,
-      //   constructorArguments: [vaults[vault], minter, admin],
-      // });
+    // await hre.run("verify:verify", {
+    //   address: liquidityGauge.address,
+    //   constructorArguments: [vaults[vault], minter, admin],
+    // });
   }
 }
 

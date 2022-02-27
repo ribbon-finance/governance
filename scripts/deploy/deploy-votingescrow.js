@@ -4,7 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -18,9 +18,9 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.TOKEN
       : MAIN_RIBBONOMICS_DIR.TOKEN;
 
-  const name = "Vote-escrowed RBN"
+  const name = "Vote-escrowed RBN";
 
-  const symbol = "veRBN"
+  const symbol = "veRBN";
 
   const owner =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
@@ -34,7 +34,7 @@ async function main() {
     stakingToken,
     name,
     symbol,
-    owner,
+    owner
   );
 
   await votingEscrow.deployed();
