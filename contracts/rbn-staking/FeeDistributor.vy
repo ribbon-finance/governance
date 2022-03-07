@@ -194,7 +194,6 @@ def ve_for_at(_user: address, _timestamp: uint256) -> uint256:
     pt: Point = VotingEscrow(ve).user_point_history(_user, epoch)
     return convert(max(pt.bias - pt.slope * convert(_timestamp - pt.ts, int128), 0), uint256)
 
-
 @internal
 def _checkpoint_total_supply():
     ve: address = self.voting_escrow
@@ -230,8 +229,9 @@ def checkpoint_total_supply():
     self._checkpoint_total_supply()
 
 
+@view
 @internal
-def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
+def _claim(addr: address, ve: address, _last_token_time: uint256) -> (uint256, uint256, uint256, uint256, bool):
     # Minimal user_epoch is 0 (if user had no point)
     user_epoch: uint256 = 0
     to_distribute: uint256 = 0
@@ -241,7 +241,7 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
 
     if max_user_epoch == 0:
         # No lock = no fees
-        return 0
+        return (0, 0, 0, 0, False)
 
     week_cursor: uint256 = self.time_cursor_of[addr]
     if week_cursor == 0:
@@ -259,7 +259,7 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
         week_cursor = (user_point.ts + WEEK - 1) / WEEK * WEEK
 
     if week_cursor >= _last_token_time:
-        return 0
+        return (0, 0, 0, 0, False)
 
     if week_cursor < _start_time:
         week_cursor = _start_time
@@ -291,13 +291,24 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> uint256:
             week_cursor += WEEK
 
     user_epoch = min(max_user_epoch, user_epoch - 1)
-    self.user_epoch_of[addr] = user_epoch
-    self.time_cursor_of[addr] = week_cursor
 
-    log Claimed(addr, to_distribute, user_epoch, max_user_epoch)
+    return (to_distribute, user_epoch, week_cursor, max_user_epoch, True)
 
-    return to_distribute
-
+@view
+@external
+def claimable(addr: address = msg.sender) -> uint256:
+    """
+    @notice Get the claimable revenue (approximation)
+    @param addr Address to query balance for
+    @return uint256 Claimable revenue
+    """
+    claimable: uint256 = 0
+    user_epoch: uint256 = 0
+    week_cursor: uint256 = 0
+    max_user_epoch: uint256 = 0
+    is_update: bool = True
+    claimable, user_epoch, week_cursor, max_user_epoch, is_update = self._claim(addr, self.voting_escrow,  self.last_token_time / WEEK * WEEK)
+    return claimable
 
 @external
 @nonreentrant('lock')
@@ -325,7 +336,18 @@ def claim(_addr: address = msg.sender, _claimPRewards: bool = False, _lock: bool
 
     last_token_time = last_token_time / WEEK * WEEK
 
-    amount: uint256 = self._claim(_addr, self.voting_escrow, last_token_time)
+    amount: uint256 = 0
+    user_epoch: uint256 = 0
+    week_cursor: uint256 = 0
+    max_user_epoch: uint256 = 0
+    is_update: bool = True
+    amount, user_epoch, week_cursor, max_user_epoch, is_update = self._claim(_addr, self.voting_escrow, last_token_time)
+
+    if is_update:
+      self.user_epoch_of[_addr] = user_epoch
+      self.time_cursor_of[_addr] = week_cursor
+      log Claimed(_addr, amount, user_epoch, max_user_epoch)
+
     if amount != 0:
         token: address = self.token
         assert ERC20(token).transfer(_addr, amount)
@@ -368,11 +390,23 @@ def claim_many(_receivers: address[20]) -> bool:
     token: address = self.token
     total: uint256 = 0
 
+    amount: uint256 = 0
+    user_epoch: uint256 = 0
+    week_cursor: uint256 = 0
+    max_user_epoch: uint256 = 0
+    is_update: bool = True
+
     for addr in _receivers:
         if addr == ZERO_ADDRESS:
             break
 
-        amount: uint256 = self._claim(addr, voting_escrow, last_token_time)
+        amount, user_epoch, week_cursor, max_user_epoch, is_update = self._claim(addr, voting_escrow, last_token_time)
+
+        if is_update:
+          self.user_epoch_of[addr] = user_epoch
+          self.time_cursor_of[addr] = week_cursor
+          log Claimed(addr, amount, user_epoch, max_user_epoch)
+
         if amount != 0:
             assert ERC20(token).transfer(addr, amount)
             total += amount
