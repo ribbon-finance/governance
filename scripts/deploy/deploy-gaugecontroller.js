@@ -4,7 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -40,7 +40,7 @@ async function main() {
     token,
     voting_escrow,
     veboost_proxy,
-    admin,
+    admin
   );
 
   await gaugeController.deployed();
@@ -51,23 +51,16 @@ async function main() {
 
   await gaugeController.deployTransaction.wait(5);
 
-  // add_type()
-
-  const controller = await ethers.getContractAt(
-    "GaugeController",
-    gaugeController.address
-  );
-
   const gauge_type =
     network === "kovan"
       ? TEST_RIBBONOMICS_DIR.GAUGETYPE
       : MAIN_RIBBONOMICS_DIR.GAUGETYPE;
 
-  await controller["add_type(string, uint256)"](gauge_type, BigNumber.from(10).pow(18)) // 10 ** 18 weight (100%)
+  await gaugeController
+    .connect(deployer)
+    ["add_type(string,uint256)"](gauge_type, BigNumber.from(10).pow(18)); // 10 ** 18 weight (100%)
 
-  console.log(
-    `\nAdded type ${gauge_type}\n`
-  );
+  console.log(`\nAdded type ${gauge_type}\n`);
 
   await hre.run("verify:verify", {
     address: gaugeController.address,

@@ -4,14 +4,11 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
-  const Minter = await hre.ethers.getContractFactory(
-    "Minter",
-    deployer
-  );
+  const Minter = await hre.ethers.getContractFactory("Minter", deployer);
 
   const token =
     network === "kovan"
@@ -34,12 +31,7 @@ async function main() {
   console.log("o_admin", o_admin);
   console.log("e_admin", e_admin);
 
-  const minter = await Minter.deploy(
-    token,
-    gauge_controller,
-    e_admin,
-    o_admin,
-  );
+  const minter = await Minter.deploy(token, gauge_controller, e_admin, o_admin);
 
   await minter.deployed();
 
