@@ -4,7 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -38,7 +38,7 @@ async function main() {
     delegation,
     voting_escrow,
     o_admin,
-    e_admin,
+    e_admin
   );
 
   await delegationProxy.deployed();

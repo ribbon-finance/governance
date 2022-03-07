@@ -4,7 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
 
   // We get the contract to deploy
@@ -13,11 +13,11 @@ async function main() {
     deployer
   );
 
-  const name = "Voting Escrow Boost Delegation"
+  const name = "Voting Escrow Boost Delegation";
 
-  const symbol = "veBoost"
+  const symbol = "veBoost";
 
-  const base_uri = ""
+  const base_uri = "";
 
   const voting_escrow =
     network === "kovan"
@@ -60,7 +60,7 @@ async function main() {
   );
 
   // add as delegation
-  await veboostproxy["set_delegation(address)"](votingEscrowDelegation.address)
+  await veboostproxy["set_delegation(address)"](votingEscrowDelegation.address);
 
   await hre.run("verify:verify", {
     address: votingEscrowDelegation.address,
