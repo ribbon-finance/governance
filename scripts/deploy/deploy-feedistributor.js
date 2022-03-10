@@ -24,7 +24,9 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.VERBNREWARDS
       : MAIN_RIBBONOMICS_DIR.VERBNREWARDS;
 
-  const start_time = await getTimestamp();
+  const start_time = network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.FEEDISTRIBUTOR_START_TIME
+      : MAIN_RIBBONOMICS_DIR.FEEDISTRIBUTOR_START_TIME;
 
   const token =
     network === "kovan"
