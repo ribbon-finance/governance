@@ -6,7 +6,6 @@
 @dev Provides test functions only available in test mode (`brownie test`)
 """
 
-
 interface ERC721Receiver:
     def onERC721Received(
         _operator: address, _from: address, _token_id: uint256, _data: Bytes[4096]
@@ -91,8 +90,8 @@ struct Point:
 IDENTITY_PRECOMPILE: constant(address) = 0x0000000000000000000000000000000000000004
 MAX_PCT: constant(uint256) = 10_000
 WEEK: constant(uint256) = 86400 * 7
+VOTING_ESCROW: constant(address) = 0x19854C9A5fFa8116f48f984bDF946fB9CEa9B5f7
 
-voting_escrow: public(address)
 
 balanceOf: public(HashMap[address, uint256])
 getApproved: public(HashMap[uint256, address])
@@ -132,11 +131,11 @@ grey_list: public(HashMap[address, HashMap[address, bool]])
 
 
 @external
-def __init__(_name: String[32], _symbol: String[32], _base_uri: String[128], _voting_escrow: address, _admin: address):
+def __init__(_name: String[32], _symbol: String[32], _base_uri: String[128], _admin: address):
     self.name = _name
     self.symbol = _symbol
     self.base_uri = _base_uri
-    self.voting_escrow = _voting_escrow
+
     self.admin = _admin
 
 
@@ -613,7 +612,7 @@ def create_boost(
     assert _cancel_time <= expire_time  # dev: cancel time is after expiry
 
     assert expire_time >= block.timestamp + WEEK  # dev: boost duration must be atleast WEEK
-    assert expire_time <= VotingEscrow(self.voting_escrow).locked__end(_delegator)  # dev: boost expiration is past voting escrow lock expiry
+    assert expire_time <= VotingEscrow(VOTING_ESCROW).locked__end(_delegator)  # dev: boost expiration is past voting escrow lock expiry
     assert _id < 2 ** 96  # dev: id out of bounds
 
     # [delegator address 160][cancel_time uint40][id uint56]
@@ -629,7 +628,7 @@ def create_boost(
     # delegated boost will be positive, if any of circulating boosts are negative
     # we have already reverted
     delegated_boost: int256 = point.slope * time + point.bias
-    y: int256 = _percentage * (VotingEscrow(self.voting_escrow).balanceOf(_delegator) - delegated_boost) / MAX_PCT
+    y: int256 = _percentage * (VotingEscrow(VOTING_ESCROW).balanceOf(_delegator) - delegated_boost) / MAX_PCT
     assert y > 0  # dev: no boost
 
     point = self._calc_bias_slope(time, y, convert(expire_time, int256))
@@ -678,7 +677,7 @@ def extend_boost(_token_id: uint256, _percentage: int256, _expire_time: uint256,
 
     assert _cancel_time <= expire_time  # dev: cancel time is after expiry
     assert expire_time >= block.timestamp + WEEK  # dev: boost duration must be atleast one day
-    assert expire_time <= VotingEscrow(self.voting_escrow).locked__end(delegator) # dev: boost expiration is past voting escrow lock expiry
+    assert expire_time <= VotingEscrow(VOTING_ESCROW).locked__end(delegator) # dev: boost expiration is past voting escrow lock expiry
 
     point: Point = self._deconstruct_bias_slope(token.data)
 
@@ -709,7 +708,7 @@ def extend_boost(_token_id: uint256, _percentage: int256, _expire_time: uint256,
 
     # verify delegated boost isn't negative, else it'll inflate out vecrv balance
     delegated_boost: int256 = point.slope * time + point.bias
-    y: int256 = _percentage * (VotingEscrow(self.voting_escrow).balanceOf(delegator) - delegated_boost) / MAX_PCT
+    y: int256 = _percentage * (VotingEscrow(VOTING_ESCROW).balanceOf(delegator) - delegated_boost) / MAX_PCT
     # a delegator can snipe the exact moment a token expires and create a boost
     # with 10_000 or some percentage of their boost, which is perfectly fine.
     # this check is here so the user can't extend a boost unless they actually
@@ -816,7 +815,7 @@ def adjusted_balance_of(_account: address) -> uint256:
         # value
         return 0
 
-    adjusted_balance: int256 = VotingEscrow(self.voting_escrow).balanceOf(_account)
+    adjusted_balance: int256 = VotingEscrow(VOTING_ESCROW).balanceOf(_account)
 
     boost: Boost = self.boost[_account]
     time: int256 = convert(block.timestamp, int256)
@@ -947,7 +946,7 @@ def calc_boost_bias_slope(
     assert _percentage <= MAX_PCT  # dev: percentage must be less than or equal to 100%
     assert _expire_time > time + WEEK  # dev: Invalid min expiry time
 
-    lock_expiry: int256 = convert(VotingEscrow(self.voting_escrow).locked__end(_delegator), int256)
+    lock_expiry: int256 = convert(VotingEscrow(VOTING_ESCROW).locked__end(_delegator), int256)
     assert _expire_time <= lock_expiry
 
     ddata: uint256 = self.boost[_delegator].delegated
@@ -962,7 +961,7 @@ def calc_boost_bias_slope(
     delegated_boost: int256 = dpoint.slope * time + dpoint.bias
     assert delegated_boost >= 0  # dev: outstanding negative boosts
 
-    y: int256 = _percentage * (VotingEscrow(self.voting_escrow).balanceOf(_delegator) - delegated_boost) / MAX_PCT
+    y: int256 = _percentage * (VotingEscrow(VOTING_ESCROW).balanceOf(_delegator) - delegated_boost) / MAX_PCT
     assert y > 0  # dev: no boost
 
     slope: int256 = -y / (_expire_time - time)
