@@ -356,8 +356,8 @@ def claim(_addr: address = msg.sender, _claimPRewards: bool = False, _lock: bool
       log Claimed(_addr, amount, user_epoch, max_user_epoch)
 
     if amount != 0:
-        send(_addr, amount)
         self.token_last_balance -= amount
+        send(_addr, amount)
 
     if _claimPRewards:
       lock: bool = _lock
@@ -414,8 +414,8 @@ def claim_many(_receivers: address[20]) -> bool:
           log Claimed(addr, amount, user_epoch, max_user_epoch)
 
         if amount != 0:
-            send(addr, amount)
             total += amount
+            send(addr, amount)
 
     if total != 0:
         self.token_last_balance -= total
