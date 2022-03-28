@@ -19,25 +19,18 @@ async function main() {
 
   const base_uri = "";
 
-  const voting_escrow =
-    network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
-      : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
-
   const admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
   console.log("name", name);
   console.log("symbol", symbol);
   console.log("base_uri", base_uri);
-  console.log("voting_escrow", voting_escrow);
   console.log("admin", admin);
 
   const votingEscrowDelegation = await VotingEscrowDelegation.deploy(
     name,
     symbol,
     base_uri,
-    voting_escrow,
     admin
   );
 
@@ -53,7 +46,7 @@ async function main() {
     network === "kovan"
       ? TEST_RIBBONOMICS_DIR.VEBOOSTPROXY
       : MAIN_RIBBONOMICS_DIR.VEBOOSTPROXY;
-
+  
   const veboostproxy = await ethers.getContractAt(
     "DelegationProxy",
     veboost_proxy
@@ -64,7 +57,7 @@ async function main() {
 
   await hre.run("verify:verify", {
     address: votingEscrowDelegation.address,
-    constructorArguments: [name, symbol, base_uri, voting_escrow, admin],
+    constructorArguments: [name, symbol, base_uri, admin],
   });
 }
 
