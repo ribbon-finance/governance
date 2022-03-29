@@ -30,8 +30,8 @@ async function main() {
 
   const token =
     network === "kovan"
-      ? TEST_RIBBONOMICS_DIR.TOKEN
-      : MAIN_RIBBONOMICS_DIR.TOKEN;
+      ? TEST_RIBBONOMICS_DIR.FEE_DISTRIBUTOR_TOKEN
+      : MAIN_RIBBONOMICS_DIR.FEE_DISTRIBUTOR_TOKEN;
 
   const o_admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
