@@ -363,6 +363,7 @@ contract FeeCustody is Ownable {
      */
     function setRBNLockerAllocPCT(uint256 _pctAllocationForRBNLockers)
         external
+        onlyOwner
     {
         require(_pctAllocationForRBNLockers <= TOTAL_PCT, "!_pctAllocationForRBNLockers");
         pctAllocationForRBNLockers = _pctAllocationForRBNLockers;
