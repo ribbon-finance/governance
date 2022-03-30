@@ -260,7 +260,7 @@ contract FeeCustody is Ownable {
         address _asset,
         address _oracle,
         address[] calldata _intermediaryPath,
-        address[] calldata _poolFees
+        uint256[] calldata _poolFees
     ) external onlyOwner {
         require(_asset != address(0), "!_asset");
         uint256 _pathLen = _intermediaryPath.length;
@@ -312,7 +312,7 @@ contract FeeCustody is Ownable {
      * @dev Can be called by admin
      */
     function recoverAllAssets() external onlyOwner {
-        // For all added assets, if not removed, send to protocol revenue recipient
+        // For all added assets, send to protocol revenue recipient
         for (uint256 i = 0; i < lastAssetIdx; i++) {
             _recoverAsset(assets[i]);
         }

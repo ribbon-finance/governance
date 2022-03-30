@@ -8,52 +8,50 @@ import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { solidity } from "ethereum-waffle";
 import { getTimestamp, takeSnapshot, revertToSnapShot } from "../utils/time";
+import { addSnapshotBeforeRestoreAfterEach } from "./common";
 import { BN, simpleToExactAmount } from "../utils/math";
 import { StandardAccounts } from "../utils/machines";
 import { Account } from "../../types";
 import { ZERO_ADDRESS } from "../utils/constants";
-import { ONE_WEEK, DEFAULT_DECIMALS } from "../utils/constants";
+const { MAIN_RIBBONOMICS_DIR } from "../../params";
+const { getContractAt } = ethers;
+
+import {
+  ONE_WEEK,
+  DEFAULT_DECIMALS,
+  TEST_URI,
+  WETH_ADDRESS,
+  WBTC_ADDRESS,
+  USDC_ADDRESS,
+  AAVE_ADDRESS,
+  WETH_OWNER_ADDRESS,
+  WBTC_OWNER_ADDRESS,
+  USDC_OWNER_ADDRESS,
+  AAVE_OWNER_ADDRESS,
+  ETH_PRICE_ORACLE,
+  BTC_PRICE_ORACLE,
+  USDC_PRICE_ORACLE,
+  AAVE_PRICE_ORACLE,
+  BAD_PRICE_ORACLE,
+  DEX_ROUTER,
+  DEX_FACTORY,
+  ETH_USDC_POOL,
+  ETH_BTC_POOL,
+  ETH_BTC_POOL_S,
+  BTC_USDC_POOL,
+  ETH_AAVE_POOL,
+  POOL_LARGE_FEE,
+  POOL_SMALL_FEE,
+  PCT_AllOC_FOR_LOCKERS
+ } from "../utils/constants";
 chai.use(solidity);
 
-// WBTC Address
-// WETH Address
-// AAVE Address
-// USDC Address
-// ETH Address
-
-// Constructor
-  // sets pctAllocationForRBNLockers
-  // sets distributionToken
-  // sets feeDistributor
-  // sets protocolRevenueRecipient
-  // transfers ownership
-
-// onlyOwner:
-  // distributeProtocolRevenue
-  // setAsset
-  // recoverAllAssets
-  // recoverAsset
-  // setFeeDistributor
-  // setDistributionToken
-  // setProtocolRevenueRecipient
-
-// claimableByRBNLockersOfAsset
-// totalClaimableByRBNLockersInUSD
-  // gets correct amount claimable
-
-// claimableByProtocolOfAsset
-// totalClaimableByProtocolInUSD
-  // gets correct amount claimable
-
-// setAsset
-  // sets correct asset
-    // correct oracle
-    // correct intermediary path
-    // emits NewAsset
-  // require(IChainlink(oracles[_asset]).decimals() == 8, "!ASSET/USD");
-  // require(_pathLen < 2, "invalid intermediary path");
-  // require(_swapFeeLen > 0 && _swapFeeLen < 2, "invalid pool fees array length");
-  // double set should not work to increase lastAssetIdx
+const ASSET_DEPOSITS_OWNERS = {
+  WETH_ADDRESS: [WETH_OWNER_ADDRESS, BigNumber.from(1).mul(BigNumber.from(10).pow(18))],
+  WBTC_ADDRESS: [WBTC_OWNER_ADDRESS, BigNumber.from(1).mul(BigNumber.from(10).pow(8))],
+  USDC_ADDRESS: [USDC_OWNER_ADDRESS, BigNumber.from(1000).mul(BigNumber.from(10).pow(6))],
+  AAVE_ADDRESS: [AAVE_OWNER_ADDRESS, BigNumber.from(10).mul(BigNumber.from(10).pow(18))],
+};
 
 // recoverAllAssets
   // removes everything to admin address
@@ -61,145 +59,416 @@ chai.use(solidity);
 // recoverAsset
   // removes single asset to admin address
 
-// setFeeDistributor
-  // sets new fee distributor
-
-// setRBNLockerAllocPCT
-  // sets new rbn locker alloc pct
-
-// setDistributionToken
-  // sets new distribution token
-
-// setProtocolRevenueRecipient
-  // sets new protocol revenue recipient
-
 // distributeProtocolRevenue
   // distributes protocol revenue
 
 describe("Fee Custody", () => {
-  let RibbonToken: ContractFactory;
-  let VotingEscrow: ContractFactory;
-  let FeeDistributor: ContractFactory;
+  let FeeCustody: ContractFactory;
 
-  let mta: Contract,
-    feeDistributor: Contract,
-    votingLockup: Contract,
-    sa: StandardAccounts;
+  let feeCustody: Contract,
+      feeDistributor: Contract;
 
-  let start: BN;
+  addSnapshotBeforeRestoreAfterEach();
 
   before("Init contract", async () => {
+    // Reset block
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: TEST_URI,
+            blockNumber: 14485500,
+          },
+        },
+      ],
+    });
+
     const accounts = await ethers.getSigners();
     sa = await new StandardAccounts().initAccounts(accounts);
 
-    // Get RBN token
-    RibbonToken = await ethers.getContractFactory("RibbonToken");
-    mta = await RibbonToken.deploy(
-      "Ribbon",
-      "RBN",
-      simpleToExactAmount(1000000000, DEFAULT_DECIMALS),
-      sa.fundManager.address
+    feeDistributor = await ethers.getContractAt("IFeeDistributor", MAIN_RIBBONOMICS_DIR["FEEDISTRIBUTOR"])
+
+    FeeCustody = await ethers.getContractFactory(
+      "FeeCustody"
     );
-
-    await mta.deployed();
-
-    await mta.connect(sa.fundManager.signer).setTransfersAllowed(true);
-
-    VotingEscrow = await ethers.getContractFactory(
-      "VotingEscrow"
-    );
-    votingLockup = await VotingEscrow.deploy(
-      mta.address,
-      "Vote-escrowed RBN",
-      "veRBN",
-      sa.fundManager.address
-    );
-
-    await votingLockup.deployed();
-
-    start = await getTimestamp();
-    FeeDistributor = await ethers.getContractFactory("FeeDistributor");
-    feeDistributor = await FeeDistributor.deploy(
-      votingLockup.address,
-      start,
-      mta.address,
+    feeCustody = await FeeCustody.deploy(
+      PCT_AllOC_FOR_LOCKERS,
+      WETH_ADDRESS,
+      feeDistributor.address,
       sa.fundManager.address,
       sa.fundManager.address
     );
 
-    await feeDistributor.deployed();
+    await feeCustody.deployed();
   });
 
   describe("checking public variables", () => {
-    it("returns voting escrow contract", async () => {
-      expect(await feeDistributor.voting_escrow()).eq(votingLockup.address);
+    // Constructor
+      // sets pctAllocationForRBNLockers
+      // sets distributionToken
+      // sets feeDistributor
+      // sets protocolRevenueRecipient
+      // transfers ownership
+
+    it("returns pctAllocationForRBNLockers", async () => {
+      expect(await feeCustody.pctAllocationForRBNLockers()).eq(PCT_AllOC_FOR_LOCKERS);
     });
 
-    it("returns start time for distribution", async () => {
-      expect(await feeDistributor.start_time()).eq(
-        start.div(ONE_WEEK).mul(ONE_WEEK)
-      );
+    it("returns distributionToken", async () => {
+      expect(await feeCustody.distributionToken()).eq(WETH_ADDRESS);
     });
 
-    it("returns fee token", async () => {
-      expect(await feeDistributor.token()).eq(mta.address);
+    it("returns feeDistributor", async () => {
+      expect(await feeCustody.feeDistributor()).eq(feeDistributor.address);
     });
 
-    it("returns admin", async () => {
-      expect(await feeDistributor.admin()).eq(sa.fundManager.address);
+    it("returns protocolRevenueRecipient", async () => {
+      expect(await feeCustody.protocolRevenueRecipient()).eq(sa.fundManager.address);
     });
 
     it("returns emergency return address", async () => {
-      expect(await feeDistributor.emergency_return()).eq(
+      expect(await feeDistributor.owner()).eq(
         sa.fundManager.address
       );
     });
   });
 
-  describe("burns", () => {
-    it("it reverts when not RBN token", async () => {
+  describe("Admin Permissions", () => {
+    // onlyOwner:
+      // distributeProtocolRevenue
+      // setAsset
+      // recoverAllAssets
+      // recoverAsset
+      // setFeeDistributor
+      // setDistributionToken
+      // setProtocolRevenueRecipient
+
+    it("it reverts when non-owner calls distributeProtocolRevenue", async () => {
       await expect(
-        feeDistributor
+        feeCustody
+          .connect(sa.other.signer)
+          .distributeProtocolRevenue([], 0)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls setAsset", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .setAsset(ZERO_ADDRESS, ZERO_ADDRESS, [], [])
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls recoverAllAssets", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .recoverAllAssets()
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls recoverAsset", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .recoverAsset(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls setFeeDistributor", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .setFeeDistributor(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls setDistributionToken", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .setDistributionToken(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls setRBNLockerAllocPCT", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .setRBNLockerAllocPCT(0)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("it reverts when non-owner calls setProtocolRevenueRecipient", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.other.signer)
+          .setProtocolRevenueRecipient(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  describe("Setters", () => {
+      // setAsset
+      // setFeeDistributor
+      // setDistributionToken
+      // setProtocolRevenueRecipient
+
+    it("it reverts when setting ZERO_ADDRESS as feeDistributor", async () => {
+      await expect(
+        feeCustody
           .connect(sa.fundManager.signer)
-          .burn(votingLockup.address, 0)
-      ).to.be.reverted;
+          .setFeeDistributor(ZERO_ADDRESS)
+      ).to.be.revertedWith("!_feeDistributor");
     });
 
-    it("it reverts when 0 amount", async () => {
+    it("it reverts when setting ZERO_ADDRESS as distributionToken", async () => {
       await expect(
-        feeDistributor.connect(sa.fundManager.signer).burn(mta.address, 0)
-      ).to.be.reverted;
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setDistributionToken(ZERO_ADDRESS)
+      ).to.be.revertedWith("!_distributionToken");
     });
 
-    it("it transfers RBN token to fee distributor", async () => {
-      let totalFundManagerRBNBalanceBefore = await mta.balanceOf(
-        sa.fundManager.address
-      );
-      let totalFeeDistributorRBNBalanceBefore = await mta.balanceOf(
-        feeDistributor.address
-      );
+    it("it reverts when setting ZERO_ADDRESS as protocolRevenueRecipient", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setProtocolRevenueRecipient(ZERO_ADDRESS)
+      ).to.be.revertedWith("!_protocolRevenueRecipient");
+    });
 
-      await mta
+    it("it reverts when setting ZERO_ADDRESS as setRBNLockerAllocPCT", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setRBNLockerAllocPCT(10001)
+      ).to.be.revertedWith("!_pctAllocationForRBNLockers");
+    });
+
+    it("it reverts when passing ZERO_ADDRESS as asset to setAsset", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setAsset(ZERO_ADDRESS, ZERO_ADDRESS, [], [])
+      ).to.be.revertedWith("!_asset");
+    });
+
+    it("it reverts when passing non-USD denominated oracle to setAsset", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setAsset(WETH_ADDRESS, BAD_PRICE_ORACLE, [], [])
+      ).to.be.revertedWith("!ASSET/USD");
+    });
+
+    it("it reverts when passing intermediaryPath length > 1 to setAsset", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [WETH_ADDRESS, WETH_ADDRESS], [])
+      ).to.be.revertedWith("invalid intermediary path");
+    });
+
+    it("it reverts when passing swap fee array length != intermediaryPath len + 1 to setAsset", async () => {
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [], [])
+      ).to.be.revertedWith("invalid pool fees array length");
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [WETH_ADDRESS], [])
+      ).to.be.revertedWith("invalid pool fees array length");
+      await expect(
+        feeCustody
+          .connect(sa.fundManager.signer)
+          .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [WETH_ADDRESS], [POOL_LARGE_FEE])
+      ).to.be.revertedWith("invalid pool fees array length");
+    });
+
+    it("it sets feeDistributor", async () => {
+      await feeCustody
         .connect(sa.fundManager.signer)
-        .approve(feeDistributor.address, totalFundManagerRBNBalanceBefore);
+        .setFeeDistributor(DEX_ROUTER)
 
-      await feeDistributor
+      expect(await feeCustody.feeDistributor()).eq(DEX_ROUTER)
+    });
+
+    it("it sets distributionToken", async () => {
+      await feeCustody
         .connect(sa.fundManager.signer)
-        .burn(mta.address, totalFundManagerRBNBalanceBefore);
+        .setDistributionToken(WBTC_ADDRESS)
 
-      let totalFundManagerRBNBalanceAfter = await mta.balanceOf(
-        sa.fundManager.address
-      );
-      let totalFeeDistributorRBNBalanceAfter = await mta.balanceOf(
-        feeDistributor.address
-      );
+      expect(await feeCustody.distributionToken()).eq(WBTC_ADDRESS)
+    });
 
-      expect(totalFundManagerRBNBalanceAfter).eq(0);
-      expect(totalFeeDistributorRBNBalanceAfter).eq(
-        totalFeeDistributorRBNBalanceBefore.add(
-          totalFundManagerRBNBalanceBefore
-        )
-      );
+    it("it sets protocolRevenueRecipient", async () => {
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setProtocolRevenueRecipient(sa.other.address)
+      expect(await feeCustody.protocolRevenueRecipient()).eq(sa.other.address)
+    });
+
+    it("it sets pctAllocationForRBNLockers", async () => {
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setRBNLockerAllocPCT(10000)
+      expect(await feeCustody.pctAllocationForRBNLockers()).eq(10000)
+    });
+
+    it("it sets setAsset", async () => {
+      let lastAssetIdx = await feeCustody.lastAssetIdx();
+
+      let txn = await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE])
+
+      expect(await feeCustody.assets(lastAssetIdx)).eq(USDC_ADDRESS)
+      expect(await feeCustody.lastAssetIdx()).eq(1)
+      expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE)
+
+      let pathEncodePacked = ethers.utils.solidityPack(["address", "uint256", "address"], [USDC_ADDRESS, POOL_LARGE_FEE, WETH_ADDRESS])
+
+      expect(await feeCustody.intermediaryPath(USDC_ADDRESS)).eq(pathEncodePacked)
+
+      await expect(txn).to.emit(feeCustody, "NewAsset").withArgs(USDC_ADDRESS, pathEncodePacked);
+    });
+
+    it("it sets setAsset with intermediaryPath", async () => {
+      let lastAssetIdx = await feeCustody.lastAssetIdx();
+
+      let txn = await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [WBTC_ADDRESS], [POOL_LARGE_FEE, POOL_LARGE_FEE])
+
+      expect(await feeCustody.assets(lastAssetIdx)).eq(USDC_ADDRESS)
+      expect(await feeCustody.lastAssetIdx()).eq(1)
+      expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE)
+
+      let pathEncodePacked = ethers.utils.solidityPack(["address", "uint256", "address"], [USDC_ADDRESS, POOL_LARGE_FEE, WBTC_ADDRESS, POOL_LARGE_FEE, WETH_ADDRESS])
+
+      expect(await feeCustody.intermediaryPath(USDC_ADDRESS)).eq(pathEncodePacked)
+
+      await expect(txn).to.emit(feeCustody, "NewAsset").withArgs(USDC_ADDRESS, pathEncodePacked);
+    });
+
+    it("it updates already setAsset", async () => {
+      let lastAssetIdx = await feeCustody.lastAssetIdx();
+
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(USDC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_SMALL_FEE])
+
+      let txn = await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE])
+
+      expect(await feeCustody.assets(lastAssetIdx)).eq(USDC_ADDRESS)
+      expect(await feeCustody.lastAssetIdx()).eq(1)
+      expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE)
+
+      let pathEncodePacked = ethers.utils.solidityPack(["address", "uint256", "address"], [USDC_ADDRESS, POOL_LARGE_FEE, WETH_ADDRESS])
+
+      expect(await feeCustody.intermediaryPath(USDC_ADDRESS)).eq(pathEncodePacked)
+
+      await expect(txn).to.emit(feeCustody, "NewAsset").withArgs(USDC_ADDRESS, pathEncodePacked);
+    });
+  });
+
+  describe("Protocol Revenue Distribution", () => {
+    beforeEach(async () => {
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [], [POOL_LARGE_FEE])
+
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE])
+
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(WBTC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_LARGE_FEE])
+
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(AAVE_ADDRESS, AAVE_PRICE_ORACLE, [], [POOL_LARGE_FEE])
+
+      for (let asset in ASSET_DEPOSITS_OWNERS) {
+          let [asset_owner, amount] = ASSET_DEPOSITS_OWNERS[asset];
+          await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [asset_owner],
+          });
+          const owner = await ethers.provider.getSigner(
+            asset_owner
+          );
+
+          const Token = await ethers.getContractAt("IERC20", asset);
+          await Token.connect(owner).transfer(feeCustody.address, amount);
+      }
+    });
+
+    // claimableByRBNLockersOfAsset
+    // totalClaimableByRBNLockersInUSD
+      // gets correct amount claimable
+
+    // claimableByProtocolOfAsset
+    // totalClaimableByProtocolInUSD
+      // gets correct amount claimable
+
+    it("it recovers single asset", async () => {
+      const WETH = await ethers.getContractAt("IERC20", WETH_ADDRESS);
+      let totalWETHDeposited = ASSET_DEPOSITS_OWNERS[WETH_ADDRESS][1];
+      let balanceBefore = await WETH.balanceOf(feeCustody.address);
+      let balanceAdminBefore = await WETH.balanceOf(await feeCustody.protocolRevenueRecipient());
+
+      expect(balanceBefore).eq(totalWETHDeposited)
+
+      let txn = await feeCustody
+        .connect(sa.fundManager.signer)
+        .recoverAsset(WETH_ADDRESS)
+
+      let balanceAfter = await WETH.balanceOf(feeCustody.address);
+      let balanceAdminAfter = await WETH.balanceOf(await feeCustody.protocolRevenueRecipient());
+
+      expect(balanceAfter).eq(0)
+      expect(balanceAdminAfter).eq(balanceAdminBefore.add(totalWETHDeposited))
+
+      await expect(txn).to.emit(feeCustody, "RecoveredAsset").withArgs(WETH_ADDRESS);
+    });
+
+    it("it recovers multiple assets", async () => {
+      let ASSET_BALANCES_BEFORE = {};
+
+      for (let asset in ASSET_DEPOSITS_OWNERS) {
+        const Token = await ethers.getContractAt("IERC20", asset);
+        let feeCustodyBalanceBefore = await Token.balanceOf(feeCustody.address)
+        let adminBalanceBefore = await Token.balanceOf(await feeCustody.protocolRevenueRecipient())
+        ASSET_BALANCES_BEFORE[asset] = [feeCustodyBalanceBefore, adminBalanceBefore]
+
+        expect(feeCustodyBalanceBefore).eq(ASSET_DEPOSITS_OWNERS[asset][1])
+      }
+
+      let txn = await feeCustody
+        .connect(sa.fundManager.signer)
+        .recoverAllAssets()
+
+      let balanceAfter = await WETH.balanceOf(feeCustody.address);
+      let balanceAdminAfter = await WETH.balanceOf(await feeCustody.protocolRevenueRecipient());
+
+      expect(balanceAfter).eq(0)
+      expect(balanceAdminAfter).eq(balanceAdminBefore.add(totalWETHDeposited))
+
+      for (let asset in ASSET_BALANCES_BEFORE) {
+        const Token = await ethers.getContractAt("IERC20", asset);
+        let feeCustodyBalanceAfter = await Token.balanceOf(feeCustody.address)
+        let adminBalanceAfter = await Token.balanceOf(await feeCustody.protocolRevenueRecipient())
+        expect(feeCustodyBalanceAfter).eq(0)
+        expect(adminBalanceAfter).eq(ASSET_BALANCES_BEFORE[asset][0].add(ASSET_BALANCES_BEFORE[asset][1]))
+      }
     });
   });
 });
