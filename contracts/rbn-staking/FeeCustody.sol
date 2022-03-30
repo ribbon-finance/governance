@@ -270,7 +270,7 @@ contract FeeCustody is Ownable {
         require(IChainlink(oracles[_asset]).decimals() == 8, "!ASSET/USD");
         require(_pathLen < 2, "invalid intermediary path");
         require(
-            _swapFeeLen > 0 && _swapFeeLen < 3,
+            _swapFeeLen == _pathLen + 1,
             "invalid pool fees array length"
         );
 
