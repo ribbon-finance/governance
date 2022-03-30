@@ -65,6 +65,13 @@ const ASSET_DEPOSITS_OWNERS = {
   ],
 };
 
+const ASSET_TO_CHAINLINK = {
+  WETH_ADDRESS: ETH_PRICE_ORACLE,
+  WBTC_ADDRESS: BTC_PRICE_ORACLE,
+  USDC_ADDRESS: USDC_PRICE_ORACLE,
+  AAVE_ADDRESS: AAVE_PRICE_ORACLE,
+};
+
 describe("Fee Custody", () => {
   let FeeCustody: ContractFactory;
 
@@ -437,21 +444,78 @@ describe("Fee Custody", () => {
         });
         const owner = await ethers.provider.getSigner(asset_owner);
 
-        const Token = await ethers.getContractAt("IERC20", asset);
-        await Token.connect(owner).transfer(feeCustody.address, amount);
+        const token = await ethers.getContractAt("IERC20", asset);
+        await token.connect(owner).transfer(feeCustody.address, amount);
       }
     });
 
     // claimableByRBNLockersOfAsset
-    // totalClaimableByRBNLockersInUSD
-    // gets correct amount claimable
+    it("it gets correct amount of asset claimable by RBN lockers", async () => {
+      let totalWETHDeposited = ASSET_DEPOSITS_OWNERS[WETH_ADDRESS][1];
+      expect(await feeCustody.claimableByRBNLockersOfAsset(WETH_ADDRESS)).eq(
+        totalWETHDeposited
+          .mul(await feeCustody.pctAllocationForRBNLockers())
+          .div(await feeCustody.TOTAL_PCT())
+      );
+    });
 
     // claimableByProtocolOfAsset
+    it("it gets correct amount of asset claimable by protocol revenue recipient", async () => {
+      let totalWETHDeposited = ASSET_DEPOSITS_OWNERS[WETH_ADDRESS][1];
+      let totalPCT = await feeCustody.TOTAL_PCT();
+      expect(await feeCustody.claimableByProtocolOfAsset(WETH_ADDRESS)).eq(
+        totalWETHDeposited
+          .mul(totalPCT.sub(await feeCustody.pctAllocationForRBNLockers()))
+          .div(totalPCT)
+      );
+    });
+
+    // totalClaimableByRBNLockersInUSD
+    it("it gets correct amount of asset claimable by RBN lockers", async () => {
+      let totalInUSD;
+      let alloctPCT = await feeCustody.pctAllocationForRBNLockers();
+      let totalPCT = await feeCustody.TOTAL_PCT();
+
+      for (let asset in ASSET_TO_CHAINLINK) {
+        let oracle = ASSET_TO_CHAINLINK[asset];
+        const oracle = await ethers.getContractAt("IChainlink", oracle);
+        const token = await ethers.getContractAt("IERC20", asset);
+
+        totalInUSD += (await token.balanceOf(feeCustody.address))
+          .mul(await oracle.lastestAnswer())
+          .mul(alloctPCT)
+          .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)))
+          .div(totalPCT);
+      }
+
+      expect(await feeCustody.totalClaimableByRBNLockersInUSD()).eq(totalInUSD);
+    });
+
     // totalClaimableByProtocolInUSD
-    // gets correct amount claimable
+    it("it gets correct amount of asset claimable by protocol revenue recipient", async () => {
+      let totalInUSD;
+      let totalPCT = await feeCustody.TOTAL_PCT();
+      let alloctPCT = totalPCT.sub(
+        await feeCustody.pctAllocationForRBNLockers()
+      );
+
+      for (let asset in ASSET_TO_CHAINLINK) {
+        let oracle = ASSET_TO_CHAINLINK[asset];
+        const oracle = await ethers.getContractAt("IChainlink", oracle);
+        const token = await ethers.getContractAt("IERC20", asset);
+
+        totalInUSD += (await token.balanceOf(feeCustody.address))
+          .mul(await oracle.lastestAnswer())
+          .mul(alloctPCT)
+          .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)))
+          .div(totalPCT);
+      }
+
+      expect(await feeCustody.totalClaimableByProtocolInUSD()).eq(totalInUSD);
+    });
 
     // distributeProtocolRevenue
-    // distributes protocol revenue
+    it("it swaps and distributes protocol revenue to protocol revenue recipient & fee distributor", async () => {});
 
     it("it recovers single asset", async () => {
       const WETH = await ethers.getContractAt("IERC20", WETH_ADDRESS);
@@ -484,9 +548,9 @@ describe("Fee Custody", () => {
       let ASSET_BALANCES_BEFORE = {};
 
       for (let asset in ASSET_DEPOSITS_OWNERS) {
-        const Token = await ethers.getContractAt("IERC20", asset);
-        let feeCustodyBalanceBefore = await Token.balanceOf(feeCustody.address);
-        let adminBalanceBefore = await Token.balanceOf(
+        const token = await ethers.getContractAt("IERC20", asset);
+        let feeCustodyBalanceBefore = await token.balanceOf(feeCustody.address);
+        let adminBalanceBefore = await token.balanceOf(
           await feeCustody.protocolRevenueRecipient()
         );
         ASSET_BALANCES_BEFORE[asset] = [
@@ -510,9 +574,9 @@ describe("Fee Custody", () => {
       expect(balanceAdminAfter).eq(balanceAdminBefore.add(totalWETHDeposited));
 
       for (let asset in ASSET_BALANCES_BEFORE) {
-        const Token = await ethers.getContractAt("IERC20", asset);
-        let feeCustodyBalanceAfter = await Token.balanceOf(feeCustody.address);
-        let adminBalanceAfter = await Token.balanceOf(
+        const token = await ethers.getContractAt("IERC20", asset);
+        let feeCustodyBalanceAfter = await token.balanceOf(feeCustody.address);
+        let adminBalanceAfter = await token.balanceOf(
           await feeCustody.protocolRevenueRecipient()
         );
         expect(feeCustodyBalanceAfter).eq(0);
