@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IFeeDistributor.sol";
 import "../interfaces/IChainlink.sol";
+import "../interfaces/IWETH.sol";
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
@@ -19,8 +20,9 @@ contract FeeCustody is Ownable {
   using SafeERC20 for IERC20;
   using SafeMath for uint256;
 
-  // Distribution token for fee distributor: like RBN, USDC, ETH, etc
-  IERC20 public distributionToken;
+  address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  // WETH Distribution Token
+  IERC20 public distributionToken = IERC20(WETH);
   // Protocol revenue recipient
   address public protocolRevenueRecipient;
   // Address of fee distributor contract for RBN lockers to claim
@@ -62,7 +64,6 @@ contract FeeCustody is Ownable {
    * @notice
    * Constructor
    * @param _pctAllocationForRBNLockers percent allocated for RBN lockers (100% = 10000)
-   * @param _distributionToken asset to distribute to RBN lockers
    * @param _feeDistributor address of fee distributor where protocol revenue claimable
    * @param _protocolRevenueRecipient address of multisig
    * @param _admin admin
@@ -70,13 +71,11 @@ contract FeeCustody is Ownable {
    */
   constructor(
     uint256 _pctAllocationForRBNLockers,
-    address _distributionToken,
     address _feeDistributor,
     address _protocolRevenueRecipient,
     address _admin,
     address _keeper
   ) {
-    require(_distributionToken != address(0), "!_distributionToken");
     require(_feeDistributor != address(0), "!_feeDistributor");
     require(
       _protocolRevenueRecipient != address(0),
@@ -86,7 +85,6 @@ contract FeeCustody is Ownable {
     require(_keeper != address(0), "!_keeper");
 
     pctAllocationForRBNLockers = _pctAllocationForRBNLockers;
-    distributionToken = IERC20(_distributionToken);
     feeDistributor = IFeeDistributor(_feeDistributor);
     protocolRevenueRecipient = _protocolRevenueRecipient;
     keeper = _keeper;
@@ -110,6 +108,10 @@ contract FeeCustody is Ownable {
     uint256 _deadline
   ) external returns (uint256 toDistribute) {
     require(msg.sender == keeper, "!keeper");
+
+    if (address(distributionToken) == WETH) {
+      IWETH(address(distributionToken)).deposit{value: address(this).balance}();
+    }
 
     for (uint256 i; i < lastAssetIdx; i++) {
       IERC20 asset = IERC20(assets[i]);
@@ -153,7 +155,10 @@ contract FeeCustody is Ownable {
     returns (uint256)
   {
     uint256 allocPCT = pctAllocationForRBNLockers;
-    return IERC20(_asset).balanceOf(address(this)).mul(allocPCT).div(TOTAL_PCT);
+    uint256 balance = _asset == address(0)
+      ? address(this).balance
+      : IERC20(_asset).balanceOf(address(this));
+    return balance.mul(allocPCT).div(TOTAL_PCT);
   }
 
   /**
@@ -167,7 +172,10 @@ contract FeeCustody is Ownable {
     returns (uint256)
   {
     uint256 allocPCT = TOTAL_PCT.sub(pctAllocationForRBNLockers);
-    return IERC20(_asset).balanceOf(address(this)).mul(allocPCT).div(TOTAL_PCT);
+    uint256 balance = _asset == address(0)
+      ? address(this).balance
+      : IERC20(_asset).balanceOf(address(this));
+    return balance.mul(allocPCT).div(TOTAL_PCT);
   }
 
   /**
@@ -204,10 +212,15 @@ contract FeeCustody is Ownable {
     for (uint256 i; i < lastAssetIdx; i++) {
       IChainlink oracle = IChainlink(oracles[assets[i]]);
 
+      uint256 balance = IERC20(assets[i]).balanceOf(address(this));
+
+      if (assets[i] == WETH) {
+        balance += address(this).balance;
+      }
+
       // Approximate claimable by multiplying
       // current asset balance with current asset price in USD
-      claimable += IERC20(assets[i])
-        .balanceOf(address(this))
+      claimable += balance
         .mul(oracle.latestAnswer())
         .mul(_allocPCT)
         .div(10**8)
