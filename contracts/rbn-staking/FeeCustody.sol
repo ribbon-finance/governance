@@ -44,7 +44,7 @@ contract FeeCustody is Ownable {
   // reward approximation across all assets earned
   mapping(address => address) public oracles;
 
-  address[1000] assets;
+  address[1000] public assets;
   // Index of empty slot in assets array
   uint256 public lastAssetIdx;
 
@@ -221,7 +221,7 @@ contract FeeCustody is Ownable {
       // Approximate claimable by multiplying
       // current asset balance with current asset price in USD
       claimable += balance
-        .mul(oracle.latestAnswer())
+        .mul(uint256(oracle.latestAnswer()))
         .mul(_allocPCT)
         .div(10**8)
         .div(TOTAL_PCT);
@@ -246,7 +246,7 @@ contract FeeCustody is Ownable {
 
     ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
       path: intermediaryPath[_asset],
-      recipient: msg.sender,
+      recipient: address(this),
       deadline: _deadline,
       amountIn: _amountIn,
       amountOutMinimum: _minAmountOut
@@ -282,7 +282,7 @@ contract FeeCustody is Ownable {
     uint256 _swapFeeLen = _poolFees.length;
 
     // We must be setting new valid oracle, or want to keep as is if one exists
-    require(IChainlink(oracles[_asset]).decimals() == 8, "!ASSET/USD");
+    require(IChainlink(_oracle).decimals() == 8, "!ASSET/USD");
     require(_pathLen < 2, "invalid intermediary path");
     require(_swapFeeLen == _pathLen + 1, "invalid pool fees array length");
 

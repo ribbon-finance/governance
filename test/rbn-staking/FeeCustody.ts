@@ -5,10 +5,11 @@
 import { Contract, ContractFactory } from "@ethersproject/contracts";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai, { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
+import { BigNumber } from "ethers";
 import { solidity } from "ethereum-waffle";
 import { getTimestamp, takeSnapshot, revertToSnapShot } from "../utils/time";
-import { addSnapshotBeforeRestoreAfterEach } from "./common";
+import { addSnapshotBeforeRestoreAfterEach } from "../common";
 import { BN, simpleToExactAmount } from "../utils/math";
 import { StandardAccounts } from "../utils/machines";
 import { Account } from "../../types";
@@ -46,36 +47,36 @@ import {
 } from "../utils/constants";
 chai.use(solidity);
 
-const ASSET_DEPOSITS_OWNERS = {
-  WETH_ADDRESS: [
+const ASSET_DEPOSITS_OWNERS: { [key: string]: [string, BigNumber] } = {
+  [WETH_ADDRESS]: [
     WETH_OWNER_ADDRESS,
     BigNumber.from(1).mul(BigNumber.from(10).pow(18)),
   ],
-  WBTC_ADDRESS: [
+  [WBTC_ADDRESS]: [
     WBTC_OWNER_ADDRESS,
     BigNumber.from(1).mul(BigNumber.from(10).pow(8)),
   ],
-  USDC_ADDRESS: [
+  [USDC_ADDRESS]: [
     USDC_OWNER_ADDRESS,
     BigNumber.from(1000).mul(BigNumber.from(10).pow(6)),
   ],
-  AAVE_ADDRESS: [
+  [AAVE_ADDRESS]: [
     AAVE_OWNER_ADDRESS,
     BigNumber.from(10).mul(BigNumber.from(10).pow(18)),
   ],
 };
 
-const ASSET_TO_CHAINLINK = {
-  WETH_ADDRESS: ETH_PRICE_ORACLE,
-  WBTC_ADDRESS: BTC_PRICE_ORACLE,
-  USDC_ADDRESS: USDC_PRICE_ORACLE,
-  AAVE_ADDRESS: AAVE_PRICE_ORACLE,
+const ASSET_TO_CHAINLINK: { [key: string]: string } = {
+  [WETH_ADDRESS]: ETH_PRICE_ORACLE,
+  [WBTC_ADDRESS]: BTC_PRICE_ORACLE,
+  [USDC_ADDRESS]: USDC_PRICE_ORACLE,
+  [AAVE_ADDRESS]: AAVE_PRICE_ORACLE,
 };
 
 describe("Fee Custody", () => {
   let FeeCustody: ContractFactory;
 
-  let feeCustody: Contract, feeDistributor: Contract;
+  let feeCustody: Contract, feeDistributor: Contract, sa: StandardAccounts;
 
   addSnapshotBeforeRestoreAfterEach();
 
@@ -143,11 +144,11 @@ describe("Fee Custody", () => {
     });
 
     it("returns emergency return address", async () => {
-      expect(await feeDistributor.owner()).eq(sa.fundManager.address);
+      expect(await feeCustody.owner()).eq(sa.fundManager.address);
     });
 
     it("returns keeper", async () => {
-      expect(await feeDistributor.keeper()).eq(sa.fundManager2.address);
+      expect(await feeCustody.keeper()).eq(sa.fundManager2.address);
     });
   });
 
@@ -351,7 +352,7 @@ describe("Fee Custody", () => {
 
     it("it sets keeper", async () => {
       await feeCustody
-        .connect(sa.fundManager2.signer)
+        .connect(sa.fundManager.signer)
         .setKeeper(sa.other.address);
       expect(await feeCustody.keeper()).eq(sa.other.address);
     });
@@ -398,7 +399,7 @@ describe("Fee Custody", () => {
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(
-        ["address", "uint256", "address"],
+        ["address", "uint256", "address", "uint256", "address"],
         [
           USDC_ADDRESS,
           POOL_LARGE_FEE,
@@ -448,7 +449,7 @@ describe("Fee Custody", () => {
   });
 
   describe("Protocol Revenue Distribution", () => {
-    let ASSET_BALANCES_BEFORE = {};
+    let ASSET_BALANCES_BEFORE: { [key: string]: [BigNumber, BigNumber] } = {};
     beforeEach(async () => {
       await feeCustody
         .connect(sa.fundManager.signer)
@@ -456,11 +457,11 @@ describe("Fee Custody", () => {
 
       await feeCustody
         .connect(sa.fundManager.signer)
-        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
 
       await feeCustody
         .connect(sa.fundManager.signer)
-        .setAsset(WBTC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+        .setAsset(WBTC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
 
       await feeCustody
         .connect(sa.fundManager.signer)
@@ -494,7 +495,7 @@ describe("Fee Custody", () => {
     it("it gets correct amount of asset claimable by RBN lockers", async () => {
       let totalWETHDeposited = ASSET_DEPOSITS_OWNERS[WETH_ADDRESS][1];
       expect(await feeCustody.claimableByRBNLockersOfAsset(WETH_ADDRESS)).eq(
-        totalWETHDeposited
+        BigNumber.from(totalWETHDeposited)
           .mul(await feeCustody.pctAllocationForRBNLockers())
           .div(await feeCustody.TOTAL_PCT())
       );
@@ -505,7 +506,7 @@ describe("Fee Custody", () => {
       let totalWETHDeposited = ASSET_DEPOSITS_OWNERS[WETH_ADDRESS][1];
       let totalPCT = await feeCustody.TOTAL_PCT();
       expect(await feeCustody.claimableByProtocolOfAsset(WETH_ADDRESS)).eq(
-        totalWETHDeposited
+        BigNumber.from(totalWETHDeposited)
           .mul(totalPCT.sub(await feeCustody.pctAllocationForRBNLockers()))
           .div(totalPCT)
       );
@@ -513,20 +514,30 @@ describe("Fee Custody", () => {
 
     // totalClaimableByRBNLockersInUSD
     it("it gets correct amount of asset claimable by RBN lockers", async () => {
-      let totalInUSD;
-      let alloctPCT = await feeCustody.pctAllocationForRBNLockers();
+      let totalInUSD = BigNumber.from(0);
+      let allocPCT = await feeCustody.pctAllocationForRBNLockers();
       let totalPCT = await feeCustody.TOTAL_PCT();
 
       for (let asset in ASSET_TO_CHAINLINK) {
-        let oracle = ASSET_TO_CHAINLINK[asset];
-        const oracle = await ethers.getContractAt("IChainlink", oracle);
+        const oracle = await ethers.getContractAt(
+          "IChainlink",
+          ASSET_TO_CHAINLINK[asset]
+        );
         const token = await ethers.getContractAt("IERC20", asset);
 
-        totalInUSD += (await token.balanceOf(feeCustody.address))
-          .mul(await oracle.lastestAnswer())
-          .mul(alloctPCT)
-          .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)))
-          .div(totalPCT);
+        let bal = await token.balanceOf(feeCustody.address);
+
+        if (asset == WETH_ADDRESS) {
+          bal = bal.add(await provider.getBalance(feeCustody.address));
+        }
+
+        totalInUSD = totalInUSD.add(
+          BigNumber.from(bal)
+            .mul(await oracle.latestAnswer())
+            .mul(allocPCT)
+            .div(BigNumber.from(10).pow(8))
+            .div(totalPCT)
+        );
       }
 
       expect(await feeCustody.totalClaimableByRBNLockersInUSD()).eq(totalInUSD);
@@ -534,22 +545,32 @@ describe("Fee Custody", () => {
 
     // totalClaimableByProtocolInUSD
     it("it gets correct amount of asset claimable by protocol revenue recipient", async () => {
-      let totalInUSD;
+      let totalInUSD = BigNumber.from(0);
       let totalPCT = await feeCustody.TOTAL_PCT();
-      let alloctPCT = totalPCT.sub(
+      let allocPCT = totalPCT.sub(
         await feeCustody.pctAllocationForRBNLockers()
       );
 
       for (let asset in ASSET_TO_CHAINLINK) {
-        let oracle = ASSET_TO_CHAINLINK[asset];
-        const oracle = await ethers.getContractAt("IChainlink", oracle);
+        const oracle = await ethers.getContractAt(
+          "IChainlink",
+          ASSET_TO_CHAINLINK[asset]
+        );
         const token = await ethers.getContractAt("IERC20", asset);
 
-        totalInUSD += (await token.balanceOf(feeCustody.address))
-          .mul(await oracle.lastestAnswer())
-          .mul(alloctPCT)
-          .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)))
-          .div(totalPCT);
+        let bal = await token.balanceOf(feeCustody.address);
+
+        if (asset == WETH_ADDRESS) {
+          bal = bal.add(await provider.getBalance(feeCustody.address));
+        }
+
+        totalInUSD = totalInUSD.add(
+          BigNumber.from(bal)
+            .mul(await oracle.latestAnswer())
+            .mul(allocPCT)
+            .div(BigNumber.from(10).pow(8))
+            .div(totalPCT)
+        );
       }
 
       expect(await feeCustody.totalClaimableByProtocolInUSD()).eq(totalInUSD);
@@ -560,22 +581,57 @@ describe("Fee Custody", () => {
       // For every asset, get min amount out (will set to 0 for simplicity, but will use sdk for weekly distribution cron job)
       // We have 4 assets - eth, btc, usdc, aave
       let minAmountOuts = [0, 0, 0, 0];
-      let deadline = (await getTimestamp()) + 100;
+      let deadline = (await getTimestamp()).add(100);
+      let slippage = 10; // 10%
 
-      let feeDistributorETHBalanceBefore = await provider.getBalance(
-        feeDistributor.address
-      );
       let totalClaimableByRBNLockersInUSD =
         await feeCustody.totalClaimableByRBNLockersInUSD();
+
+      let prevAdminAlloc: { [key: string]: BigNumber } = {};
+
+      for (let asset in ASSET_TO_CHAINLINK) {
+        prevAdminAlloc[asset] = await feeCustody.claimableByProtocolOfAsset(
+          asset
+        );
+      }
 
       await feeCustody
         .connect(sa.fundManager2.signer)
         .distributeProtocolRevenue(minAmountOuts, deadline);
 
-      // by end of swap:
-      // make sure all non-weth assets sent to admin is pct amount
+      for (let asset in ASSET_TO_CHAINLINK) {
+        const token = await ethers.getContractAt("IERC20", asset);
+
+        let bal = await token.balanceOf(feeCustody.address);
+        let balAdmin = await token.balanceOf(feeCustody.address);
+
+        if (asset == WETH_ADDRESS) {
+          bal += await provider.getBalance(feeDistributor.address);
+        }
+
+        // make sure fee custody balance is 0 for everything
+        expect(bal).eq(0);
+        // make sure all assets sent to admin is pct amount
+        expect(balAdmin).eq(prevAdminAlloc[asset]);
+      }
+
+      const oracle = await ethers.getContractAt(
+        "IChainlink",
+        ASSET_TO_CHAINLINK[WETH_ADDRESS]
+      );
+
       // make sure eth sent to fee distributor (the amount they deserve +/- something)
-      // make sure fee custody balance is 0 for everything
+      let feeDistributorBalanceInUSD = (
+        await provider.getBalance(feeDistributor.address)
+      )
+        .mul(await oracle.lastestAnswer())
+        .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)));
+      expect(feeDistributorBalanceInUSD).to.be.above(
+        totalClaimableByRBNLockersInUSD.mul(100 - slippage).div(100)
+      );
+      expect(feeDistributorBalanceInUSD).to.be.below(
+        totalClaimableByRBNLockersInUSD
+      );
     });
 
     it("it recovers single asset", async () => {
@@ -609,14 +665,6 @@ describe("Fee Custody", () => {
       let txn = await feeCustody
         .connect(sa.fundManager.signer)
         .recoverAllAssets();
-
-      let balanceAfter = await WETH.balanceOf(feeCustody.address);
-      let balanceAdminAfter = await WETH.balanceOf(
-        await feeCustody.protocolRevenueRecipient()
-      );
-
-      expect(balanceAfter).eq(0);
-      expect(balanceAdminAfter).eq(balanceAdminBefore.add(totalWETHDeposited));
 
       for (let asset in ASSET_BALANCES_BEFORE) {
         const token = await ethers.getContractAt("IERC20", asset);
