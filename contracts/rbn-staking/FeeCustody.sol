@@ -46,6 +46,9 @@ contract FeeCustody is Ownable {
     // Index of empty slot in assets array
     uint256 public lastAssetIdx;
 
+    // Keeper for weekly distributions
+    address public keeper;
+
     // Events
     event NewAsset(address asset, bytes intermediaryPath);
     event RecoveredAsset(address asset);
@@ -53,6 +56,7 @@ contract FeeCustody is Ownable {
     event NewRBNLockerAllocation(uint256 pctAllocationForRBNLockers);
     event NewDistributionToken(address distributionToken);
     event NewProtocolRevenueRecipient(address protocolRevenueRecipient);
+    event NewKeeper(address keeper);
 
     /**
      * @notice
@@ -62,23 +66,27 @@ contract FeeCustody is Ownable {
      * @param _feeDistributor address of fee distributor where protocol revenue claimable
      * @param _protocolRevenueRecipient address of multisig
      * @param _admin admin
+     * @param _keeper keeper
      */
     constructor(
         uint256 _pctAllocationForRBNLockers,
         address _distributionToken,
         address _feeDistributor,
         address _protocolRevenueRecipient,
-        address _admin
+        address _admin,
+        address _keeper
     ) {
         require(_distributionToken != address(0), "!_distributionToken");
         require(_feeDistributor != address(0), "!_feeDistributor");
         require(_protocolRevenueRecipient != address(0), "!_protocolRevenueRecipient");
         require(_admin != address(0), "!_admin");
+        require(_keeper != address(0), "!_keeper");
 
         pctAllocationForRBNLockers = _pctAllocationForRBNLockers;
         distributionToken = IERC20(_distributionToken);
         feeDistributor = IFeeDistributor(_feeDistributor);
         protocolRevenueRecipient = _protocolRevenueRecipient;
+        keeper = _keeper;
 
         _transferOwnership(_admin);
     }
@@ -97,7 +105,9 @@ contract FeeCustody is Ownable {
     function distributeProtocolRevenue(
         uint256[] calldata _minAmountOut,
         uint256 _deadline
-    ) external onlyOwner returns (uint256 toDistribute) {
+    ) external returns (uint256 toDistribute) {
+        require(msg.sender == keeper, "!keeper");
+
         for (uint256 i; i < lastAssetIdx; i++) {
             IERC20 asset = IERC20(assets[i]);
             uint256 assetBalance = asset.balanceOf(address(this));
@@ -398,5 +408,20 @@ contract FeeCustody is Ownable {
         require(_protocolRevenueRecipient != address(0), "!_protocolRevenueRecipient");
         protocolRevenueRecipient = _protocolRevenueRecipient;
         emit NewProtocolRevenueRecipient(_protocolRevenueRecipient);
+    }
+
+    /**
+     * @notice
+     * set keeper for weekly distributions
+     * @dev Can be called by admin
+     * @param _keeper new keeper
+     */
+    function setKeeper(address _keeper)
+        external
+        onlyOwner
+    {
+        require(_keeper != address(0), "!_keeper");
+        keeper = _keeper;
+        emit NewKeeper(_keeper);
     }
 }
