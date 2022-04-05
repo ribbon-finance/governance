@@ -310,8 +310,8 @@ contract FeeCustody is Ownable {
     } else {
       intermediaryPath[_asset] = abi.encodePacked(
         _asset,
-        _poolFees[0],
-        address(distributionToken)
+        address(distributionToken),
+        _poolFees[0]
       );
     }
 
