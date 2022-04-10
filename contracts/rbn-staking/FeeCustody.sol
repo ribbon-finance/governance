@@ -134,7 +134,7 @@ contract FeeCustody is Ownable {
       }
 
       // Transfer multisig allocation of protocol revenue to multisig
-      asset.transfer(protocolRevenueRecipient, multiSigRevenue);
+      asset.safeTransfer(protocolRevenueRecipient, multiSigRevenue);
     }
 
     toDistribute = distributionToken.balanceOf(address(this));
@@ -350,7 +350,7 @@ contract FeeCustody is Ownable {
     IERC20 asset = IERC20(_asset);
     uint256 bal = asset.balanceOf(address(this));
     if (bal > 0) {
-      asset.transfer(protocolRevenueRecipient, bal);
+      asset.safeTransfer(protocolRevenueRecipient, bal);
       emit RecoveredAsset(_asset);
     }
   }
