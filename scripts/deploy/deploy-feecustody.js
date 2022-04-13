@@ -4,6 +4,19 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 const { getTimestamp } = require("../../test/utils/time");
 
+import {
+  WETH_ADDRESS,
+  WBTC_ADDRESS,
+  USDC_ADDRESS,
+  AAVE_ADDRESS,
+  ETH_PRICE_ORACLE,
+  BTC_PRICE_ORACLE,
+  USDC_PRICE_ORACLE,
+  AAVE_PRICE_ORACLE,
+  POOL_LARGE_FEE,
+  POOL_SMALL_FEE
+} from "../../test/utils/constants";
+
 async function main() {
   const [, deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;
@@ -57,6 +70,21 @@ async function main() {
   );
 
   await feeCustody.deployTransaction.wait(5);
+
+  await feeCustody
+    .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+
+  await feeCustody
+    .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
+
+  await feeCustody
+    .setAsset(WBTC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
+
+  await feeCustody
+    .setAsset(AAVE_ADDRESS, AAVE_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+
+  await feeCustody
+    .transferOwnership(admin);
 
   await hre.run("verify:verify", {
     address: feeCustody.address,
