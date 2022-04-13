@@ -100,13 +100,12 @@ contract FeeCustody is Ownable {
    * @param _minAmountOut min amount out for every asset type swap.
    * will need to be in order of assets in assets[] array. should be
    * fine if we keep track.
-   * @param _deadline deadline for transaction expiry
    * @return toDistribute amount of distributionToken distributed to fee distributor
    */
-  function distributeProtocolRevenue(
-    uint256[] calldata _minAmountOut,
-    uint256 _deadline
-  ) external returns (uint256 toDistribute) {
+  function distributeProtocolRevenue(uint256[] calldata _minAmountOut)
+    external
+    returns (uint256 toDistribute)
+  {
     require(msg.sender == keeper, "!keeper");
 
     if (address(distributionToken) == WETH) {
@@ -130,7 +129,7 @@ contract FeeCustody is Ownable {
       if (address(asset) != address(distributionToken)) {
         // Calculate RBN allocation amount to swap for distributionToken
         uint256 amountIn = assetBalance.sub(multiSigRevenue);
-        _swap(address(asset), amountIn, _minAmountOut[i], _deadline);
+        _swap(address(asset), amountIn, _minAmountOut[i]);
       }
 
       // Transfer multisig allocation of protocol revenue to multisig
@@ -234,20 +233,17 @@ contract FeeCustody is Ownable {
    * @param _asset asset to swap from
    * @param _amountIn amount to swap of asset
    * @param _minAmountOut min amount out for every asset type swap
-   * @param _deadline deadline for transaction expiry
    */
   function _swap(
     address _asset,
     uint256 _amountIn,
-    uint256 _minAmountOut,
-    uint256 _deadline
+    uint256 _minAmountOut
   ) internal {
     TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), _amountIn);
 
     ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
       path: intermediaryPath[_asset],
       recipient: address(this),
-      deadline: _deadline,
       amountIn: _amountIn,
       amountOutMinimum: _minAmountOut
     });
@@ -275,7 +271,7 @@ contract FeeCustody is Ownable {
     address _asset,
     address _oracle,
     address[] calldata _intermediaryPath,
-    uint256[] calldata _poolFees
+    uint24[] calldata _poolFees
   ) external onlyOwner {
     require(_asset != address(0), "!_asset");
     uint256 _pathLen = _intermediaryPath.length;

@@ -165,9 +165,7 @@ describe("Fee Custody", () => {
 
     it("it reverts when non-keeper calls distributeProtocolRevenue", async () => {
       await expect(
-        feeCustody
-          .connect(sa.fundManager.signer)
-          .distributeProtocolRevenue([], 0)
+        feeCustody.connect(sa.fundManager.signer).distributeProtocolRevenue([])
       ).to.be.revertedWith("!keeper");
     });
 
@@ -369,7 +367,7 @@ describe("Fee Custody", () => {
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(
-        ["address", "uint256", "address"],
+        ["address", "uint24", "address"],
         [USDC_ADDRESS, POOL_LARGE_FEE, WETH_ADDRESS]
       );
 
@@ -399,7 +397,7 @@ describe("Fee Custody", () => {
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(
-        ["address", "uint256", "address", "uint256", "address"],
+        ["address", "uint24", "address", "uint24", "address"],
         [
           USDC_ADDRESS,
           POOL_LARGE_FEE,
@@ -434,7 +432,7 @@ describe("Fee Custody", () => {
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(
-        ["address", "uint256", "address"],
+        ["address", "uint24", "address"],
         [USDC_ADDRESS, POOL_LARGE_FEE, WETH_ADDRESS]
       );
 
@@ -581,7 +579,6 @@ describe("Fee Custody", () => {
       // For every asset, get min amount out (will set to 0 for simplicity, but will use sdk for weekly distribution cron job)
       // We have 4 assets - eth, btc, usdc, aave
       let minAmountOuts = [0, 0, 0, 0];
-      let deadline = (await getTimestamp()).add(100);
       let slippage = 10; // 10%
 
       let totalClaimableByRBNLockersInUSD =
@@ -597,17 +594,15 @@ describe("Fee Custody", () => {
 
       await feeCustody
         .connect(sa.fundManager2.signer)
-        .distributeProtocolRevenue(minAmountOuts, deadline);
+        .distributeProtocolRevenue(minAmountOuts);
 
       for (let asset in ASSET_TO_CHAINLINK) {
         const token = await ethers.getContractAt("IERC20", asset);
 
         let bal = await token.balanceOf(feeCustody.address);
-        let balAdmin = await token.balanceOf(feeCustody.address);
-
-        if (asset == WETH_ADDRESS) {
-          bal += await provider.getBalance(feeDistributor.address);
-        }
+        let balAdmin = await token.balanceOf(
+          await feeCustody.protocolRevenueRecipient()
+        );
 
         // make sure fee custody balance is 0 for everything
         expect(bal).eq(0);
@@ -624,7 +619,7 @@ describe("Fee Custody", () => {
       let feeDistributorBalanceInUSD = (
         await provider.getBalance(feeDistributor.address)
       )
-        .mul(await oracle.lastestAnswer())
+        .mul(await oracle.latestAnswer())
         .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)));
       expect(feeDistributorBalanceInUSD).to.be.above(
         totalClaimableByRBNLockersInUSD.mul(100 - slippage).div(100)
