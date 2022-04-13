@@ -88,8 +88,6 @@ contract FeeCustody is Ownable {
     feeDistributor = IFeeDistributor(_feeDistributor);
     protocolRevenueRecipient = _protocolRevenueRecipient;
     keeper = _keeper;
-
-    _transferOwnership(_admin);
   }
 
   /**
