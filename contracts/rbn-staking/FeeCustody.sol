@@ -137,6 +137,7 @@ contract FeeCustody is Ownable {
     }
 
     toDistribute = distributionToken.balanceOf(address(this));
+    distributionToken.safeApprove(address(feeDistributor), 0);
     distributionToken.safeApprove(address(feeDistributor), toDistribute);
 
     // Tranfer RBN locker allocation of protocol revenue to fee distributor
@@ -239,6 +240,7 @@ contract FeeCustody is Ownable {
     uint256 _amountIn,
     uint256 _minAmountOut
   ) internal {
+    TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), 0);
     TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), _amountIn);
 
     ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
