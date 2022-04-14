@@ -142,7 +142,6 @@ contract FeeCustody is Ownable {
     }
 
     toDistribute = distributionToken.balanceOf(address(this));
-    distributionToken.safeApprove(address(feeDistributor), 0);
     distributionToken.safeApprove(address(feeDistributor), toDistribute);
 
     // Tranfer RBN locker allocation of protocol revenue to fee distributor
@@ -247,7 +246,6 @@ contract FeeCustody is Ownable {
   ) internal {
     if (_asset == WSTETH) {
       uint256 _stethAmountIn = IWSTETH(_asset).unwrap(_amountIn);
-      TransferHelper.safeApprove(STETH, address(STETH_ETH_CRV_POOL), 0);
       TransferHelper.safeApprove(
         STETH,
         address(STETH_ETH_CRV_POOL),
@@ -260,7 +258,6 @@ contract FeeCustody is Ownable {
       return;
     }
 
-    TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), 0);
     TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), _amountIn);
 
     ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
