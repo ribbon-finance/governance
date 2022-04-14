@@ -22,10 +22,12 @@ import {
   DEFAULT_DECIMALS,
   TEST_URI,
   WETH_ADDRESS,
+  WSTETH_ADDRESS,
   WBTC_ADDRESS,
   USDC_ADDRESS,
   AAVE_ADDRESS,
   WETH_OWNER_ADDRESS,
+  WSTETH_OWNER_ADDRESS,
   WBTC_OWNER_ADDRESS,
   USDC_OWNER_ADDRESS,
   AAVE_OWNER_ADDRESS,
@@ -52,6 +54,10 @@ const ASSET_DEPOSITS_OWNERS: { [key: string]: [string, BigNumber] } = {
     WETH_OWNER_ADDRESS,
     BigNumber.from(1).mul(BigNumber.from(10).pow(18)),
   ],
+  [WSTETH_ADDRESS]: [
+    WSTETH_OWNER_ADDRESS,
+    BigNumber.from(1).mul(BigNumber.from(10).pow(18)),
+  ],
   [WBTC_ADDRESS]: [
     WBTC_OWNER_ADDRESS,
     BigNumber.from(1).mul(BigNumber.from(10).pow(8)),
@@ -68,6 +74,7 @@ const ASSET_DEPOSITS_OWNERS: { [key: string]: [string, BigNumber] } = {
 
 const ASSET_TO_CHAINLINK: { [key: string]: string } = {
   [WETH_ADDRESS]: ETH_PRICE_ORACLE,
+  [WSTETH_ADDRESS]: ETH_PRICE_ORACLE,
   [WBTC_ADDRESS]: BTC_PRICE_ORACLE,
   [USDC_ADDRESS]: USDC_PRICE_ORACLE,
   [AAVE_ADDRESS]: AAVE_PRICE_ORACLE,
@@ -452,6 +459,10 @@ describe("Fee Custody", () => {
       await feeCustody
         .connect(sa.fundManager.signer)
         .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+
+      await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(WSTETH_ADDRESS, ETH_PRICE_ORACLE, [], [0]);
 
       await feeCustody
         .connect(sa.fundManager.signer)

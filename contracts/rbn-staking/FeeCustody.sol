@@ -8,6 +8,8 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IFeeDistributor.sol";
 import "../interfaces/IChainlink.sol";
 import "../interfaces/IWETH.sol";
+import "../interfaces/IWSTETH.sol";
+import "../interfaces/ICRV.sol";
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
@@ -21,6 +23,8 @@ contract FeeCustody is Ownable {
   using SafeMath for uint256;
 
   address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  address public constant WSTETH = 0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0;
+
   // WETH Distribution Token
   IERC20 public distributionToken = IERC20(WETH);
   // Protocol revenue recipient
@@ -35,6 +39,8 @@ contract FeeCustody is Ownable {
   uint256 public constant TOTAL_PCT = 10000; // Equals 100%
   ISwapRouter public constant UNIV3_SWAP_ROUTER =
     ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
+  ICRV public constant STETH_ETH_CRV_POOL =
+    ICRV(0xdc24316b9ae028f1497c275eb9192a3ea0f67022);
 
   // Intermediary path asset for univ3 swaps.
   // Empty if direct pool swap between asset and distribution asset
@@ -238,6 +244,18 @@ contract FeeCustody is Ownable {
     uint256 _amountIn,
     uint256 _minAmountOut
   ) internal {
+    if (_asset == WSTETH) {
+      TransferHelper.safeApprove(_asset, address(STETH_ETH_CRV_POOL), 0);
+      TransferHelper.safeApprove(
+        _asset,
+        address(STETH_ETH_CRV_POOL),
+        _amountIn
+      );
+      STETH_ETH_CRV_POOL.exchange(1, 0, _amountIn, _minAmountOut);
+      IWETH(address(distributionToken)).deposit{value: address(this).balance}();
+      return;
+    }
+
     TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), 0);
     TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), _amountIn);
 

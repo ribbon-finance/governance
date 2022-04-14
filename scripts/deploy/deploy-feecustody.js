@@ -1,11 +1,16 @@
 const hre = require("hardhat");
-const { MAIN_RIBBONOMICS_DIR, TEST_RIBBONOMICS_DIR, DAO_MULTISIG } = require("../../params");
+const {
+  MAIN_RIBBONOMICS_DIR,
+  TEST_RIBBONOMICS_DIR,
+  DAO_MULTISIG,
+} = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 const { getTimestamp } = require("../../test/utils/time");
 
 import {
   WETH_ADDRESS,
+  WSTETH_ADDRESS,
   WBTC_ADDRESS,
   USDC_ADDRESS,
   AAVE_ADDRESS,
@@ -14,7 +19,7 @@ import {
   USDC_PRICE_ORACLE,
   AAVE_PRICE_ORACLE,
   POOL_LARGE_FEE,
-  POOL_SMALL_FEE
+  POOL_SMALL_FEE,
 } from "../../test/utils/constants";
 
 async function main() {
@@ -37,14 +42,11 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.FEEDISTRIBUTOR
       : MAIN_RIBBONOMICS_DIR.FEEDISTRIBUTOR;
 
-  const protocol_revenue_dao_recipient = network === "kovan"
-      ? deployer.address
-      : DAO_MULTISIG;
+  const protocol_revenue_dao_recipient =
+    network === "kovan" ? deployer.address : DAO_MULTISIG;
 
   const admin =
-    network === "kovan"
-      ? deployer.address
-      : MAIN_RIBBONOMICS_DIR.O_ADMIN;
+    network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
   const keeper =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.KEEPER;
@@ -71,20 +73,37 @@ async function main() {
 
   await feeCustody.deployTransaction.wait(5);
 
-  await feeCustody
-    .setAsset(WETH_ADDRESS, ETH_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+  await feeCustody.setAsset(
+    WETH_ADDRESS,
+    ETH_PRICE_ORACLE,
+    [],
+    [POOL_LARGE_FEE]
+  );
 
-  await feeCustody
-    .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
+  await feeCustody.setAsset(WSTETH_ADDRESS, ETH_PRICE_ORACLE, [], [0]);
 
-  await feeCustody
-    .setAsset(WBTC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
+  await feeCustody.setAsset(
+    USDC_ADDRESS,
+    USDC_PRICE_ORACLE,
+    [],
+    [POOL_SMALL_FEE]
+  );
 
-  await feeCustody
-    .setAsset(AAVE_ADDRESS, AAVE_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+  await feeCustody.setAsset(
+    WBTC_ADDRESS,
+    BTC_PRICE_ORACLE,
+    [],
+    [POOL_SMALL_FEE]
+  );
 
-  await feeCustody
-    .transferOwnership(admin);
+  await feeCustody.setAsset(
+    AAVE_ADDRESS,
+    AAVE_PRICE_ORACLE,
+    [],
+    [POOL_LARGE_FEE]
+  );
+
+  await feeCustody.transferOwnership(admin);
 
   await hre.run("verify:verify", {
     address: feeCustody.address,
