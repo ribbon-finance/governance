@@ -14,15 +14,12 @@ import "../interfaces/ICRV.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
-import "hardhat/console.sol";
-
 /** @title FeeCustody
     @notice Custody Contract for Ribbon Vault Management / Performance Fees
  */
 
 contract FeeCustody is Ownable {
   using SafeERC20 for IERC20;
-  using SafeMath for uint256;
 
   address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   address public constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -125,15 +122,14 @@ contract FeeCustody is Ownable {
         continue;
       }
 
-      uint256 multiSigRevenue = assetBalance
-        .mul(TOTAL_PCT.sub(pctAllocationForRBNLockers))
-        .div(TOTAL_PCT);
+      uint256 multiSigRevenue = (assetBalance *
+        (TOTAL_PCT - pctAllocationForRBNLockers)) / TOTAL_PCT;
 
       // If we are holding the distributionToken itself,
       // do not swap
       if (address(asset) != address(distributionToken)) {
         // Calculate RBN allocation amount to swap for distributionToken
-        uint256 amountIn = assetBalance.sub(multiSigRevenue);
+        uint256 amountIn = assetBalance - multiSigRevenue;
         _swap(address(asset), amountIn, _minAmountOut[i]);
       }
 
@@ -162,7 +158,7 @@ contract FeeCustody is Ownable {
     uint256 balance = _asset == address(0)
       ? address(this).balance
       : IERC20(_asset).balanceOf(address(this));
-    return balance.mul(allocPCT).div(TOTAL_PCT);
+    return (balance * allocPCT) / TOTAL_PCT;
   }
 
   /**
@@ -175,11 +171,11 @@ contract FeeCustody is Ownable {
     view
     returns (uint256)
   {
-    uint256 allocPCT = TOTAL_PCT.sub(pctAllocationForRBNLockers);
+    uint256 allocPCT = TOTAL_PCT - pctAllocationForRBNLockers;
     uint256 balance = _asset == address(0)
       ? address(this).balance
       : IERC20(_asset).balanceOf(address(this));
-    return balance.mul(allocPCT).div(TOTAL_PCT);
+    return (balance * allocPCT) / TOTAL_PCT;
   }
 
   /**
@@ -198,7 +194,7 @@ contract FeeCustody is Ownable {
    * @return total allocated (in USD)
    */
   function totalClaimableByProtocolInUSD() external view returns (uint256) {
-    uint256 allocPCT = TOTAL_PCT.sub(pctAllocationForRBNLockers);
+    uint256 allocPCT = TOTAL_PCT - pctAllocationForRBNLockers;
     return _getSwapQuote(allocPCT);
   }
 
@@ -224,11 +220,10 @@ contract FeeCustody is Ownable {
 
       // Approximate claimable by multiplying
       // current asset balance with current asset price in USD
-      claimable += balance
-        .mul(uint256(oracle.latestAnswer()))
-        .mul(_allocPCT)
-        .div(10**8)
-        .div(TOTAL_PCT);
+      claimable +=
+        (balance * uint256(oracle.latestAnswer()) * _allocPCT) /
+        10**8 /
+        TOTAL_PCT;
     }
   }
 
