@@ -185,7 +185,7 @@ contract FeeCustody is Ownable {
    */
   function totalClaimableByRBNLockersInUSD() external view returns (uint256) {
     uint256 allocPCT = pctAllocationForRBNLockers;
-    return _getSwapQuote(allocPCT);
+    return _getTotalAssetValue(allocPCT);
   }
 
   /**
@@ -195,7 +195,7 @@ contract FeeCustody is Ownable {
    */
   function totalClaimableByProtocolInUSD() external view returns (uint256) {
     uint256 allocPCT = TOTAL_PCT - pctAllocationForRBNLockers;
-    return _getSwapQuote(allocPCT);
+    return _getTotalAssetValue(allocPCT);
   }
 
   /**
@@ -204,7 +204,7 @@ contract FeeCustody is Ownable {
    * @param _allocPCT allocation percentage
    * @return claimable total claimable (in USD)
    */
-  function _getSwapQuote(uint256 _allocPCT)
+  function _getTotalAssetValue(uint256 _allocPCT)
     internal
     view
     returns (uint256 claimable)
