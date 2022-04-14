@@ -119,6 +119,8 @@ describe("Fee Custody", () => {
     );
 
     await feeCustody.deployed();
+
+    await feeCustody.transferOwnership(sa.fundManager.address);
   });
 
   describe("checking public variables", () => {
@@ -363,14 +365,11 @@ describe("Fee Custody", () => {
     });
 
     it("it sets setAsset", async () => {
-      let lastAssetIdx = await feeCustody.lastAssetIdx();
-
       let txn = await feeCustody
         .connect(sa.fundManager.signer)
         .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
 
-      expect(await feeCustody.assets(lastAssetIdx)).eq(USDC_ADDRESS);
-      expect(await feeCustody.lastAssetIdx()).eq(1);
+      expect(await feeCustody.assets(0)).eq(USDC_ADDRESS);
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(
@@ -388,8 +387,6 @@ describe("Fee Custody", () => {
     });
 
     it("it sets setAsset with intermediaryPath", async () => {
-      let lastAssetIdx = await feeCustody.lastAssetIdx();
-
       let txn = await feeCustody
         .connect(sa.fundManager.signer)
         .setAsset(
@@ -399,8 +396,7 @@ describe("Fee Custody", () => {
           [POOL_LARGE_FEE, POOL_LARGE_FEE]
         );
 
-      expect(await feeCustody.assets(lastAssetIdx)).eq(USDC_ADDRESS);
-      expect(await feeCustody.lastAssetIdx()).eq(1);
+      expect(await feeCustody.assets(0)).eq(USDC_ADDRESS);
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(
@@ -424,8 +420,6 @@ describe("Fee Custody", () => {
     });
 
     it("it updates already setAsset", async () => {
-      let lastAssetIdx = await feeCustody.lastAssetIdx();
-
       await feeCustody
         .connect(sa.fundManager.signer)
         .setAsset(USDC_ADDRESS, BTC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
@@ -434,8 +428,7 @@ describe("Fee Custody", () => {
         .connect(sa.fundManager.signer)
         .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
 
-      expect(await feeCustody.assets(lastAssetIdx)).eq(USDC_ADDRESS);
-      expect(await feeCustody.lastAssetIdx()).eq(1);
+      expect(await feeCustody.assets(0)).eq(USDC_ADDRESS);
       expect(await feeCustody.oracles(USDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
 
       let pathEncodePacked = ethers.utils.solidityPack(

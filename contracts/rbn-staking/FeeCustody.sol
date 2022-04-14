@@ -14,6 +14,8 @@ import "../interfaces/ICRV.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
+import "hardhat/console.sol";
+
 /** @title FeeCustody
     @notice Custody Contract for Ribbon Vault Management / Performance Fees
  */
@@ -23,7 +25,8 @@ contract FeeCustody is Ownable {
   using SafeMath for uint256;
 
   address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-  address public constant WSTETH = 0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0;
+  address public constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
+  address public constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
   // WETH Distribution Token
   IERC20 public distributionToken = IERC20(WETH);
@@ -40,7 +43,7 @@ contract FeeCustody is Ownable {
   ISwapRouter public constant UNIV3_SWAP_ROUTER =
     ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
   ICRV public constant STETH_ETH_CRV_POOL =
-    ICRV(0xdc24316b9ae028f1497c275eb9192a3ea0f67022);
+    ICRV(0xDC24316b9AE028F1497c275EB9192a3Ea0f67022);
 
   // Intermediary path asset for univ3 swaps.
   // Empty if direct pool swap between asset and distribution asset
@@ -50,9 +53,7 @@ contract FeeCustody is Ownable {
   // reward approximation across all assets earned
   mapping(address => address) public oracles;
 
-  address[1000] public assets;
-  // Index of empty slot in assets array
-  uint256 public lastAssetIdx;
+  address[] public assets;
 
   // Keeper for weekly distributions
   address public keeper;
@@ -116,7 +117,7 @@ contract FeeCustody is Ownable {
       IWETH(address(distributionToken)).deposit{value: address(this).balance}();
     }
 
-    for (uint256 i; i < lastAssetIdx; i++) {
+    for (uint256 i; i < assets.length; i++) {
       IERC20 asset = IERC20(assets[i]);
       uint256 assetBalance = asset.balanceOf(address(this));
 
@@ -213,7 +214,7 @@ contract FeeCustody is Ownable {
     view
     returns (uint256 claimable)
   {
-    for (uint256 i; i < lastAssetIdx; i++) {
+    for (uint256 i; i < assets.length; i++) {
       IChainlink oracle = IChainlink(oracles[assets[i]]);
 
       uint256 balance = IERC20(assets[i]).balanceOf(address(this));
@@ -245,13 +246,16 @@ contract FeeCustody is Ownable {
     uint256 _minAmountOut
   ) internal {
     if (_asset == WSTETH) {
-      TransferHelper.safeApprove(_asset, address(STETH_ETH_CRV_POOL), 0);
+      uint256 _stethAmountIn = IWSTETH(_asset).unwrap(_amountIn);
+      TransferHelper.safeApprove(STETH, address(STETH_ETH_CRV_POOL), 0);
       TransferHelper.safeApprove(
-        _asset,
+        STETH,
         address(STETH_ETH_CRV_POOL),
-        _amountIn
+        _stethAmountIn
       );
-      STETH_ETH_CRV_POOL.exchange(1, 0, _amountIn, _minAmountOut);
+
+      STETH_ETH_CRV_POOL.exchange(1, 0, _stethAmountIn, _minAmountOut);
+
       IWETH(address(distributionToken)).deposit{value: address(this).balance}();
       return;
     }
@@ -302,8 +306,7 @@ contract FeeCustody is Ownable {
 
     // If not set asset
     if (oracles[_asset] == address(0)) {
-      assets[lastAssetIdx] = _asset;
-      ++lastAssetIdx;
+      assets.push(_asset);
     }
 
     // Set oracle for asset
@@ -339,7 +342,7 @@ contract FeeCustody is Ownable {
    */
   function recoverAllAssets() external onlyOwner {
     // For all added assets, send to protocol revenue recipient
-    for (uint256 i = 0; i < lastAssetIdx; i++) {
+    for (uint256 i = 0; i < assets.length; i++) {
       _recoverAsset(assets[i]);
     }
   }
