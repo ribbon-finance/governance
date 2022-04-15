@@ -3,8 +3,8 @@ pragma solidity 0.8.11;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interfaces/IFeeDistributor.sol";
 import "../interfaces/IChainlink.sol";
 import "../interfaces/IWETH.sol";
@@ -94,6 +94,8 @@ contract FeeCustody is Ownable {
     keeper = _keeper;
   }
 
+  receive() external payable {}
+
   /**
    * @notice
    * Swaps RBN locker allocation of protocol revenu to distributionToken,
@@ -114,7 +116,8 @@ contract FeeCustody is Ownable {
       IWETH(address(distributionToken)).deposit{value: address(this).balance}();
     }
 
-    for (uint256 i; i < assets.length; i++) {
+    uint256 len = assets.length;
+    for (uint256 i; i < len; i++) {
       IERC20 asset = IERC20(assets[i]);
       uint256 assetBalance = asset.balanceOf(address(this));
 
@@ -209,10 +212,14 @@ contract FeeCustody is Ownable {
     view
     returns (uint256 claimable)
   {
-    for (uint256 i; i < assets.length; i++) {
+    uint256 len = assets.length;
+    for (uint256 i; i < len; i++) {
       IChainlink oracle = IChainlink(oracles[assets[i]]);
 
-      uint256 balance = IERC20(assets[i]).balanceOf(address(this));
+      ERC20 asset = ERC20(assets[i]);
+
+      uint256 balance = asset.balanceOf(address(this)) *
+        (10**(18 - asset.decimals()));
 
       if (assets[i] == WETH) {
         balance += address(this).balance;
@@ -334,7 +341,8 @@ contract FeeCustody is Ownable {
    */
   function recoverAllAssets() external onlyOwner {
     // For all added assets, send to protocol revenue recipient
-    for (uint256 i = 0; i < assets.length; i++) {
+    uint256 len = assets.length;
+    for (uint256 i = 0; i < len; i++) {
       _recoverAsset(assets[i]);
     }
   }

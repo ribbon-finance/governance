@@ -60,7 +60,7 @@ const ASSET_DEPOSITS_OWNERS: { [key: string]: [string, BigNumber] } = {
   ],
   [WBTC_ADDRESS]: [
     WBTC_OWNER_ADDRESS,
-    BigNumber.from(1).mul(BigNumber.from(10).pow(8)),
+    BigNumber.from(10).mul(BigNumber.from(10).pow(8)),
   ],
   [USDC_ADDRESS]: [
     USDC_OWNER_ADDRESS,
@@ -515,7 +515,7 @@ describe("Fee Custody", () => {
     });
 
     // totalClaimableByRBNLockersInUSD
-    it("it gets correct amount of asset claimable by RBN lockers", async () => {
+    it("it gets correct total amount of asset claimable by RBN lockers", async () => {
       let totalInUSD = BigNumber.from(0);
       let allocPCT = await feeCustody.pctAllocationForRBNLockers();
       let totalPCT = await feeCustody.TOTAL_PCT();
@@ -525,9 +525,11 @@ describe("Fee Custody", () => {
           "IChainlink",
           ASSET_TO_CHAINLINK[asset]
         );
-        const token = await ethers.getContractAt("IERC20", asset);
+        const token = await ethers.getContractAt("ERC20", asset);
 
-        let bal = await token.balanceOf(feeCustody.address);
+        let bal = (await token.balanceOf(feeCustody.address)).mul(
+          BigNumber.from(10).pow(BigNumber.from(18).sub(await token.decimals()))
+        );
 
         if (asset == WETH_ADDRESS) {
           bal = bal.add(await provider.getBalance(feeCustody.address));
@@ -546,7 +548,7 @@ describe("Fee Custody", () => {
     });
 
     // totalClaimableByProtocolInUSD
-    it("it gets correct amount of asset claimable by protocol revenue recipient", async () => {
+    it("it gets correct total amount of asset claimable by protocol revenue recipient", async () => {
       let totalInUSD = BigNumber.from(0);
       let totalPCT = await feeCustody.TOTAL_PCT();
       let allocPCT = totalPCT.sub(
@@ -558,9 +560,11 @@ describe("Fee Custody", () => {
           "IChainlink",
           ASSET_TO_CHAINLINK[asset]
         );
-        const token = await ethers.getContractAt("IERC20", asset);
+        const token = await ethers.getContractAt("ERC20", asset);
 
-        let bal = await token.balanceOf(feeCustody.address);
+        let bal = (await token.balanceOf(feeCustody.address)).mul(
+          BigNumber.from(10).pow(BigNumber.from(18).sub(await token.decimals()))
+        );
 
         if (asset == WETH_ADDRESS) {
           bal = bal.add(await provider.getBalance(feeCustody.address));
@@ -582,8 +586,15 @@ describe("Fee Custody", () => {
     it("it swaps and distributes protocol revenue to protocol revenue recipient & fee distributor", async () => {
       // For every asset, get min amount out (will set to 0 for simplicity, but will use sdk for weekly distribution cron job)
       // We have 4 assets - eth, btc, usdc, aave
-      let minAmountOuts = [0, 0, 0, 0];
+      let minAmountOuts = [0, 0, 0, 0, 0];
       let slippage = 10; // 10%
+
+      const oracle = await ethers.getContractAt(
+        "IChainlink",
+        ASSET_TO_CHAINLINK[WETH_ADDRESS]
+      );
+
+      let wethPrice = await oracle.latestAnswer();
 
       let totalClaimableByRBNLockersInUSD =
         await feeCustody.totalClaimableByRBNLockersInUSD();
@@ -614,17 +625,13 @@ describe("Fee Custody", () => {
         expect(balAdmin).eq(prevAdminAlloc[asset]);
       }
 
-      const oracle = await ethers.getContractAt(
-        "IChainlink",
-        ASSET_TO_CHAINLINK[WETH_ADDRESS]
-      );
-
       // make sure eth sent to fee distributor (the amount they deserve +/- something)
       let feeDistributorBalanceInUSD = (
         await provider.getBalance(feeDistributor.address)
       )
-        .mul(await oracle.latestAnswer())
-        .div(BigNumber.from(10).mul(BigNumber.from(10).pow(8)));
+        .mul(wethPrice)
+        .div(BigNumber.from(10).pow(8));
+
       expect(feeDistributorBalanceInUSD).to.be.above(
         totalClaimableByRBNLockersInUSD.mul(100 - slippage).div(100)
       );

@@ -9,5 +9,5 @@ interface ICRV {
     int128 _indexOut,
     uint256 _amountIn,
     uint256 _minAmountOut
-  ) external returns (uint256);
+  ) external payable returns (uint256);
 }
