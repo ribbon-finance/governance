@@ -28,3 +28,10 @@ export const FIVE_DAYS = BN.from(60 * 60 * 24 * 5)
 export const TEN_DAYS = BN.from(60 * 60 * 24 * 10)
 export const ONE_WEEK = BN.from(60 * 60 * 24 * 7)
 export const ONE_YEAR = BN.from(60 * 60 * 24 * 365)
+
+export const RBN = "0x6123b0049f904d730db3c36a31167d9d4121fa6b"
+export const RBN_OWNER_ADDRESS = "0xB4B7DD60011B76a20cB348EA9681595babF793BA"
+export const RSTETH_THETA_GAUGE = "0x4e079dCA26A4fE2586928c1319b20b1bf9f9be72"
+export const RSTETH_THETA_GAUGE_OWNER_ADDRESS = "0x8f688a91695f7d2a1e93e57cedcbf5c5202f617b"
+export const RBN_MINTER = "0x5B0655F938A72052c46d2e94D206ccB6FF625A3A"
+export const BORROWER_PCT = 0
