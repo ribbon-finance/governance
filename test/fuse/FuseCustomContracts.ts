@@ -285,7 +285,7 @@ describe("Fuse Pool", () => {
 
     it("it sets BORROWER_PCT", async () => {
       await rewardsDistributorDelegate._setBorrowerPCT(
-        (await rewardsDistributorDelegate.TOTAL_PCT()).div(2)
+        BigNumber.from(BORROWER_PCT).div(2)
       );
       expect(await rewardsDistributorDelegate.supplierPCT()).eq(
         (await rewardsDistributorDelegate.TOTAL_PCT()).sub(
