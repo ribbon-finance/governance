@@ -35,6 +35,15 @@ module.exports = {
           },
         },
       },
+      {
+        version: "0.8.11",
+        settings: {
+          optimizer: {
+            runs: 9999,
+            enabled: true,
+          },
+        },
+      },
     ],
   },
   networks: {
@@ -64,7 +73,7 @@ module.exports = {
     timeout: 200000,
   },
   vyper: {
-    version: "0.3.1",
+    compilers: [{ version: "0.2.7" }, { version: "0.2.15" }, { version: "0.3.1" }],
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
