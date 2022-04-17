@@ -753,6 +753,11 @@
   "resolved" "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-4.4.0.tgz"
   "version" "4.4.0"
 
+"@openzeppelin/contracts@3.4.1-solc-0.7-2":
+  "integrity" "sha512-tAG9LWg8+M2CMu7hIsqHPaTyG4uDzjr6mhvH96LvOpLZZj6tgzTluBt+LsCf1/QaYrlis6pITvpIaIhE+iZB+Q=="
+  "resolved" "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-3.4.1-solc-0.7-2.tgz"
+  "version" "3.4.1-solc-0.7-2"
+
 "@resolver-engine/core@^0.3.3":
   "integrity" "sha512-eB8nEbKDJJBi5p5SrvrvILn4a0h42bKtbCTri3ZxCGt6UvoQyp7HnGOfki944bUjBSHKK3RvgfViHn+kqdXtnQ=="
   "resolved" "https://registry.npmjs.org/@resolver-engine/core/-/core-0.3.3.tgz"
@@ -1132,6 +1137,33 @@
   dependencies:
     "@types/bn.js" "*"
     "@types/underscore" "*"
+
+"@uniswap/lib@^4.0.1-alpha":
+  "integrity" "sha512-f6UIliwBbRsgVLxIaBANF6w09tYqc6Y/qXdsrbEmXHyFA7ILiKrIwRFXe1yOg8M3cksgVsO9N7yuL2DdCGQKBA=="
+  "resolved" "https://registry.npmjs.org/@uniswap/lib/-/lib-4.0.1-alpha.tgz"
+  "version" "4.0.1-alpha"
+
+"@uniswap/v2-core@1.0.1":
+  "integrity" "sha512-MtybtkUPSyysqLY2U210NBDeCHX+ltHt3oADGdjqoThZaFRDKwM6k1Nb3F0A3hk5hwuQvytFWhrWHOEq6nVJ8Q=="
+  "resolved" "https://registry.npmjs.org/@uniswap/v2-core/-/v2-core-1.0.1.tgz"
+  "version" "1.0.1"
+
+"@uniswap/v3-core@1.0.0":
+  "integrity" "sha512-kSC4djMGKMHj7sLMYVnn61k9nu+lHjMIxgg9CDQT+s2QYLoA56GbSK9Oxr+qJXzzygbkrmuY6cwgP6cW2JXPFA=="
+  "resolved" "https://registry.npmjs.org/@uniswap/v3-core/-/v3-core-1.0.0.tgz"
+  "version" "1.0.0"
+
+"@uniswap/v3-periphery@^1.4.0":
+  "integrity" "sha512-OXikenS40UIEa2XxQ+TyGpFFcTOfSW8eH3Ngy7sGOYp+7yr6uGU2UzomeTsqzagBEAXUDTwxqkk9oUS1KtWTUw=="
+  "resolved" "https://registry.npmjs.org/@uniswap/v3-periphery/-/v3-periphery-1.4.0.tgz"
+  "version" "1.4.0"
+  dependencies:
+    "@openzeppelin/contracts" "3.4.1-solc-0.7-2"
+    "@uniswap/lib" "^4.0.1-alpha"
+    "@uniswap/v2-core" "1.0.1"
+    "@uniswap/v3-core" "1.0.0"
+    "base64-sol" "1.0.1"
+    "hardhat-watcher" "^2.1.1"
 
 "@yarnpkg/lockfile@^1.1.0":
   "integrity" "sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ=="
@@ -2096,6 +2128,11 @@
   "resolved" "https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz"
   "version" "1.5.1"
 
+"base64-sol@1.0.1":
+  "integrity" "sha512-ld3cCNMeXt4uJXmLZBHFGMvVpK9KsLVEhPpFRXnvSVAqABKbuNZg/+dsq3NuM+wxFLb/UrVkz7m1ciWmkMfTbg=="
+  "resolved" "https://registry.npmjs.org/base64-sol/-/base64-sol-1.0.1.tgz"
+  "version" "1.0.1"
+
 "bcrypt-pbkdf@^1.0.0":
   "integrity" "sha1-pDAdOJtqQ/m2f/PKEaP2Y342Dp4="
   "resolved" "https://registry.npmjs.org/bcrypt-pbkdf/-/bcrypt-pbkdf-1.0.2.tgz"
@@ -2646,7 +2683,7 @@
     "parse5-htmlparser2-tree-adapter" "^6.0.1"
     "tslib" "^2.2.0"
 
-"chokidar@^3.4.0":
+"chokidar@^3.4.0", "chokidar@^3.4.3":
   "integrity" "sha512-ekGhOnNVPgT77r4K/U3GDhu+FQ2S8TnK/s2KbIGXi0SZWuwkZ2QNyfWdZW+TVfn84DpEP7rLeCt2UI6bJ8GwbQ=="
   "resolved" "https://registry.npmjs.org/chokidar/-/chokidar-3.5.2.tgz"
   "version" "3.5.2"
@@ -4952,6 +4989,13 @@
   dependencies:
     "cli-table3" "^0.6.0"
     "colors" "^1.4.0"
+
+"hardhat-watcher@^2.1.1":
+  "integrity" "sha512-zilmvxAYD34IofBrwOliQn4z92UiDmt2c949DW4Gokf0vS0qk4YTfVCi/LmUBICThGygNANE3WfnRTpjCJGtDA=="
+  "resolved" "https://registry.npmjs.org/hardhat-watcher/-/hardhat-watcher-2.1.1.tgz"
+  "version" "2.1.1"
+  dependencies:
+    "chokidar" "^3.4.3"
 
 "hardhat@^2.0.0", "hardhat@^2.0.4", "hardhat@^2.1.2", "hardhat@^2.6.4":
   "integrity" "sha512-iRVd5DgcIVV3rNXMlogOfwlXAhHp7Wy/OjjFiUhTey8Unvo6oq5+Is5ANiKVN+Iw07Pcb/HpkGt7jCB6a4ITgg=="
