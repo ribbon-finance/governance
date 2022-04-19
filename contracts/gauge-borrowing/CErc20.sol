@@ -1,13 +1,13 @@
 pragma solidity ^0.5.16;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/Compound/EIP20Interface.sol";
 
 interface RibbonMinter {
   function mint(address gauge_addr) external;
 }
 
 interface RewardsDistributor {
-  function burn(uint256 amount) external;
+  function burn(address cToken, uint256 amount) external;
 }
 
 /**
@@ -21,14 +21,14 @@ contract CErc20 {
   RibbonMinter public constant RBN_MINTER =
     RibbonMinter(0x5B0655F938A72052c46d2e94D206ccB6FF625A3A);
   // RBN token
-  IERC20 public constant RBN =
-    IERC20(0x6123b0049f904d730db3c36a31167d9d4121fa6b);
+  EIP20Interface public constant RBN =
+    EIP20Interface(0x6123B0049F904d730dB3C36a31167D9d4121fA6B);
   // Rewards distributor
   // https://github.com/Rari-Capital/compound-protocol/blob/fuse-final/contracts/RewardsDistributorDelegator.sol
   RewardsDistributor public rewardsDistributor;
   address public underlying;
 
-  address admin;
+  address public admin;
 
   constructor(address _admin) public {
     admin = _admin;
@@ -43,7 +43,7 @@ contract CErc20 {
     underlying = underlying_;
   }
 
-  function hasAdminRights() internal {
+  function hasAdminRights() internal returns (bool) {
     return msg.sender == admin;
   }
 
@@ -61,7 +61,7 @@ contract CErc20 {
       "rewards distributor must be set"
     );
 
-    rewardsDistributor = _rewardsDistributor;
+    rewardsDistributor = RewardsDistributor(_rewardsDistributor);
   }
 
   /**
@@ -69,7 +69,7 @@ contract CErc20 {
    */
   function claimGaugeRewards() external {
     require(
-      rewardsDistributor != address(0),
+      address(rewardsDistributor) != address(0),
       "rewards distributor must be set"
     );
 
@@ -82,7 +82,7 @@ contract CErc20 {
       return;
     }
 
-    RBN.approve(rewardsDistributor, toDistribute);
+    RBN.approve(address(rewardsDistributor), toDistribute);
 
     /*
      * Transfer rewards to reward distributor which will distribute rewards
@@ -94,6 +94,6 @@ contract CErc20 {
      * to DAI / USDC suppliers
      */
 
-    rewardsDistributor.burn(toDistribute);
+    rewardsDistributor.burn(address(this), toDistribute);
   }
 }
