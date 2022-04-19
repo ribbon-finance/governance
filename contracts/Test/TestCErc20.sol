@@ -16,7 +16,7 @@ interface RewardsDistributor {
  * @dev This contract should not to be deployed on its own; instead, deploy `CErc20Delegator` (proxy contract) and `CErc20Delegate` (logic/implementation contract).
  * @author Compound
  */
-contract CErc20 {
+contract TestCErc20 {
   // Minter contract for rbn gauge emissions
   RibbonMinter public constant RBN_MINTER =
     RibbonMinter(0x5B0655F938A72052c46d2e94D206ccB6FF625A3A);
