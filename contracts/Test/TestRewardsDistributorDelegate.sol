@@ -8,7 +8,7 @@ import "../common/SafeMath.sol";
  * @title RewardsDistributorDelegate (COMP distribution logic extracted from `Comptroller`)
  * @author Compound
  */
-contract RewardsDistributorDelegate {
+contract TestRewardsDistributorDelegate {
   using SafeMath for uint256;
 
   /// @dev Notice that this contract is a RewardsDistributor
