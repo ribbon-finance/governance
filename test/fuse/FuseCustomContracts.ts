@@ -53,7 +53,7 @@ describe("Fuse Pool", () => {
         {
           forking: {
             jsonRpcUrl: TEST_URI,
-            blockNumber: 14519500,
+            blockNumber: 14459500,
           },
         },
       ],
@@ -90,10 +90,6 @@ describe("Fuse Pool", () => {
     it("returns RBN", async () => {
       expect(await cErc20.RBN()).eq(RBN);
     });
-
-    it("returns underlying", async () => {
-      expect(await cErc20.underlying()).eq(RSTETH_THETA_GAUGE);
-    });
   });
 
   describe("RewardsDistributorDelegate: checking public variables", () => {
@@ -111,22 +107,20 @@ describe("Fuse Pool", () => {
       expect(await rewardsDistributorDelegate.WEEK()).eq(ONE_WEEK);
     });
 
-    it("returns AVG_BLOCKS_PER_WEEK", async () => {
-      expect(await rewardsDistributorDelegate.WEEK()).eq(
-        BigNumber.from(604800).div(13)
-      );
-    });
-
     it("returns TOTAL_PCT", async () => {
       expect(await rewardsDistributorDelegate.TOTAL_PCT()).eq(10000);
     });
 
     it("returns lastEpochTotalMint", async () => {
-      expect(await rewardsDistributorDelegate.lastEpochTotalMint()).eq(0);
+      expect(
+        await rewardsDistributorDelegate.lastEpochTotalMint(RSTETH_THETA_GAUGE)
+      ).eq(0);
     });
 
     it("returns totalMint", async () => {
-      expect(await rewardsDistributorDelegate.totalMint()).eq(0);
+      expect(await rewardsDistributorDelegate.totalMint(RSTETH_THETA_GAUGE)).eq(
+        0
+      );
     });
   });
 
@@ -147,7 +141,7 @@ describe("Fuse Pool", () => {
       await expect(
         rewardsDistributorDelegate
           .connect(sa.fundManager2.signer)
-          .initialize(RSTETH_THETA_GAUGE)
+          .initialize(RSTETH_THETA_GAUGE, 0)
       ).to.be.revertedWith("Only admin can initialize.");
     });
 
@@ -155,8 +149,32 @@ describe("Fuse Pool", () => {
       await expect(
         rewardsDistributorDelegate
           .connect(sa.fundManager2.signer)
-          ._setBorrowerPCT(BORROWER_PCT)
+          ._setBorrowerPCT(RSTETH_THETA_GAUGE, BORROWER_PCT)
       ).to.be.revertedWith("only admin can set borrower percent");
+    });
+
+    it("it reverts when non-admin calls _setSupplierPCT", async () => {
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager2.signer)
+          ._setSupplierPCT(RSTETH_THETA_GAUGE, BORROWER_PCT)
+      ).to.be.revertedWith("only admin can set supplier percent");
+    });
+
+    it("it reverts when non-admin calls _setAvgBlocksPerWeek", async () => {
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager2.signer)
+          ._setAvgBlocksPerWeek(100)
+      ).to.be.revertedWith("only admin can set avg blocks per week");
+    });
+
+    it("it reverts when non-admin calls _recoverAsset", async () => {
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager2.signer)
+          ._recoverAsset(RSTETH_THETA_GAUGE, 0)
+      ).to.be.revertedWith("only admin can recover asset");
     });
   });
 
@@ -199,36 +217,51 @@ describe("Fuse Pool", () => {
     });
 
     it("it sets rewardsDistributor", async () => {
-      await cErc20._setRewardsDistributor(rewardsDistributorDelegate.address);
+      await cErc20
+        .connect(sa.fundManager.signer)
+        ._setRewardsDistributor(rewardsDistributorDelegate.address);
       expect(await cErc20.rewardsDistributor()).eq(
         rewardsDistributorDelegate.address
       );
     });
 
     it("it mints 0 RBN", async () => {
-      await cErc20.initialize(RSTETH_THETA_GAUGE);
-      await cErc20._setRewardsDistributor(rewardsDistributorDelegate.address);
-      await rewardsDistributorDelegate.initialize(
-        RBN,
-        await getTimestamp(),
-        BORROWER_PCT
+      await cErc20
+        .connect(sa.fundManager.signer)
+        .initialize(RSTETH_THETA_GAUGE);
+      await cErc20
+        .connect(sa.fundManager.signer)
+        ._setRewardsDistributor(rewardsDistributorDelegate.address);
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, await getTimestamp());
+
+      expect(await rewardsDistributorDelegate.totalMint(RSTETH_THETA_GAUGE)).eq(
+        0
       );
+
       await cErc20.claimGaugeRewards();
+      await increaseTime(ONE_WEEK);
+      rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address);
 
       const token = await ethers.getContractAt("IERC20", RBN);
 
       expect(await token.balanceOf(cErc20.address)).eq(0);
-      expect(await rewardsDistributorDelegate.totalMint()).eq(0);
+      expect(await rewardsDistributorDelegate.totalMint(RSTETH_THETA_GAUGE)).eq(
+        0
+      );
     });
 
     it("it mints RBN and transfers to rewardsDistributorDelegate", async () => {
-      await cErc20.initialize(RSTETH_THETA_GAUGE);
-      await cErc20._setRewardsDistributor(rewardsDistributorDelegate.address);
-      await rewardsDistributorDelegate.initialize(
-        RBN,
-        await getTimestamp(),
-        BORROWER_PCT
-      );
+      await cErc20
+        .connect(sa.fundManager.signer)
+        .initialize(RSTETH_THETA_GAUGE);
+      await cErc20
+        .connect(sa.fundManager.signer)
+        ._setRewardsDistributor(rewardsDistributorDelegate.address);
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, await getTimestamp());
       await increaseTime(ONE_WEEK);
       await cErc20.claimGaugeRewards();
 
@@ -237,8 +270,10 @@ describe("Fuse Pool", () => {
         rewardsDistributorDelegate.address
       );
 
+      rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address);
+
       expect(rewardsDistributorDelegateBal).to.be.above(0);
-      expect(await rewardsDistributorDelegate.totalMint()).eq(
+      expect(await rewardsDistributorDelegate.totalMint(cErc20.address)).eq(
         rewardsDistributorDelegateBal
       );
       expect(await token.balanceOf(cErc20.address)).eq(0);
@@ -265,54 +300,161 @@ describe("Fuse Pool", () => {
     });
 
     it("it reverts when initialize called with invalid params", async () => {
-      expect(
-        await rewardsDistributorDelegate.initialize(RBN, 0, BORROWER_PCT)
-      ).to.be.revertedWith("Cannot initialize start time to the zero address.");
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager.signer)
+          .initialize(RBN, 0)
+      ).to.be.revertedWith("Cannot initialize start time to 0.");
     });
 
     it("it initializes", async () => {
       let startTime = await getTimestamp();
-      await rewardsDistributorDelegate.initialize(RBN, startTime, BORROWER_PCT);
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, startTime);
       expect(await rewardsDistributorDelegate.rewardToken()).eq(RBN);
       expect(await rewardsDistributorDelegate.startTime()).eq(startTime);
-      expect(await rewardsDistributorDelegate.borrowerPCT()).eq(BORROWER_PCT);
-      expect(await rewardsDistributorDelegate.supplierPCT()).eq(
-        (await rewardsDistributorDelegate.TOTAL_PCT()).sub(
-          await rewardsDistributorDelegate.borrowerPCT()
-        )
+      expect(await rewardsDistributorDelegate.avgBlocksPerWeek()).eq(
+        BigNumber.from(604800).div(13)
       );
     });
 
+    it("it reverts when BORROWER_PCT > TOTAL_PCT", async () => {
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager.signer)
+          ._setBorrowerPCT(
+            cErc20.address,
+            (await rewardsDistributorDelegate.TOTAL_PCT()).add(1)
+          )
+      ).to.be.revertedWith("Borrow + Supply PCT > 100%");
+    });
+
+    it("it reverts when SUPPLY_PCT > TOTAL_PCT", async () => {
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager.signer)
+          ._setSupplierPCT(
+            cErc20.address,
+            (await rewardsDistributorDelegate.TOTAL_PCT()).add(1)
+          )
+      ).to.be.revertedWith("Borrow + Supply PCT > 100%");
+    });
+
+    it("it reverts when BORROWER_PCT + SUPPLY_PCT > TOTAL_PCT (1)", async () => {
+      rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setBorrowerPCT(
+          cErc20.address,
+          await rewardsDistributorDelegate.TOTAL_PCT()
+        );
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager.signer)
+          ._setSupplierPCT(cErc20.address, 1)
+      ).to.be.revertedWith("Borrow + Supply PCT > 100%");
+    });
+
+    it("it reverts when BORROWER_PCT + SUPPLY_PCT > TOTAL_PCT (2)", async () => {
+      rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setSupplierPCT(
+          cErc20.address,
+          await rewardsDistributorDelegate.TOTAL_PCT()
+        );
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager.signer)
+          ._setBorrowerPCT(cErc20.address, 1)
+      ).to.be.revertedWith("Borrow + Supply PCT > 100%");
+    });
+
+    it("it reverts when BORROWER_PCT > TOTAL_PCT", async () => {
+      await expect(
+        rewardsDistributorDelegate
+          .connect(sa.fundManager.signer)
+          ._setBorrowerPCT(
+            cErc20.address,
+            (await rewardsDistributorDelegate.TOTAL_PCT()).add(1)
+          )
+      ).to.be.revertedWith("Borrow + Supply PCT > 100%");
+    });
+
     it("it sets BORROWER_PCT", async () => {
-      await rewardsDistributorDelegate._setBorrowerPCT(
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setBorrowerPCT(cErc20.address, BigNumber.from(BORROWER_PCT).div(2));
+      expect(await rewardsDistributorDelegate.borrowerPCT(cErc20.address)).eq(
         BigNumber.from(BORROWER_PCT).div(2)
       );
-      expect(await rewardsDistributorDelegate.supplierPCT()).eq(
-        (await rewardsDistributorDelegate.TOTAL_PCT()).sub(
-          await rewardsDistributorDelegate.borrowerPCT()
-        )
+    });
+
+    it("it sets SUPPLY_PCT", async () => {
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setSupplierPCT(cErc20.address, BigNumber.from(BORROWER_PCT).div(2));
+      expect(await rewardsDistributorDelegate.supplierPCT(cErc20.address)).eq(
+        BigNumber.from(BORROWER_PCT).div(2)
       );
     });
 
     it("it reverts when updating speed before WEEK elapsed", async () => {
-      await rewardsDistributorDelegate.initialize(
-        RBN,
-        await getTimestamp(),
-        BORROWER_PCT
-      );
-      expect(
-        await rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address)
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, await getTimestamp());
+      await expect(
+        rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address)
       ).to.be.revertedWith("Must be at least week since latest epoch");
     });
 
-    it("it updates speed of new epoch", async () => {
-      await cErc20.initialize(RSTETH_THETA_GAUGE);
-      await cErc20._setRewardsDistributor(rewardsDistributorDelegate.address);
-      await rewardsDistributorDelegate.initialize(
-        RBN,
-        await getTimestamp(),
-        BORROWER_PCT
+    it("it recovers asset", async () => {
+      await cErc20
+        .connect(sa.fundManager.signer)
+        .initialize(RSTETH_THETA_GAUGE);
+      await cErc20
+        .connect(sa.fundManager.signer)
+        ._setRewardsDistributor(rewardsDistributorDelegate.address);
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, await getTimestamp());
+
+      await increaseTime(ONE_WEEK);
+      await cErc20.claimGaugeRewards();
+
+      const token = await ethers.getContractAt("IERC20", RBN);
+
+      let rewardsDistributorDelegateBal = await token.balanceOf(
+        rewardsDistributorDelegate.address
       );
+
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._recoverAsset(RBN, rewardsDistributorDelegateBal);
+
+      expect(await token.balanceOf(sa.fundManager.address)).eq(
+        rewardsDistributorDelegateBal
+      );
+
+      expect(await token.balanceOf(rewardsDistributorDelegate.address)).eq(0);
+    });
+
+    it("it updates speed of new epoch", async () => {
+      await cErc20
+        .connect(sa.fundManager.signer)
+        .initialize(RSTETH_THETA_GAUGE);
+      await cErc20
+        .connect(sa.fundManager.signer)
+        ._setRewardsDistributor(rewardsDistributorDelegate.address);
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, await getTimestamp());
+
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setBorrowerPCT(cErc20.address, BigNumber.from(BORROWER_PCT).div(2));
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setSupplierPCT(cErc20.address, BORROWER_PCT);
       await increaseTime(ONE_WEEK);
       await cErc20.claimGaugeRewards();
 
@@ -322,21 +464,26 @@ describe("Fuse Pool", () => {
       );
 
       let prevStartTime = await rewardsDistributorDelegate.startTime();
-      let totalMint = await rewardsDistributorDelegate.totalMint();
       let lastEpochTotalMint =
-        await rewardsDistributorDelegate.lastEpochTotalMint();
-
-      let totalToDistribute = totalMint
-        .sub(lastEpochTotalMint)
-        .div(await rewardsDistributorDelegate.AVG_BLOCKS_PER_WEEK());
-      let toDistributeToBorrower = toDistribute
-        .mul(await rewardsDistributorDelegate.borrowerPCT())
-        .div(await rewardsDistributorDelegate.TOTAL_PCT());
-      let toDistributeToSupplier = totalToDistribute.sub(
-        toDistributeToBorrower
-      );
+        await rewardsDistributorDelegate.lastEpochTotalMint(cErc20.address);
 
       await rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address);
+
+      let totalMint = await rewardsDistributorDelegate.totalMint(
+        cErc20.address
+      );
+
+      let totalToDistribute = (
+        await rewardsDistributorDelegate.totalMint(cErc20.address)
+      )
+        .sub(lastEpochTotalMint)
+        .div(await rewardsDistributorDelegate.avgBlocksPerWeek());
+      let toDistributeToBorrower = totalToDistribute
+        .mul(await rewardsDistributorDelegate.borrowerPCT(cErc20.address))
+        .div(await rewardsDistributorDelegate.TOTAL_PCT());
+      let toDistributeToSupplier = totalToDistribute
+        .mul(await rewardsDistributorDelegate.supplierPCT(cErc20.address))
+        .div(await rewardsDistributorDelegate.TOTAL_PCT());
 
       expect(lastEpochTotalMint).eq(0);
       expect(totalMint).eq(rewardsDistributorDelegateBal);
@@ -344,21 +491,29 @@ describe("Fuse Pool", () => {
         prevStartTime.add(ONE_WEEK)
       );
       expect(
-        await rewardsDistributorDelegate.compSupplySpeeds(cErc20.address)
-      ).eq(toDistributeToSupplier);
-      expect(
         await rewardsDistributorDelegate.compBorrowSpeeds(cErc20.address)
       ).eq(toDistributeToBorrower);
+      expect(
+        await rewardsDistributorDelegate.compSupplySpeeds(cErc20.address)
+      ).eq(toDistributeToSupplier);
     });
 
     it("it updates speed of new epoch twice", async () => {
-      await cErc20.initialize(RSTETH_THETA_GAUGE);
-      await cErc20._setRewardsDistributor(rewardsDistributorDelegate.address);
-      await rewardsDistributorDelegate.initialize(
-        RBN,
-        await getTimestamp(),
-        BORROWER_PCT
-      );
+      await cErc20
+        .connect(sa.fundManager.signer)
+        .initialize(RSTETH_THETA_GAUGE);
+      await cErc20
+        .connect(sa.fundManager.signer)
+        ._setRewardsDistributor(rewardsDistributorDelegate.address);
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, await getTimestamp());
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setBorrowerPCT(cErc20.address, BigNumber.from(BORROWER_PCT).div(2));
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        ._setSupplierPCT(cErc20.address, BORROWER_PCT);
       await increaseTime(ONE_WEEK);
       await cErc20.claimGaugeRewards();
 
@@ -369,31 +524,38 @@ describe("Fuse Pool", () => {
         rewardsDistributorDelegate.address
       );
 
-      let totalMint = await rewardsDistributorDelegate.totalMint();
+      let totalMint = await rewardsDistributorDelegate.totalMint(
+        cErc20.address
+      );
 
       await increaseTime(ONE_WEEK);
-      await cErc20.claimGaugeRewards();
 
-      await rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address);
+      let lastEpochTotalMint =
+        await rewardsDistributorDelegate.lastEpochTotalMint(cErc20.address);
 
       expect(lastEpochTotalMint).eq(totalMint);
 
-      let prevStartTime = await rewardsDistributorDelegate.startTime();
-      let totalMint = await rewardsDistributorDelegate.totalMint();
-      let lastEpochTotalMint =
-        await rewardsDistributorDelegate.lastEpochTotalMint();
+      await cErc20.claimGaugeRewards();
 
-      let totalToDistribute = totalMint
-        .sub(lastEpochTotalMint)
-        .div(await rewardsDistributorDelegate.AVG_BLOCKS_PER_WEEK());
-      let toDistributeToBorrower = toDistribute
-        .mul(await rewardsDistributorDelegate.borrowerPCT())
-        .div(await rewardsDistributorDelegate.TOTAL_PCT());
-      let toDistributeToSupplier = totalToDistribute.sub(
-        toDistributeToBorrower
+      let prevStartTime = await rewardsDistributorDelegate.startTime();
+
+      await rewardsDistributorDelegate.updateSpeedWithNewEpoch(cErc20.address);
+
+      let totalMint2 = await rewardsDistributorDelegate.totalMint(
+        cErc20.address
       );
 
-      expect(totalMint).to.be.above(rewardsDistributorDelegateBal);
+      let totalToDistribute = totalMint2
+        .sub(lastEpochTotalMint)
+        .div(await rewardsDistributorDelegate.avgBlocksPerWeek());
+      let toDistributeToBorrower = totalToDistribute
+        .mul(await rewardsDistributorDelegate.borrowerPCT(cErc20.address))
+        .div(await rewardsDistributorDelegate.TOTAL_PCT());
+      let toDistributeToSupplier = totalToDistribute
+        .mul(await rewardsDistributorDelegate.supplierPCT(cErc20.address))
+        .div(await rewardsDistributorDelegate.TOTAL_PCT());
+
+      expect(totalMint2).to.be.above(rewardsDistributorDelegateBal);
       expect(await rewardsDistributorDelegate.startTime()).eq(
         prevStartTime.add(ONE_WEEK)
       );
@@ -415,14 +577,22 @@ describe("Fuse Pool", () => {
       const token = await ethers.getContractAt("IERC20", RBN);
       let amountToBurn = BigNumber.from(22).mul(BigNumber.from(10).pow(18));
 
+      await rewardsDistributorDelegate
+        .connect(sa.fundManager.signer)
+        .initialize(RBN, 1);
+
       await token
         .connect(owner)
         .approve(rewardsDistributorDelegate.address, amountToBurn);
-      await rewardsDistributorDelegate.connect(owner).burn(amountToBurn);
+      await rewardsDistributorDelegate
+        .connect(owner)
+        .burn(cErc20.address, amountToBurn);
       expect(await token.balanceOf(rewardsDistributorDelegate.address)).eq(
         amountToBurn
       );
-      expect(await rewardsDistributorDelegate.totalMint()).eq(amountToBurn);
+      expect(await rewardsDistributorDelegate.totalMint(cErc20.address)).eq(
+        amountToBurn
+      );
     });
   });
 });
