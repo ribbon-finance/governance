@@ -19,7 +19,8 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.VOTINGESCROW
       : MAIN_RIBBONOMICS_DIR.VOTINGESCROW;
 
-  const start_time = network === "kovan"
+  const start_time =
+    network === "kovan"
       ? TEST_RIBBONOMICS_DIR.PENALTYDISTRIBUTOR_START_TIME
       : MAIN_RIBBONOMICS_DIR.PENALTYDISTRIBUTOR_START_TIME;
 
@@ -35,7 +36,6 @@ async function main() {
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.E_ADMIN;
 
   console.log("voting_escrow", voting_escrow);
-  console.log("verbn_rewards", verbn_rewards);
   console.log("start_time", start_time.toString());
   console.log("token", token);
   console.log("o_admin", o_admin);
@@ -43,7 +43,6 @@ async function main() {
 
   const penaltyDistributor = await PenaltyDistributor.deploy(
     voting_escrow,
-    verbn_rewards,
     start_time,
     token,
     o_admin,
@@ -60,14 +59,7 @@ async function main() {
 
   await hre.run("verify:verify", {
     address: penaltyDistributor.address,
-    constructorArguments: [
-      voting_escrow,
-      verbn_rewards,
-      start_time,
-      token,
-      o_admin,
-      e_admin,
-    ],
+    constructorArguments: [voting_escrow, start_time, token, o_admin, e_admin],
   });
 }
 
