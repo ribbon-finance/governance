@@ -7,7 +7,11 @@ interface RibbonMinter {
 }
 
 interface RewardsDistributor {
-  function burn(address cToken, uint256 amount) external;
+  function burn(
+    address cToken,
+    uint256 amount,
+    bool burnStables
+  ) external;
 }
 
 /**
@@ -94,6 +98,6 @@ contract TestCErc20 {
      * to DAI / USDC suppliers
      */
 
-    rewardsDistributor.burn(address(this), toDistribute);
+    rewardsDistributor.burn(address(this), toDistribute, true);
   }
 }
