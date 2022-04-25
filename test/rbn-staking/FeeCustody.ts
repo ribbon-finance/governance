@@ -25,11 +25,13 @@ import {
   WSTETH_ADDRESS,
   WBTC_ADDRESS,
   USDC_ADDRESS,
+  YVUSDC_ADDRESS,
   AAVE_ADDRESS,
   WETH_OWNER_ADDRESS,
   WSTETH_OWNER_ADDRESS,
   WBTC_OWNER_ADDRESS,
   USDC_OWNER_ADDRESS,
+  YVUSDC_OWNER_ADDRESS,
   AAVE_OWNER_ADDRESS,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
@@ -62,9 +64,9 @@ const ASSET_DEPOSITS_OWNERS: { [key: string]: [string, BigNumber] } = {
     WBTC_OWNER_ADDRESS,
     BigNumber.from(10).mul(BigNumber.from(10).pow(8)),
   ],
-  [USDC_ADDRESS]: [
-    USDC_OWNER_ADDRESS,
-    BigNumber.from(1000).mul(BigNumber.from(10).pow(6)),
+  [YVUSDC_ADDRESS]: [
+    YVUSDC_OWNER_ADDRESS,
+    BigNumber.from(500000).mul(BigNumber.from(10).pow(6)),
   ],
   [AAVE_ADDRESS]: [
     AAVE_OWNER_ADDRESS,
@@ -76,7 +78,7 @@ const ASSET_TO_CHAINLINK: { [key: string]: string } = {
   [WETH_ADDRESS]: ETH_PRICE_ORACLE,
   [WSTETH_ADDRESS]: ETH_PRICE_ORACLE,
   [WBTC_ADDRESS]: BTC_PRICE_ORACLE,
-  [USDC_ADDRESS]: USDC_PRICE_ORACLE,
+  [YVUSDC_ADDRESS]: USDC_PRICE_ORACLE,
   [AAVE_ADDRESS]: AAVE_PRICE_ORACLE,
 };
 
@@ -95,7 +97,7 @@ describe("Fee Custody", () => {
         {
           forking: {
             jsonRpcUrl: TEST_URI,
-            blockNumber: 14485500,
+            blockNumber: 14624943,
           },
         },
       ],
@@ -204,6 +206,12 @@ describe("Fee Custody", () => {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
+    it("it reverts when non-owner calls setYVUSDC", async () => {
+      await expect(
+        feeCustody.connect(sa.other.signer).setYVUSDC(ZERO_ADDRESS)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
     it("it reverts when non-owner calls setDistributionToken", async () => {
       await expect(
         feeCustody.connect(sa.other.signer).setDistributionToken(ZERO_ADDRESS)
@@ -234,6 +242,7 @@ describe("Fee Custody", () => {
   describe("Setters", () => {
     // setAsset
     // setFeeDistributor
+    // setYVUSDC
     // setDistributionToken
     // setProtocolRevenueRecipient
     // setRBNLockerAllocPCT
@@ -245,6 +254,12 @@ describe("Fee Custody", () => {
           .connect(sa.fundManager.signer)
           .setFeeDistributor(ZERO_ADDRESS)
       ).to.be.revertedWith("!_feeDistributor");
+    });
+
+    it("it reverts when setting ZERO_ADDRESS as yvUSDC", async () => {
+      await expect(
+        feeCustody.connect(sa.fundManager.signer).setYVUSDC(ZERO_ADDRESS)
+      ).to.be.revertedWith("!_yvUSDC");
     });
 
     it("it reverts when setting ZERO_ADDRESS as distributionToken", async () => {
@@ -335,6 +350,12 @@ describe("Fee Custody", () => {
       expect(await feeCustody.feeDistributor()).eq(DEX_ROUTER);
     });
 
+    it("it sets yvUSDC", async () => {
+      await feeCustody.connect(sa.fundManager.signer).setYVUSDC(DEX_ROUTER);
+
+      expect(await feeCustody.yvUSDC()).eq(DEX_ROUTER);
+    });
+
     it("it sets distributionToken", async () => {
       await feeCustody
         .connect(sa.fundManager.signer)
@@ -384,6 +405,28 @@ describe("Fee Custody", () => {
       await expect(txn)
         .to.emit(feeCustody, "NewAsset")
         .withArgs(USDC_ADDRESS, pathEncodePacked);
+    });
+
+    it("it sets setAsset for YVUSDC", async () => {
+      let txn = await feeCustody
+        .connect(sa.fundManager.signer)
+        .setAsset(YVUSDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_LARGE_FEE]);
+
+      expect(await feeCustody.assets(0)).eq(YVUSDC_ADDRESS);
+      expect(await feeCustody.oracles(YVUSDC_ADDRESS)).eq(USDC_PRICE_ORACLE);
+
+      let pathEncodePacked = ethers.utils.solidityPack(
+        ["address", "uint24", "address"],
+        [USDC_ADDRESS, POOL_LARGE_FEE, WETH_ADDRESS]
+      );
+
+      expect(await feeCustody.intermediaryPath(YVUSDC_ADDRESS)).eq(
+        pathEncodePacked
+      );
+
+      await expect(txn)
+        .to.emit(feeCustody, "NewAsset")
+        .withArgs(YVUSDC_ADDRESS, pathEncodePacked);
     });
 
     it("it sets setAsset with intermediaryPath", async () => {
@@ -459,7 +502,7 @@ describe("Fee Custody", () => {
 
       await feeCustody
         .connect(sa.fundManager.signer)
-        .setAsset(USDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
+        .setAsset(YVUSDC_ADDRESS, USDC_PRICE_ORACLE, [], [POOL_SMALL_FEE]);
 
       await feeCustody
         .connect(sa.fundManager.signer)
@@ -527,16 +570,28 @@ describe("Fee Custody", () => {
         );
         const token = await ethers.getContractAt("ERC20", asset);
 
-        let bal = (await token.balanceOf(feeCustody.address)).mul(
+        let bal = await token.balanceOf(feeCustody.address);
+
+        if (asset == WSTETH_ADDRESS) {
+          const wsteth = await ethers.getContractAt("IWSTETH", asset);
+          bal = await wsteth.getStETHByWstETH(bal);
+        } else if (asset == YVUSDC_ADDRESS) {
+          const yvusdc = await ethers.getContractAt("IYVUSDC", asset);
+          bal = bal
+            .mul(await yvusdc.pricePerShare())
+            .div(BigNumber.from(10).pow(6));
+        }
+
+        let balance = bal.mul(
           BigNumber.from(10).pow(BigNumber.from(18).sub(await token.decimals()))
         );
 
         if (asset == WETH_ADDRESS) {
-          bal = bal.add(await provider.getBalance(feeCustody.address));
+          balance = balance.add(await provider.getBalance(feeCustody.address));
         }
 
         totalInUSD = totalInUSD.add(
-          BigNumber.from(bal)
+          BigNumber.from(balance)
             .mul(await oracle.latestAnswer())
             .mul(allocPCT)
             .div(BigNumber.from(10).pow(8))
@@ -562,16 +617,28 @@ describe("Fee Custody", () => {
         );
         const token = await ethers.getContractAt("ERC20", asset);
 
-        let bal = (await token.balanceOf(feeCustody.address)).mul(
+        let bal = await token.balanceOf(feeCustody.address);
+
+        if (asset == WSTETH_ADDRESS) {
+          const wsteth = await ethers.getContractAt("IWSTETH", asset);
+          bal = await wsteth.getStETHByWstETH(bal);
+        } else if (asset == YVUSDC_ADDRESS) {
+          const yvusdc = await ethers.getContractAt("IYVUSDC", asset);
+          bal = bal
+            .mul(await yvusdc.pricePerShare())
+            .div(BigNumber.from(10).pow(6));
+        }
+
+        let balance = bal.mul(
           BigNumber.from(10).pow(BigNumber.from(18).sub(await token.decimals()))
         );
 
         if (asset == WETH_ADDRESS) {
-          bal = bal.add(await provider.getBalance(feeCustody.address));
+          balance = balance.add(await provider.getBalance(feeCustody.address));
         }
 
         totalInUSD = totalInUSD.add(
-          BigNumber.from(bal)
+          BigNumber.from(balance)
             .mul(await oracle.latestAnswer())
             .mul(allocPCT)
             .div(BigNumber.from(10).pow(8))
