@@ -13,6 +13,7 @@ import {
   WSTETH_ADDRESS,
   WBTC_ADDRESS,
   USDC_ADDRESS,
+  YVUSDC_ADDRESS,
   AAVE_ADDRESS,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
@@ -83,7 +84,7 @@ async function main() {
   await feeCustody.setAsset(WSTETH_ADDRESS, ETH_PRICE_ORACLE, [], [0]);
 
   await feeCustody.setAsset(
-    USDC_ADDRESS,
+    YVUSDC_ADDRESS,
     USDC_PRICE_ORACLE,
     [],
     [POOL_SMALL_FEE]
