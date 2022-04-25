@@ -15,7 +15,7 @@ async function main() {
   let tokens = [
     "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wsteth
     "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // wbtc
-    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // usdc
+    "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE", // yvusdc
     "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", // aave
   ];
   let balancesBefore = [];
