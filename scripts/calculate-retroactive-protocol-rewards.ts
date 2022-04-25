@@ -45,9 +45,12 @@ async function main() {
 
   for (var i = 0; i < balancesBefore.length; i++) {
     console.log(
-      `Balance in multisig in asset ${balancesBefore[i][0]} is ${balancesAfter[
-        i
-      ].sub(balancesBefore[i][1])}`
+      `Retroactive protocol revenue allocation for asset ${
+        balancesBefore[i][0]
+      } is ${balancesAfter[i]
+        .sub(balancesBefore[i][1])
+        .mul(BigNumber.from(5))
+        .div(BigNumber.from(10))}`
     );
   }
 }
