@@ -1,0 +1,74 @@
+const hre = require("hardhat");
+const { DAO_MULTISIG } = require("../params");
+const { ethers } = hre;
+const { provider, BigNumber } = ethers;
+import { currentTime, toUnit, fastForward } from "../test/utils";
+import { network } from "hardhat";
+
+let START_BLOCK = 14119000;
+let END_BLOCK = 14650403;
+let AMOUNT_FOR_GAMMA_UNIV3_SEED = BigNumber.from("500000").mul(
+  BigNumber.from(10).pow(18)
+);
+
+async function main() {
+  // Reset block
+  // await network.provider.send("evm_setNextBlockTimestamp", [START_BLOCK])
+  // await ethers.provider.send("evm_mine", []);
+
+  let tokens = [
+    "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+    "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+  ];
+  let balancesBefore = [];
+  let balancesAfter = [];
+
+  for (var token of tokens) {
+    const asset = await ethers.getContractAt("ERC20", token);
+    let symbol = await asset.symbol();
+    let bal = await asset.balanceOf(DAO_MULTISIG, { blockTag: START_BLOCK });
+    console.log(`Start bal of asset ${symbol} is ${bal}`);
+    balancesBefore.push([symbol, bal]);
+  }
+
+  balancesBefore.push([
+    "ETH",
+    (await provider.getBalance(DAO_MULTISIG, [START_BLOCK])).sub(
+      AMOUNT_FOR_GAMMA_UNIV3_SEED
+    ),
+  ]);
+
+  // Reset block
+  // await network.provider.send("evm_setNextBlockTimestamp", [END_BLOCK])
+  // await ethers.provider.send("evm_mine", []);
+
+  for (var token of tokens) {
+    const asset = await ethers.getContractAt("ERC20", token);
+    let bal = await asset.balanceOf(DAO_MULTISIG, { blockTag: END_BLOCK });
+    console.log(`End bal of asset is ${bal}`);
+    balancesAfter.push(bal);
+  }
+
+  balancesAfter.push(
+    await provider.getBalance(DAO_MULTISIG, { blockTag: END_BLOCK })
+  );
+
+  for (var i = 0; i < balancesBefore.length; i++) {
+    console.log(
+      `Balance in multisig in asset ${balancesBefore[i][0]} is ${balancesAfter[
+        i
+      ].sub(balancesBefore[i][1])}`
+    );
+  }
+}
+
+// We recommend this pattern to be able to use async/await everywhere
+// and properly handle errors.
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
