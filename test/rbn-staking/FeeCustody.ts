@@ -735,6 +735,16 @@ describe("Fee Custody", () => {
     });
 
     it("it recovers multiple assets", async () => {
+      let ethSent = ethers.utils.parseEther("1.0");
+      let ethBalBefore = await provider.getBalance(sa.fundManager.address);
+
+      await sa.fundManager.signer.sendTransaction({
+        to: feeCustody.address,
+        value: ethSent,
+      });
+
+      expect(await provider.getBalance(feeCustody.address)).eq(ethSent);
+
       let txn = await feeCustody
         .connect(sa.fundManager.signer)
         .recoverAllAssets();
@@ -750,6 +760,15 @@ describe("Fee Custody", () => {
           ASSET_BALANCES_BEFORE[asset][0].add(ASSET_BALANCES_BEFORE[asset][1])
         );
       }
+
+      expect(await provider.getBalance(feeCustody.address)).eq(0);
+      // account for eth paid for recoverAllAssets tx
+      expect(await provider.getBalance(sa.fundManager.address)).to.be.below(
+        ethBalBefore.add(ethSent)
+      );
+      expect(await provider.getBalance(sa.fundManager.address)).to.be.above(
+        ethBalBefore.add(ethSent).mul(99).div(100)
+      );
     });
   });
 });

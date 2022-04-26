@@ -390,6 +390,14 @@ contract FeeCustody is Ownable {
       asset.safeTransfer(protocolRevenueRecipient, bal);
       emit RecoveredAsset(_asset);
     }
+
+    // Recover ETH as well
+    if (_asset == WETH) {
+      uint256 ethBal = address(this).balance;
+      if (ethBal > 0) {
+        payable(protocolRevenueRecipient).transfer(ethBal);
+      }
+    }
   }
 
   /**
