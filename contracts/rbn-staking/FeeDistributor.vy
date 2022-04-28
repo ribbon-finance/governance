@@ -295,22 +295,6 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> (uint256, u
 
     return (to_distribute, user_epoch, week_cursor, max_user_epoch, True)
 
-@view
-@external
-def claimable(addr: address = msg.sender) -> uint256:
-    """
-    @notice Get the claimable revenue (approximation)
-    @param addr Address to query balance for
-    @return uint256 Claimable revenue
-    """
-    claimable: uint256 = 0
-    user_epoch: uint256 = 0
-    week_cursor: uint256 = 0
-    max_user_epoch: uint256 = 0
-    is_update: bool = True
-    claimable, user_epoch, week_cursor, max_user_epoch, is_update = self._claim(addr, self.voting_escrow,  self.last_token_time / WEEK * WEEK)
-    return claimable
-
 @external
 @nonreentrant('lock')
 def claim(_addr: address = msg.sender) -> uint256:
@@ -503,5 +487,19 @@ def recover_balance(_coin: address) -> bool:
     )
     if len(response) != 0:
         assert convert(response, bool)
+
+    return True
+
+@external
+@payable
+def recover_eth_balance() -> bool:
+    """
+    @notice Recover ETH from this contract
+    @dev ETH sent to the emergency return address.
+    @return bool success
+    """
+    assert msg.sender == self.admin
+
+    send(self.emergency_return, self.balance)
 
     return True
