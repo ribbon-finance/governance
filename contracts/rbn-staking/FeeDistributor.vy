@@ -18,6 +18,9 @@ interface VotingEscrow:
 interface WETH:
     def withdraw(wad: uint256): nonpayable
 
+event SetEmergencyReturn:
+    admin: address
+
 event CommitAdmin:
     admin: address
 
@@ -416,6 +419,15 @@ def burn(_coin: address, _amount: uint256) -> bool:
 
     return True
 
+@external
+def set_emergency_return(_addr: address):
+    """
+    @notice Set new emergency return address
+    @param _addr New emergency return address
+    """
+    assert msg.sender == self.admin  # dev: access denied
+    self.emergency_return = _addr
+    log SetEmergencyReturn(_addr)
 
 @external
 def commit_admin(_addr: address):
