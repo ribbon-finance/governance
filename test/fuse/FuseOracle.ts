@@ -73,7 +73,7 @@ describe("VaultPriceOracle", function () {
     });
 
     VaultPriceOracle = await ethers.getContractFactory("VaultPriceOracle");
-    CToken = await ethers.getContractFactory("CToken");
+    CToken = await ethers.getContractFactory("TestCToken");
     oracles = [];
     liquidityGauges = [];
     ribbonVaults = [];
