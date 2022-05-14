@@ -13,6 +13,7 @@ import {
   WSTETH_ADDRESS,
   WBTC_ADDRESS,
   USDC_ADDRESS,
+  YVUSDC_ADDRESS,
   AAVE_ADDRESS,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
@@ -73,37 +74,54 @@ async function main() {
 
   await feeCustody.deployTransaction.wait(5);
 
-  await feeCustody.setAsset(
+  let tx = await feeCustody.setAsset(
     WETH_ADDRESS,
     ETH_PRICE_ORACLE,
     [],
     [POOL_LARGE_FEE]
   );
 
-  await feeCustody.setAsset(WSTETH_ADDRESS, ETH_PRICE_ORACLE, [], [0]);
+  await tx.wait();
 
-  await feeCustody.setAsset(
-    USDC_ADDRESS,
+  let tx2 = await feeCustody.setAsset(
+    WSTETH_ADDRESS,
+    ETH_PRICE_ORACLE,
+    [],
+    [0]
+  );
+
+  await tx2.wait();
+
+  let tx3 = await feeCustody.setAsset(
+    YVUSDC_ADDRESS,
     USDC_PRICE_ORACLE,
     [],
     [POOL_SMALL_FEE]
   );
 
-  await feeCustody.setAsset(
+  await tx3.wait();
+
+  let tx4 = await feeCustody.setAsset(
     WBTC_ADDRESS,
     BTC_PRICE_ORACLE,
     [],
     [POOL_SMALL_FEE]
   );
 
-  await feeCustody.setAsset(
+  await tx4.wait();
+
+  let tx5 = await feeCustody.setAsset(
     AAVE_ADDRESS,
     AAVE_PRICE_ORACLE,
     [],
     [POOL_LARGE_FEE]
   );
 
-  await feeCustody.transferOwnership(admin);
+  await tx5.wait();
+
+  let tx6 = await feeCustody.transferOwnership(admin);
+
+  await tx6.wait();
 
   await hre.run("verify:verify", {
     address: feeCustody.address,

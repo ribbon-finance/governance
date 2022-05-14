@@ -10,6 +10,7 @@ import "../interfaces/IChainlink.sol";
 import "../interfaces/IWETH.sol";
 import "../interfaces/IWSTETH.sol";
 import "../interfaces/ICRV.sol";
+import "../interfaces/IYVUSDC.sol";
 import "../interfaces/ISwapRouter.sol";
 
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
@@ -24,6 +25,8 @@ contract FeeCustody is Ownable {
   address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   address public constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
   address public constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+  address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+  address public yvUSDC = 0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE;
 
   // WETH Distribution Token
   IERC20 public distributionToken = IERC20(WETH);
@@ -59,6 +62,7 @@ contract FeeCustody is Ownable {
   event NewAsset(address asset, bytes intermediaryPath);
   event RecoveredAsset(address asset);
   event NewFeeDistributor(address feeDistributor);
+  event NewYVUSDC(address yvUSDC);
   event NewRBNLockerAllocation(uint256 pctAllocationForRBNLockers);
   event NewDistributionToken(address distributionToken);
   event NewProtocolRevenueRecipient(address protocolRevenueRecipient);
@@ -218,8 +222,15 @@ contract FeeCustody is Ownable {
 
       ERC20 asset = ERC20(assets[i]);
 
-      uint256 balance = asset.balanceOf(address(this)) *
-        (10**(18 - asset.decimals()));
+      uint256 bal = asset.balanceOf(address(this));
+
+      if (assets[i] == WSTETH) {
+        bal = IWSTETH(assets[i]).getStETHByWstETH(bal);
+      } else if (assets[i] == yvUSDC) {
+        bal = (bal * IYVUSDC(assets[i]).pricePerShare()) / 10**6;
+      }
+
+      uint256 balance = bal * (10**(18 - asset.decimals()));
 
       if (assets[i] == WETH) {
         balance += address(this).balance;
@@ -260,7 +271,16 @@ contract FeeCustody is Ownable {
       return;
     }
 
-    TransferHelper.safeApprove(_asset, address(UNIV3_SWAP_ROUTER), _amountIn);
+    if (_asset == yvUSDC) {
+      TransferHelper.safeApprove(_asset, yvUSDC, _amountIn);
+      _amountIn = IYVUSDC(yvUSDC).withdraw(_amountIn);
+    }
+
+    TransferHelper.safeApprove(
+      _asset != yvUSDC ? _asset : USDC,
+      address(UNIV3_SWAP_ROUTER),
+      _amountIn
+    );
 
     ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
       path: intermediaryPath[_asset],
@@ -317,7 +337,7 @@ contract FeeCustody is Ownable {
     // where tokenIn/tokenOut parameter is the shared token across the pools.
     if (_pathLen > 0) {
       intermediaryPath[_asset] = abi.encodePacked(
-        _asset,
+        _asset != yvUSDC ? _asset : USDC,
         _poolFees[0],
         _intermediaryPath[0],
         _poolFees[1],
@@ -325,7 +345,7 @@ contract FeeCustody is Ownable {
       );
     } else {
       intermediaryPath[_asset] = abi.encodePacked(
-        _asset,
+        _asset != yvUSDC ? _asset : USDC,
         _poolFees[0],
         address(distributionToken)
       );
@@ -370,6 +390,14 @@ contract FeeCustody is Ownable {
       asset.safeTransfer(protocolRevenueRecipient, bal);
       emit RecoveredAsset(_asset);
     }
+
+    // Recover ETH as well
+    if (_asset == WETH) {
+      uint256 ethBal = address(this).balance;
+      if (ethBal > 0) {
+        payable(protocolRevenueRecipient).transfer(ethBal);
+      }
+    }
   }
 
   /**
@@ -382,6 +410,18 @@ contract FeeCustody is Ownable {
     require(_feeDistributor != address(0), "!_feeDistributor");
     feeDistributor = IFeeDistributor(_feeDistributor);
     emit NewFeeDistributor(_feeDistributor);
+  }
+
+  /**
+   * @notice
+   * set yvusdc
+   * @dev Can be called by admin
+   * @param _yvUSDC new yvusdc address for new version
+   */
+  function setYVUSDC(address _yvUSDC) external onlyOwner {
+    require(_yvUSDC != address(0), "!_yvUSDC");
+    yvUSDC = _yvUSDC;
+    emit NewYVUSDC(_yvUSDC);
   }
 
   /**

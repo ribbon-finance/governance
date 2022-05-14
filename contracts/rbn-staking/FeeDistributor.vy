@@ -18,6 +18,9 @@ interface VotingEscrow:
 interface WETH:
     def withdraw(wad: uint256): nonpayable
 
+event SetEmergencyReturn:
+    admin: address
+
 event CommitAdmin:
     admin: address
 
@@ -295,22 +298,6 @@ def _claim(addr: address, ve: address, _last_token_time: uint256) -> (uint256, u
 
     return (to_distribute, user_epoch, week_cursor, max_user_epoch, True)
 
-@view
-@external
-def claimable(addr: address = msg.sender) -> uint256:
-    """
-    @notice Get the claimable revenue (approximation)
-    @param addr Address to query balance for
-    @return uint256 Claimable revenue
-    """
-    claimable: uint256 = 0
-    user_epoch: uint256 = 0
-    week_cursor: uint256 = 0
-    max_user_epoch: uint256 = 0
-    is_update: bool = True
-    claimable, user_epoch, week_cursor, max_user_epoch, is_update = self._claim(addr, self.voting_escrow,  self.last_token_time / WEEK * WEEK)
-    return claimable
-
 @external
 @nonreentrant('lock')
 def claim(_addr: address = msg.sender) -> uint256:
@@ -432,6 +419,15 @@ def burn(_coin: address, _amount: uint256) -> bool:
 
     return True
 
+@external
+def set_emergency_return(_addr: address):
+    """
+    @notice Set new emergency return address
+    @param _addr New emergency return address
+    """
+    assert msg.sender == self.admin  # dev: access denied
+    self.emergency_return = _addr
+    log SetEmergencyReturn(_addr)
 
 @external
 def commit_admin(_addr: address):
@@ -503,5 +499,19 @@ def recover_balance(_coin: address) -> bool:
     )
     if len(response) != 0:
         assert convert(response, bool)
+
+    return True
+
+@external
+@payable
+def recover_eth_balance() -> bool:
+    """
+    @notice Recover ETH from this contract
+    @dev ETH sent to the emergency return address.
+    @return bool success
+    """
+    assert msg.sender == self.admin
+
+    send(self.emergency_return, self.balance)
 
     return True
