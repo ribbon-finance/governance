@@ -48,7 +48,7 @@ async function main() {
   console.log("adminFeeMantissa", adminFeeMantissa);
 
   let tx = await cERC20.initialize(
-    underyling,
+    underlying,
     comptroller,
     interestRateModel,
     name,
