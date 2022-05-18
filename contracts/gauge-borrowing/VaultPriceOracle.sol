@@ -173,7 +173,7 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
         uint256(tokenUsdPrice).mul(10**(18 - feed.decimals())),
         rVaultToAssetExchangeRate.mul(10**(18 - rVaultDecimals))
       );
-      return DSMath.wdiv(tokenUsdPriceInAsset, uint256(ethUsdPrice));
+      return tokenUsdPriceInAsset.mul(10**8).div(uint256(ethUsdPrice));
     }
 
     return 0;
