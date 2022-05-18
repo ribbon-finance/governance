@@ -3,7 +3,7 @@ const {
   MAIN_RIBBONOMICS_DIR,
   TEST_RIBBONOMICS_DIR,
   DAO_MULTISIG,
-} = require("../../params");
+} = require("../../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 
