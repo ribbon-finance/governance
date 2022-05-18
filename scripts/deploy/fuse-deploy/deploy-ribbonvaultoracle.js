@@ -3,7 +3,7 @@ const {
   MAIN_RIBBONOMICS_DIR,
   TEST_RIBBONOMICS_DIR,
   DAO_MULTISIG,
-} = require("../../params");
+} = require("../../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 
@@ -47,7 +47,7 @@ async function main() {
 
   const feed = await vaultPriceOracle.ETH_ETH_PRICE_FEED();
 
-  const baseCurrency = 1;
+  const baseCurrency = 0;
 
   let tx = await vaultPriceOracle.setPriceFeeds(
     [underlying],
