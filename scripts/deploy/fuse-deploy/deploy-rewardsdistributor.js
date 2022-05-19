@@ -6,7 +6,7 @@ const {
 } = require("../../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
-const { getTimestamp } = require("../../test/utils/time");
+const { getTimestamp } = require("../../../test/utils/time");
 
 async function main() {
   const [, deployer] = await hre.ethers.getSigners();
@@ -42,28 +42,28 @@ async function main() {
 
   console.log("rewardToken", rewardToken);
   console.log("startTime", startTime);
-
-  let tx = await rewardsDistributorDelegate.initialize(rewardToken, startTime);
-
-  await tx.wait();
-
-  let tx2 = await rewardsDistributorDelegate._setSupplierPCT(
-    rethThetaCtoken,
-    rethThetaSupplierPCT
-  );
-
-  await tx2.wait();
-
-  let tx3 = await rewardsDistributorDelegate._addStable(usdcCtoken);
-
-  await tx3.wait();
-
-  let tx4 = await rewardsDistributorDelegate._setSupplierPCT(
-    usdcCtoken,
-    usdcSupplierPCT
-  );
-
-  await tx4.wait();
+  //
+  // let tx = await rewardsDistributorDelegate.initialize(rewardToken, startTime);
+  //
+  // await tx.wait();
+  //
+  // let tx2 = await rewardsDistributorDelegate._setSupplierPCT(
+  //   rethThetaCtoken,
+  //   rethThetaSupplierPCT
+  // );
+  //
+  // await tx2.wait();
+  //
+  // let tx3 = await rewardsDistributorDelegate._addStable(usdcCtoken);
+  //
+  // await tx3.wait();
+  //
+  // let tx4 = await rewardsDistributorDelegate._setSupplierPCT(
+  //   usdcCtoken,
+  //   usdcSupplierPCT
+  // );
+  //
+  // await tx4.wait();
 
   await hre.run("verify:verify", {
     address: rewardsDistributorDelegate.address,
