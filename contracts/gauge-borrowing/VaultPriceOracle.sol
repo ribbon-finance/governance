@@ -167,13 +167,13 @@ contract VaultPriceOracle is IPriceOracle, IBasePriceOracle {
       int256 ethUsdPrice = _feedPrice(ETH_USD_PRICE_FEED);
       if (ethUsdPrice <= 0) return 0;
       int256 tokenUsdPrice = _feedPrice(feed);
-      if (tokenUsdPrice < 0) return 0;
+      if (tokenUsdPrice <= 0) return 0;
 
       uint256 tokenUsdPriceInAsset = DSMath.wmul(
         uint256(tokenUsdPrice).mul(10**(18 - feed.decimals())),
         rVaultToAssetExchangeRate.mul(10**(18 - rVaultDecimals))
       );
-      return tokenUsdPriceInAsset.div(uint256(ethUsdPrice));
+      return tokenUsdPriceInAsset.mul(10**8).div(uint256(ethUsdPrice));
     }
 
     return 0;
