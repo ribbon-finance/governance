@@ -430,7 +430,6 @@ def donate(_amount: uint256) -> bool:
     @return bool success
     """
     assert _amount != 0
-    assert msg.sender == self.voting_escrow #dev: must be voting escrow
 
     ERC20(self.token).transferFrom(msg.sender, self, _amount)
 
