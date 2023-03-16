@@ -78,7 +78,7 @@ def __init__(
     _rebate_addrs: address[1000],
     _rebates: uint256[1000]
     _admin: address,
-    _emergency_return: address,
+    _emergency_return: address
 ):
     """
     @notice Contract constructor
