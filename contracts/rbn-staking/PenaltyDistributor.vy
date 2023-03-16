@@ -76,7 +76,7 @@ def __init__(
     _token: address,
     _penalty_rebate_expiry: uint256,
     _rebate_addrs: address[1000],
-    _rebates: uint256[1000]
+    _rebates: uint256[1000],
     _admin: address,
     _emergency_return: address
 ):
