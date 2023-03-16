@@ -73,23 +73,23 @@ def __init__(
     _voting_escrow: address,
     _start_time: uint256,
     _token: address,
-    _admin: address,
-    _emergency_return: address,
     _penalty_rebate_expiry: uint256,
     _rebate_addrs: address[1000],
     _rebates: uint256[1000]
+    _admin: address,
+    _emergency_return: address,
 ):
     """
     @notice Contract constructor
     @param _voting_escrow VotingEscrow contract address
     @param _start_time Epoch time for fee distribution to start
     @param _token Fee token address (RBN)
-    @param _admin Admin address
-    @param _emergency_return Address to transfer `_token` balance to
-                             if this contract is killed
     @param _penalty_rebate_expiry Timestamp when all rebates expire
     @param _rebate_addrs Addresses that receive unlock penalty rebate
     @param _rebates Rebate values
+    @param _admin Admin address
+    @param _emergency_return Address to transfer `_token` balance to
+                             if this contract is killed
     """
     t: uint256 = _start_time / WEEK * WEEK
     self.start_time = t
@@ -97,10 +97,10 @@ def __init__(
     self.time_cursor = t
     self.token = _token
     self.voting_escrow = _voting_escrow
+    self.penalty_rebate_expiry = _penalty_rebate_expiry
     self.admin = _admin
     self.emergency_return = _emergency_return
     self.can_checkpoint_token = True
-    self.penalty_rebate_expiry = _penalty_rebate_expiry
 
     for i in range(1000):
       if(_rebate_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
