@@ -438,7 +438,7 @@ def donate(_amount: uint256) -> bool:
         # Penalty rebate is how much we need to give back to the user
         # To achieve 50% penalty-free unlock, the original penalty (_amount)
         # must be divided by two and returned back to the user. This is equivalent
-        # to 50% penalty-free unlock
+        # to 50% penalty-free unlock + 50% existing mechanism penalty
 
         # min = penalty_rebate if user locked in more since RGP-31 snapshot
         # min = _amount / 2 if user has performed no actions since RGP-31 (increase lock amount or time)
