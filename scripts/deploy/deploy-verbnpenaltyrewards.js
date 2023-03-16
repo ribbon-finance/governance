@@ -37,10 +37,10 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY
       : MAIN_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY;
 
-  const rebate_addrs = readJSON().addresses
+  const rebate_addrs = readJSON().addresses;
 
   const rebates = readJSON().penaltyRebates;
-  
+
   const o_admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
@@ -49,6 +49,7 @@ async function main() {
 
   console.log("voting_escrow", voting_escrow);
   console.log("start_time", start_time.toString());
+  console.log("penalty_rebate_expiry", penalty_rebate_expiry.toString());
   console.log("token", token);
   console.log("o_admin", o_admin);
   console.log("e_admin", e_admin);
@@ -59,7 +60,7 @@ async function main() {
     token,
     penalty_rebate_expiry,
     rebate_addrs,
-    rebates
+    rebates,
     o_admin,
     e_admin
   );
@@ -74,7 +75,7 @@ async function main() {
 
   await hre.run("verify:verify", {
     address: penaltyDistributor.address,
-    constructorArguments: [voting_escrow, start_time, token, o_admin, e_admin],
+    constructorArguments: [voting_escrow, start_time, token, penalty_rebate_expiry, rebate_addrs, rebates, o_admin, e_admin],
   });
 }
 
