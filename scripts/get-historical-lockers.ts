@@ -68,7 +68,7 @@ function writeToCSV(records: Object[]){
       {id: 'penalty_ratio', title: 'Penalty Ratio'},
       {id: 'penalty_rebate', title: 'Penalty Rebate'},
       {id: 'unlock_reward_before', title: 'Unlock Reward Before'},
-      {id: 'unlock_reward_after', title: 'Penalty Reward After'},
+      {id: 'unlock_reward_after', title: 'Unlock Reward After'},
     ]
   });
 
@@ -160,12 +160,12 @@ async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filt
       csvData.push(
         {
           address: address,
-          balance: `${Math.floor((balance / MULTIPLIER)).toFixed()} RBN`,
+          balance: `${(balance / MULTIPLIER).toFixed(2)} RBN`,
           time_left: timeLeft,
           penalty_ratio: (penaltyRatio / MULTIPLIER).toFixed(2),
-          penalty_rebate: `${(parseInt(penaltyRebateToStandardform) / MULTIPLIER).toFixed()} RBN`,
-          unlock_reward_before: `${Math.floor(((balance - penalty) / MULTIPLIER)).toFixed()} RBN`,
-          unlock_reward_after: `${Math.floor(((balance - penalty + penaltyRebate) / MULTIPLIER)).toFixed()} RBN`
+          penalty_rebate: `${(parseInt(penaltyRebateToStandardform) / MULTIPLIER).toFixed(2)} RBN`,
+          unlock_reward_before: `${((balance - penalty) / MULTIPLIER).toFixed(2)} RBN`,
+          unlock_reward_after: `${((balance - penalty + penaltyRebate) / MULTIPLIER).toFixed(2)} RBN`
         }
       )
 
