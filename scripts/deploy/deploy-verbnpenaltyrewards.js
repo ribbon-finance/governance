@@ -45,7 +45,7 @@ async function main() {
   const rebates =
     network === "kovan"
       ? Array(n).fill("0");
-      : readJSON().penaltyRebates();
+      : readJSON().penaltyRebates;
 
   const o_admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;

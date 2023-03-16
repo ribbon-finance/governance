@@ -34,6 +34,9 @@ event Claimed:
     claim_epoch: uint256
     max_epoch: uint256
 
+event RebateSent:
+    recipient: indexed(addess)
+    amount: uint256
 
 struct Point:
     bias: int128
@@ -442,8 +445,10 @@ def donate(_amount: uint256) -> bool:
 
         # min = penalty_rebate if user locked in more since RGP-31 snapshot
         # min = _amount / 2 if user has performed no actions since RGP-31 (increase lock amount or time)
-        ERC20(self.token).transfer(tx.origin, min(penalty_rebate, _amount / 2))
+        rebate_amt: uint256 = min(penalty_rebate, _amount / 2)
+        ERC20(self.token).transfer(tx.origin, rebate_amt)
         self.penalty_rebate_of[tx.origin] = 0
+        log RebateSent(tx.origin, rebate_amt)
 
     if self.can_checkpoint_token and (block.timestamp > self.last_token_time + TOKEN_CHECKPOINT_DEADLINE):
         self._checkpoint_token()
