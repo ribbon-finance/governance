@@ -35,7 +35,7 @@ event Claimed:
     max_epoch: uint256
 
 event RebateSent:
-    recipient: indexed(addess)
+    recipient: indexed(address)
     amount: uint256
 
 struct Point:
