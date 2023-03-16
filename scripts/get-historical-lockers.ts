@@ -50,13 +50,15 @@ const FORK_BLOCK_NUMBER = 16699831;
 const FORK_BLOCK_TIMESTAMP = 1677261600;
 
 // This is for passing values into Penalty Escrow Contract
-const FILENAME_TXT = "addresses_penalties_rebate.txt"
+const FILENAME_JSON = "addresses_penalties_rebate.json"
 // This is for users to see difference
 const FILENAME_CSV = "addresses_penalties_rebate.csv"
 
 const VE_RBN = "0x19854C9A5fFa8116f48f984bDF946fB9CEa9B5f7"
 const MULTIPLIER = 10 ** 18
 const MAXTIME = 2 * 365 * 86400
+const VYPER_ARRAY_SIZE = 1000
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 function writeToCSV(records: Object[]){
   const csvWriter = createObjectCsvWriter({
@@ -78,19 +80,23 @@ function writeToCSV(records: Object[]){
     });
 }
 
-function writeToTXT(addresses: string[], penaltyRebates: string[]){
-  // Convert the array to a JSON string
-  const addressesJSON = JSON.stringify(addresses);
-  // Write the JSON string to a file
-  fs.writeFile(FILENAME_TXT, addressesJSON, (err) => {});
-  // Write the JSON string to a file
-  fs.writeFile(FILENAME_TXT, "\n", (err) => {});
-  // Convert the array to a JSON string
-  const penaltyRebatesJSON = JSON.stringify(penaltyRebates);
-  // Write the JSON string to a file
-  fs.appendFile(FILENAME_TXT, penaltyRebatesJSON, (err) => {});
+function writeToJSON(addresses: string[], penaltyRebates: string[]){
+  let obj = {addresses: addresses, penaltyRebates: penaltyRebates}
+  const myJSON = JSON.stringify(obj);
 
-  console.log('TXT file written successfully');
+  fs.writeFile(FILENAME_JSON, JSON.stringify(obj), (err) => {});
+
+  console.log('Json file written successfully');
+}
+
+export function readJSON(){
+  let jsonData = {}
+  fs.readFile(FILENAME_JSON, 'utf-8', (err, data) => {
+    if (err) throw err;
+    jsonData = JSON.parse(data);
+  });
+
+  return jsonData
 }
 
 /*
@@ -183,8 +189,14 @@ async function main() {
 
   await getFilteredAddressesAndPenaltyRebate(allAddresses, filteredAddresses, penaltyRebates, csvData);
 
+  // Fill to Vyper array size
+  for (let i = 0; i < VYPER_ARRAY_SIZE - filteredAddresses.length; i++) {
+    filteredAddresses.push(ZERO_ADDRESS);
+    penaltyRebates.push("0")
+  }
+
   console.log(`Total of ${filteredAddresses.length} addresses are eligible`)
-  writeToTXT(filteredAddresses, penaltyRebates);
+  writeToJSON(filteredAddresses, penaltyRebates);
   writeToCSV(csvData);
 }
 

@@ -3,6 +3,9 @@ const { MAIN_RIBBONOMICS_DIR, TEST_RIBBONOMICS_DIR } = require("../../params");
 const { ethers } = hre;
 const { BigNumber } = ethers;
 const { getTimestamp } = require("../../test/utils/time");
+import { ZERO_ADDRESS } from "../../test/utils/constants";
+
+import { readJSON } from '../get-historical-lockers.ts';
 
 async function main() {
   const [, deployer] = await hre.ethers.getSigners();
@@ -29,6 +32,21 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.TOKEN
       : MAIN_RIBBONOMICS_DIR.TOKEN;
 
+  const penalty_rebate_expiry =
+    network === "kovan"
+      ? TEST_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY
+      : MAIN_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY;
+
+  const rebate_addrs =
+    network === "kovan"
+      ? Array(n).fill(ZERO_ADDRESS);
+      : readJSON().addresses;
+
+  const rebates =
+    network === "kovan"
+      ? Array(n).fill("0");
+      : penaltyRebates().addresses;
+
   const o_admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
@@ -45,6 +63,9 @@ async function main() {
     voting_escrow,
     start_time,
     token,
+    penalty_rebate_expiry,
+    rebate_addrs,
+    rebates
     o_admin,
     e_admin
   );
