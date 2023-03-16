@@ -75,6 +75,7 @@ def __init__(
     _token: address,
     _admin: address,
     _emergency_return: address,
+    _penalty_rebate_expiry: uint256,
     _rebate_addrs: address[1000],
     _rebates: uint256[1000]
 ):
@@ -86,6 +87,7 @@ def __init__(
     @param _admin Admin address
     @param _emergency_return Address to transfer `_token` balance to
                              if this contract is killed
+    @param _penalty_rebate_expiry Timestamp when all rebates expire
     @param _rebate_addrs Addresses that receive unlock penalty rebate
     @param _rebates Rebate values
     """
@@ -98,8 +100,13 @@ def __init__(
     self.admin = _admin
     self.emergency_return = _emergency_return
     self.can_checkpoint_token = True
+    self.penalty_rebate_expiry = _penalty_rebate_expiry
 
-    self._set_penalty_rebate_of(_rebate_addrs, _rebates)
+    for i in range(1000):
+      if(_rebate_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
+      assert _rebate_addrs[i] != ZERO_ADDRESS and _rebates[i] != 0 # dev: inconsistent arrays
+      self.penalty_rebate_of[_rebate_addrs[i]] = _rebates[i]
+
 
 @internal
 def _checkpoint_token():
@@ -442,29 +449,6 @@ def donate(_amount: uint256) -> bool:
         self._checkpoint_token()
 
     return True
-
-@internal
-def _set_penalty_rebate_of(_addrs: address[1000], _rebates: uint256[1000]):
-    """
-    @notice Update penalty rebates
-    @param _addrs Array of addresses
-    @param _rebates Array of rebates
-    """
-
-    for i in range(1000):
-      if(_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
-      assert _addrs[i] != ZERO_ADDRESS and _rebates[i] != 0 # dev: inconsistent arrays
-      self.penalty_rebate_of[_addrs[i]] = _rebates[i]
-
-@external
-def set_penalty_rebate_of(_addrs: address[1000], _rebates: uint256[1000]):
-    """
-    @notice Update penalty rebates
-    @param _addrs Array of addresses
-    @param _rebates Array of rebates
-    """
-    assert msg.sender == self.admin  # dev: access denied
-    self._set_penalty_rebate_of(_addrs, _rebates)
 
 @external
 def set_penalty_rebate_expiry(_expiry: uint256):
