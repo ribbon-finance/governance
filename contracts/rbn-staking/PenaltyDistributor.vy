@@ -7,6 +7,7 @@
 
 from vyper.interfaces import ERC20
 
+
 interface VotingEscrow:
     def user_point_epoch(addr: address) -> uint256: view
     def epoch() -> uint256: view
