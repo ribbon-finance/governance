@@ -37,16 +37,10 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY
       : MAIN_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY;
 
-  const rebate_addrs =
-    network === "kovan"
-      ? Array(n).fill(ZERO_ADDRESS);
-      : readJSON().addresses;
+  const rebate_addrs = readJSON().addresses
 
-  const rebates =
-    network === "kovan"
-      ? Array(n).fill("0");
-      : readJSON().penaltyRebates;
-
+  const rebates = readJSON().penaltyRebates;
+  
   const o_admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
