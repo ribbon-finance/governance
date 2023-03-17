@@ -4,8 +4,7 @@ const { ethers } = hre;
 const { BigNumber } = ethers;
 const { getTimestamp } = require("../../test/utils/time");
 import { ZERO_ADDRESS } from "../../test/utils/constants";
-
-import { readJSON } from '../get-historical-lockers.ts';
+import { addresses, penaltyRebates } from '../addresses_penalties_rebate.json';
 
 async function main() {
   const [, deployer] = await hre.ethers.getSigners();
@@ -37,10 +36,6 @@ async function main() {
       ? TEST_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY
       : MAIN_RIBBONOMICS_DIR.PENALTY_REBATE_EXPIRY;
 
-  const rebate_addrs = readJSON().addresses;
-
-  const rebates = readJSON().penaltyRebates;
-
   const o_admin =
     network === "kovan" ? deployer.address : MAIN_RIBBONOMICS_DIR.O_ADMIN;
 
@@ -59,13 +54,27 @@ async function main() {
     start_time,
     token,
     penalty_rebate_expiry,
-    rebate_addrs,
-    rebates,
-    o_admin,
+    deployer.address,
     e_admin
   );
 
   await penaltyDistributor.deployed();
+
+  let chunk = 100
+  let addressLen = addresses.length
+  for (let i = 0; i < addressLen / chunk; i++) {
+    const startIndex = i * chunk;
+    const endIndex = startIndex + chunk;
+    const smallAddresses = addresses.slice(startIndex, endIndex);
+    const smallRebates = penaltyRebates.slice(startIndex, endIndex);
+    console.log(`Setting penalty rebate of batch ${i}`)
+    await penaltyDistributor.set_penalty_rebate_of(smallAddresses, smallRebates);
+  }
+
+  await penaltyDistributor.commit_admin(o_admin);
+  await penaltyDistributor.apply_admin();
+
+  console.log("Updated admin");
 
   console.log(
     `\nRibbon penalty distributor contract is deployed at ${penaltyDistributor.address}, verify with https://etherscan.io/proxyContractChecker?a=${penaltyDistributor.address}\n`
@@ -75,7 +84,7 @@ async function main() {
 
   await hre.run("verify:verify", {
     address: penaltyDistributor.address,
-    constructorArguments: [voting_escrow, start_time, token, penalty_rebate_expiry, rebate_addrs, rebates, o_admin, e_admin],
+    constructorArguments: [voting_escrow, start_time, token, penalty_rebate_expiry, deployer.address, e_admin],
   });
 }
 
