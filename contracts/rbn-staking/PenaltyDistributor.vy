@@ -453,9 +453,7 @@ def set_penalty_rebate_of(_addrs: address[100], _rebates: uint256[100]):
     @param _addrs Array of addresses that receive unlock penalty rebate
     @param _rebates Array of rebate values
     """
-
     assert msg.sender == self.admin  # dev: access denied
-
     for i in range(100):
       if(_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
       assert _addrs[i] != ZERO_ADDRESS and _rebates[i] != 0 # dev: inconsistent arrays
