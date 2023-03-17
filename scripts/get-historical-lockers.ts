@@ -50,9 +50,9 @@ const FORK_BLOCK_NUMBER = 16699831;
 const FORK_BLOCK_TIMESTAMP = 1677261600;
 
 // This is for passing values into Penalty Escrow Contract
-const FILENAME_JSON = "addresses_penalties_rebate.json"
+const FILENAME_JSON = "scripts/addresses_penalties_rebate.json"
 // This is for users to see difference
-const FILENAME_CSV = "addresses_penalties_rebate.csv"
+const FILENAME_CSV = "scripts/addresses_penalties_rebate.csv"
 
 const VE_RBN = "0x19854C9A5fFa8116f48f984bDF946fB9CEa9B5f7"
 const MULTIPLIER = 10 ** 18
@@ -80,23 +80,13 @@ function writeToCSV(records: Object[]){
     });
 }
 
-function writeToJSON(addresses: string[], penaltyRebates: string[]){
+function writeToJSON(addresses: string[], penaltyRebates: number[]){
   let obj = {addresses: addresses, penaltyRebates: penaltyRebates}
   const myJSON = JSON.stringify(obj);
 
   fs.writeFile(FILENAME_JSON, JSON.stringify(obj), (err) => {});
 
   console.log('Json file written successfully');
-}
-
-export function readJSON(){
-  let jsonData = {}
-  fs.readFile(FILENAME_JSON, 'utf-8', (err, data) => {
-    if (err) throw err;
-    jsonData = JSON.parse(data);
-  });
-
-  return jsonData
 }
 
 /*
@@ -114,7 +104,7 @@ async function getAllHistoricalLockers() {
 }
 
 // Filters addresses, calculates penalty rebate
-async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filteredAddresses: string[], penaltyRebates: string[], csvData: Object[]){
+async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filteredAddresses: string[], penaltyRebates: number[], csvData: Object[]){
 
     // Reset to relevant block
     await hre.network.provider.request({
@@ -158,20 +148,22 @@ async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filt
 
       // Calculate rebate for equivalent of 50% unlock penalty-free (SEE METHODOLOGY)
       const penaltyRebate = (penalty / 2)
+
+      filteredAddresses.push(address)
+      penaltyRebates.push(penalty)
+
       // Scale to string (no scientific notation)
       let penaltyRebateToStandardform = penaltyRebate.toLocaleString('fullwide', {useGrouping:false})
 
-      filteredAddresses.push(address)
-      penaltyRebates.push(penaltyRebateToStandardform)
       csvData.push(
         {
           address: address,
-          balance: `${(balance / MULTIPLIER).toFixed(2)} RBN`,
+          balance: `${(balance / MULTIPLIER).toFixed(6)} RBN`,
           time_left: timeLeft,
-          penalty_ratio: (penaltyRatio / MULTIPLIER).toFixed(2),
-          penalty_rebate: `${(parseInt(penaltyRebateToStandardform) / MULTIPLIER).toFixed(2)} RBN`,
-          unlock_reward_before: `${((balance - penalty) / MULTIPLIER).toFixed(2)} RBN`,
-          unlock_reward_after: `${((balance - penalty + penaltyRebate) / MULTIPLIER).toFixed(2)} RBN`
+          penalty_ratio: (penaltyRatio / MULTIPLIER).toFixed(6),
+          penalty_rebate: `${(parseInt(penaltyRebateToStandardform) / MULTIPLIER).toFixed(6)} RBN`,
+          unlock_reward_before: `${((balance - penalty) / MULTIPLIER).toFixed(6)} RBN`,
+          unlock_reward_after: `${((balance - penalty + penaltyRebate) / MULTIPLIER).toFixed(6)} RBN`
         }
       )
 
@@ -183,7 +175,7 @@ async function main() {
   const allAddresses = await getAllHistoricalLockers();
 
   let filteredAddresses: string[] = []
-  let penaltyRebates: string[] = []
+  let penaltyRebates: number[] = []
 
   let csvData: Object[] = []
 
@@ -192,7 +184,7 @@ async function main() {
   // Fill to Vyper array size
   for (let i = 0; i < VYPER_ARRAY_SIZE - filteredAddresses.length; i++) {
     filteredAddresses.push(ZERO_ADDRESS);
-    penaltyRebates.push("0")
+    penaltyRebates.push(0)
   }
 
   console.log(`Total of ${filteredAddresses.length} addresses are eligible`)
