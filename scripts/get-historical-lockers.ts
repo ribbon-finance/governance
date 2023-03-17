@@ -57,7 +57,6 @@ const FILENAME_CSV = "scripts/addresses_penalties_rebate.csv"
 const VE_RBN = "0x19854C9A5fFa8116f48f984bDF946fB9CEa9B5f7"
 const MULTIPLIER = 10 ** 18
 const MAXTIME = 2 * 365 * 86400
-const VYPER_ARRAY_SIZE = 1000
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 function writeToCSV(records: Object[]){
@@ -80,7 +79,7 @@ function writeToCSV(records: Object[]){
     });
 }
 
-function writeToJSON(addresses: string[], penaltyRebates: number[]){
+function writeToJSON(addresses: string[], penaltyRebates: string[]){
   let obj = {addresses: addresses, penaltyRebates: penaltyRebates}
   const myJSON = JSON.stringify(obj);
 
@@ -104,7 +103,7 @@ async function getAllHistoricalLockers() {
 }
 
 // Filters addresses, calculates penalty rebate
-async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filteredAddresses: string[], penaltyRebates: number[], csvData: Object[]){
+async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filteredAddresses: string[], penaltyRebates: string[], csvData: Object[]){
 
     // Reset to relevant block
     await hre.network.provider.request({
@@ -148,12 +147,11 @@ async function getFilteredAddressesAndPenaltyRebate(allAddresses: string[], filt
 
       // Calculate rebate for equivalent of 50% unlock penalty-free (SEE METHODOLOGY)
       const penaltyRebate = (penalty / 2)
-
-      filteredAddresses.push(address)
-      penaltyRebates.push(penalty)
-
       // Scale to string (no scientific notation)
       let penaltyRebateToStandardform = penaltyRebate.toLocaleString('fullwide', {useGrouping:false})
+
+      filteredAddresses.push(address)
+      penaltyRebates.push(penaltyRebateToStandardform)
 
       csvData.push(
         {
@@ -175,7 +173,7 @@ async function main() {
   const allAddresses = await getAllHistoricalLockers();
 
   let filteredAddresses: string[] = []
-  let penaltyRebates: number[] = []
+  let penaltyRebates: string[] = []
 
   let csvData: Object[] = []
 
@@ -184,9 +182,9 @@ async function main() {
   let filteredAddressesLen = filteredAddresses.length
 
   // Fill to Vyper array size
-  for (let i = 0; i < VYPER_ARRAY_SIZE - filteredAddressesLen; i++) {
+  for (let i = 0; i < Math.ceil(filteredAddressesLen/100)*100 - filteredAddressesLen; i++) {
     filteredAddresses.push(ZERO_ADDRESS);
-    penaltyRebates.push(0)
+    penaltyRebates.push("0")
   }
 
   console.log(`Total of ${filteredAddresses.length} addresses are eligible`)
