@@ -34,6 +34,9 @@ event Claimed:
     claim_epoch: uint256
     max_epoch: uint256
 
+event RebateSent:
+    recipient: indexed(address)
+    amount: uint256
 
 struct Point:
     bias: int128
@@ -66,12 +69,15 @@ can_checkpoint_token: public(bool)
 emergency_return: public(address)
 is_killed: public(bool)
 
+penalty_rebate_of: public(HashMap[address, uint256])
+penalty_rebate_expiry: public(uint256)
 
 @external
 def __init__(
     _voting_escrow: address,
     _start_time: uint256,
     _token: address,
+    _penalty_rebate_expiry: uint256,
     _admin: address,
     _emergency_return: address
 ):
@@ -80,6 +86,7 @@ def __init__(
     @param _voting_escrow VotingEscrow contract address
     @param _start_time Epoch time for fee distribution to start
     @param _token Fee token address (RBN)
+    @param _penalty_rebate_expiry Timestamp when all rebates expire
     @param _admin Admin address
     @param _emergency_return Address to transfer `_token` balance to
                              if this contract is killed
@@ -90,6 +97,7 @@ def __init__(
     self.time_cursor = t
     self.token = _token
     self.voting_escrow = _voting_escrow
+    self.penalty_rebate_expiry = _penalty_rebate_expiry
     self.admin = _admin
     self.emergency_return = _emergency_return
     self.can_checkpoint_token = True
@@ -415,14 +423,50 @@ def donate(_amount: uint256) -> bool:
     @return bool success
     """
     assert _amount != 0
+    assert msg.sender == self.voting_escrow #dev: must be voting escrow
 
     ERC20(self.token).transferFrom(msg.sender, self, _amount)
+
+    penalty_rebate: uint256 = self.penalty_rebate_of[tx.origin]
+    if(block.timestamp < self.penalty_rebate_expiry and penalty_rebate > 0):
+        # Penalty rebate is how much we need to give back to the user
+        # To achieve 50% penalty-free unlock, the original penalty (_amount)
+        # must be divided by two and returned back to the user. This is equivalent
+        # to 50% penalty-free unlock + 50% existing mechanism penalty
+
+        # min = penalty_rebate if user locked in more since RGP-31 snapshot
+        # min = _amount / 2 if user has performed no actions since RGP-31 (increase lock amount or time)
+        rebate_amt: uint256 = min(penalty_rebate, _amount / 2)
+        ERC20(self.token).transfer(tx.origin, rebate_amt)
+        self.penalty_rebate_of[tx.origin] = 0
+        log RebateSent(tx.origin, rebate_amt)
 
     if self.can_checkpoint_token and (block.timestamp > self.last_token_time + TOKEN_CHECKPOINT_DEADLINE):
         self._checkpoint_token()
 
     return True
 
+@external
+def set_penalty_rebate_of(_addrs: address[100], _rebates: uint256[100]):
+    """
+    @notice Update penalty rebates
+    @param _addrs Array of addresses that receive unlock penalty rebate
+    @param _rebates Array of rebate values
+    """
+    assert msg.sender == self.admin  # dev: access denied
+    for i in range(100):
+      if(_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
+      assert _addrs[i] != ZERO_ADDRESS and _rebates[i] != 0 # dev: inconsistent arrays
+      self.penalty_rebate_of[_addrs[i]] = _rebates[i]
+
+@external
+def set_penalty_rebate_expiry(_expiry: uint256):
+    """
+    @notice Update expiry of penalty rebate
+    @param _expiry New expiry
+    """
+    assert msg.sender == self.admin  # dev: access denied
+    self.penalty_rebate_expiry = _expiry
 
 @external
 def commit_admin(_addr: address):
