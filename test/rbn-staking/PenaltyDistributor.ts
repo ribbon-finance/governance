@@ -65,12 +65,12 @@ describe("Fee Distributor", () => {
     let rebateAddrsLen = rebateAddrs.length;
 
     // Pad array to 1000
-    for (let i = 0; i < 1000 - rebateAddrsLen; i++) {
+    for (let i = 0; i < 100 - rebateAddrsLen; i++) {
       rebateAddrs.push(ZERO_ADDRESS);
     }
 
     // Pad array to 1000
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 100; i++) {
       if(i < rebateAddrsLen){
         await rebates.push(rebateAddrsLen == rebateAddrsLen - 1 ? simpleToExactAmount(1000, DEFAULT_DECIMALS).mul(10) : simpleToExactAmount(1000, DEFAULT_DECIMALS))
         await mta.connect(sa.fundManager.signer).setBalance(rebateAddrs[i], simpleToExactAmount(1000, DEFAULT_DECIMALS))
@@ -85,13 +85,13 @@ describe("Fee Distributor", () => {
       start,
       mta.address,
       penaltyRebateExpiry,
-      rebateAddrs,
-      rebates,
       sa.fundManager.address,
       sa.fundManager.address
     );
 
     await penaltyDistributor.deployed();
+
+    await penaltyDistributor.connect(sa.fundManager.signer).set_penalty_rebate_of(rebateAddrs, rebates)
 
     // Set reward pool for penalty distributor
     await votingLockup.connect(sa.fundManager.signer).set_reward_pool(penaltyDistributor.address);

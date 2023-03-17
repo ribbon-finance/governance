@@ -78,8 +78,6 @@ def __init__(
     _start_time: uint256,
     _token: address,
     _penalty_rebate_expiry: uint256,
-    _rebate_addrs: address[1000],
-    _rebates: uint256[1000],
     _admin: address,
     _emergency_return: address
 ):
@@ -89,8 +87,6 @@ def __init__(
     @param _start_time Epoch time for fee distribution to start
     @param _token Fee token address (RBN)
     @param _penalty_rebate_expiry Timestamp when all rebates expire
-    @param _rebate_addrs Addresses that receive unlock penalty rebate
-    @param _rebates Rebate values
     @param _admin Admin address
     @param _emergency_return Address to transfer `_token` balance to
                              if this contract is killed
@@ -105,12 +101,6 @@ def __init__(
     self.admin = _admin
     self.emergency_return = _emergency_return
     self.can_checkpoint_token = True
-
-    for i in range(1000):
-      if(_rebate_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
-      assert _rebate_addrs[i] != ZERO_ADDRESS and _rebates[i] != 0 # dev: inconsistent arrays
-      self.penalty_rebate_of[_rebate_addrs[i]] = _rebates[i]
-
 
 @internal
 def _checkpoint_token():
@@ -433,7 +423,7 @@ def donate(_amount: uint256) -> bool:
     @return bool success
     """
     assert _amount != 0
-    assert msg.sender == self.voting_escrow #dev: must be voting escrow 
+    assert msg.sender == self.voting_escrow #dev: must be voting escrow
 
     ERC20(self.token).transferFrom(msg.sender, self, _amount)
 
@@ -455,6 +445,21 @@ def donate(_amount: uint256) -> bool:
         self._checkpoint_token()
 
     return True
+
+@external
+def set_penalty_rebate_of(_addrs: address[100], _rebates: uint256[100]):
+    """
+    @notice Update penalty rebates
+    @param _addrs Array of addresses that receive unlock penalty rebate
+    @param _rebates Array of rebate values
+    """
+
+    assert msg.sender == self.admin  # dev: access denied
+
+    for i in range(100):
+      if(_addrs[i] == ZERO_ADDRESS and _rebates[i] == 0): break
+      assert _addrs[i] != ZERO_ADDRESS and _rebates[i] != 0 # dev: inconsistent arrays
+      self.penalty_rebate_of[_addrs[i]] = _rebates[i]
 
 @external
 def set_penalty_rebate_expiry(_expiry: uint256):
