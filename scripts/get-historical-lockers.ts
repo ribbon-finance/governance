@@ -181,8 +181,10 @@ async function main() {
 
   await getFilteredAddressesAndPenaltyRebate(allAddresses, filteredAddresses, penaltyRebates, csvData);
 
+  let filteredAddressesLen = filteredAddresses.length
+
   // Fill to Vyper array size
-  for (let i = 0; i < VYPER_ARRAY_SIZE - filteredAddresses.length; i++) {
+  for (let i = 0; i < VYPER_ARRAY_SIZE - filteredAddressesLen; i++) {
     filteredAddresses.push(ZERO_ADDRESS);
     penaltyRebates.push(0)
   }
